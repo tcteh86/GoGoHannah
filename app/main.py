@@ -309,20 +309,24 @@ elif practice_mode == "Comprehension Practice":
         ex = st.session_state.comp_ex
         st.subheader(f"📚 {ex['story_title']}")
         
-        # Display image if available
-        if 'story_image' in st.session_state and st.session_state.story_image:
-            st.image(st.session_state.story_image, caption="Story Illustration", use_container_width=True)
+        # Create container for image to prevent re-rendering during audio playback
+        image_container = st.container()
+        with image_container:
+            # Display image if available
+            if 'story_image' in st.session_state and st.session_state.story_image:
+                st.image(st.session_state.story_image, caption="Story Illustration", use_container_width=True)
         
         # Story text
         st.write(ex['story_text'])
         
-        # Read Aloud Button
-        if st.button("🔊 Read Story Aloud"):
+        # Read Aloud Button - use key to prevent re-rendering
+        if st.button("🔊 Read Story Aloud", key="read_aloud_button"):
             st.session_state.story_tts_played = True
-            tts = gTTS(text=ex['story_text'], lang='en', slow=False)
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-                tts.save(tmp_file.name)
-                st.audio(tmp_file.name, format='audio/mp3')
+            with st.spinner("🎵 Generating audio..."):
+                tts = gTTS(text=ex['story_text'], lang='en', slow=False)
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
+                    tts.save(tmp_file.name)
+                    st.audio(tmp_file.name, format='audio/mp3', autoplay=False)
         
         # Questions
         st.header("❓ Comprehension Questions")
