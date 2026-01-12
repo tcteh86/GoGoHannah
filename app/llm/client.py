@@ -12,19 +12,33 @@ from .prompts import SYSTEM_PROMPT, build_task_prompt
 # Load environment variables
 load_dotenv()
 
-# Configure OpenAI - check both .env and Streamlit secrets
-API_KEY = os.getenv("OPENAI_API_KEY")
-if not API_KEY:
+# Configure OpenAI - lazy loading of API key
+def get_api_key():
+    """Get OpenAI API key from environment or Streamlit secrets."""
+    # First try environment variable (for local development)
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        return api_key
+    
+    # Then try Streamlit secrets (for cloud deployment)
     try:
         import streamlit as st
-        API_KEY = st.secrets.get("OPENAI_API_KEY")
+        api_key = st.secrets.get("OPENAI_API_KEY")
+        if api_key:
+            return api_key
     except:
         pass
-
-if not API_KEY:
+    
     raise ValueError("OPENAI_API_KEY not found in environment variables or Streamlit secrets.")
 
-client = OpenAI(api_key=API_KEY)
+# Initialize client lazily
+_client = None
+def get_client():
+    global _client
+    if _client is None:
+        api_key = get_api_key()
+        _client = OpenAI(api_key=api_key)
+    return _client
 
 # Use GPT-4o Mini for cost-effectiveness
 MODEL_NAME = "gpt-4o-mini"
@@ -47,7 +61,7 @@ def generate_vocab_exercise(word: str) -> Dict[str, Any]:
     """
     try:
         prompt = SYSTEM_PROMPT + "\n\n" + build_task_prompt(word)
-        response = client.chat.completions.create(
+        response = get_client().chat.completions.create(
             model=MODEL_NAME,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
