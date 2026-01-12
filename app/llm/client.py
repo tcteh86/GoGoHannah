@@ -12,10 +12,17 @@ from .prompts import SYSTEM_PROMPT, build_task_prompt
 # Load environment variables
 load_dotenv()
 
-# Configure OpenAI
+# Configure OpenAI - check both .env and Streamlit secrets
 API_KEY = os.getenv("OPENAI_API_KEY")
 if not API_KEY:
-    raise ValueError("OPENAI_API_KEY not found in environment variables.")
+    try:
+        import streamlit as st
+        API_KEY = st.secrets.get("OPENAI_API_KEY")
+    except:
+        pass
+
+if not API_KEY:
+    raise ValueError("OPENAI_API_KEY not found in environment variables or Streamlit secrets.")
 
 client = OpenAI(api_key=API_KEY)
 
