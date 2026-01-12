@@ -189,5 +189,18 @@ def get_practiced_words_wheel(child_id: int) -> List[Dict]:
     conn.close()
     return practiced_words
 
+def clear_child_records(child_id: int):
+    """Clear all exercise records for a child."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Delete all exercises for this child
+    cursor.execute('DELETE FROM exercises WHERE child_id = ?', (child_id,))
+    # Delete the child record
+    cursor.execute('DELETE FROM children WHERE id = ?', (child_id,))
+    
+    conn.commit()
+    conn.close()
+
 # Initialize DB on import
 init_db()

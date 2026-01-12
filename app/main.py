@@ -9,7 +9,7 @@ from vocab.loader import load_default_vocab, load_vocab_from_csv
 from core.exercise import simple_exercise
 from core.safety import sanitize_word
 from core.scoring import check_answer, calculate_pronunciation_score
-from core.progress import get_or_create_child, save_exercise, get_child_progress, get_recommended_words, get_practiced_words_wheel
+from core.progress import get_or_create_child, save_exercise, get_child_progress, get_recommended_words, get_practiced_words_wheel, clear_child_records
 from llm.client import generate_vocab_exercise, LLMUnavailable, transcribe_audio, generate_comprehension_exercise, generate_story_image
 
 st.set_page_config(page_title="GoGoHannah", page_icon="📚")
@@ -102,14 +102,7 @@ if practice_mode == "Vocabulary Practice":
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("❌ Yes, Delete Everything", key="confirm_delete"):
-                    # Delete all records for this child
-                    import sqlite3
-                    conn = sqlite3.connect('app/progress.db')
-                    cursor = conn.cursor()
-                    cursor.execute('DELETE FROM exercises WHERE child_id = ?', (child_id,))
-                    cursor.execute('DELETE FROM children WHERE id = ?', (child_id,))
-                    conn.commit()
-                    conn.close()
+                    clear_child_records(child_id)
                     st.success("✅ All records cleared! Please refresh the page.")
                     st.rerun()
             with col2:
@@ -261,8 +254,8 @@ if practice_mode == "Vocabulary Practice":
                         if user_text:
                             score = calculate_pronunciation_score(user_text, word)
                             st.write(f"**Score: {score}/100**")
-                        correct = score >= 80
-                        save_exercise(child_id, word, "pronunciation", score, correct)
+                            correct = score >= 80
+                            save_exercise(child_id, word, "pronunciation", score, correct)
 
 elif practice_mode == "Comprehension Practice":
     st.header("📖 Comprehension Practice")

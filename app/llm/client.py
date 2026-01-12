@@ -155,7 +155,7 @@ Return JSON with:
   ]
 }}"""
 
-        response = client.chat.completions.create(
+        response = get_client().chat.completions.create(
             model=MODEL_NAME,
             messages=[
                 {"role": "system", "content": "You are a creative children's book author. Generate engaging, educational storybooks with vivid descriptions."},
@@ -197,7 +197,7 @@ def transcribe_audio(audio_bytes: bytes) -> str:
         audio_file = BytesIO(audio_bytes)
         audio_file.name = "audio.wav"  # Required for OpenAI API
 
-        transcript = client.audio.transcriptions.create(
+        transcript = get_client().audio.transcriptions.create(
             model="whisper-1",
             file=audio_file,
             response_format="text"
@@ -210,7 +210,7 @@ def transcribe_audio(audio_bytes: bytes) -> str:
 def generate_story_image(description: str) -> str:
     """Generate an image for a story scene using OpenAI DALL-E."""
     try:
-        response = client.images.generate(
+        response = get_client().images.generate(
             model="dall-e-3",
             prompt=f"Create a colorful, child-friendly illustration for a children's story: {description}. Style: cartoon, bright colors, suitable for ages 5-9.",
             size="1024x1024",
