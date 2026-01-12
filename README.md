@@ -10,12 +10,18 @@ This repository contains a working **Streamlit MVP** that:
 ## Features (MVP)
 - Default primary-level vocabulary list
 - Optional vocabulary via CSV upload (must contain a `word` column)
-- Practice output: definition + example + multiple-choice quiz
+- Practice output: AI-generated definition + example sentence + multiple-choice quiz
+- Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
+- Progress tracking with personalized recommendations and detailed analytics
+- Practiced words wheel visualization with performance indicators
+- Smart word recommendation system (prioritizes weak words, avoids over-practice)
+- Record management with secure deletion
 - Clean project boundaries: UI vs core logic vs LLM wrapper
 
 ## Tech Stack
 - Python
 - Streamlit
+- OpenAI GPT (for AI generation)
 
 ## Quickstart (Local)
 
@@ -33,7 +39,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3) Run the app
+### 3) Set up environment
+Copy `.env` and add your OpenAI API key:
+```
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+### 4) Run the app
 ```bash
 streamlit run app/main.py
 ```
@@ -49,8 +61,12 @@ gentle
 ```
 
 ## Roadmap
-- Add Gemini integration for AI-generated definition/example/quiz (JSON-only output)
-- Add progress tracking (local file or SQLite)
+- ✅ Add OpenAI integration for AI-generated definition/example/quiz (JSON-only output)
+- ✅ Add pronunciation practice with TTS and audio recording/scoring
+- ✅ Add progress tracking with personalized recommendations
+- ✅ Add record management with secure deletion
+- ✅ Add practiced words wheel and smart recommendation system
+- ✅ Add automatic pronunciation checking on recording stop
 - Add more guardrails + output validation
 - Add tests for parsing/validation
 
