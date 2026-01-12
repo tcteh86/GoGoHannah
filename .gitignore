@@ -1,0 +1,16 @@
+# python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.env
+
+# streamlit
+.streamlit/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,10 @@
+name: gogohannah
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - streamlit>=1.32
+      - pandas>=2.0
+      - python-dotenv>=1.0
