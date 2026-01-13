@@ -341,23 +341,33 @@ elif practice_mode == "Comprehension Practice":
         if st.button("🔊 Read Story Aloud", key="read_aloud_button"):
             st.session_state.story_tts_played = True
             
-            # Check if audio is already generated
-            if st.session_state.get('audio_file_path') and os.path.exists(st.session_state.audio_file_path):
-                # Audio already exists, just play it
-                audio_key = f"story_audio_{st.session_state.audio_generated_time}"
-                st.audio(st.session_state.audio_file_path, format='audio/mp3', autoplay=False, key=audio_key)
-                st.info("🎵 Audio ready! Click play above to listen.")
-            else:
+            # Check if audio is already generated and file exists
+            audio_path = st.session_state.get('audio_file_path')
+            if audio_path and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                try:
+                    # Audio already exists, just play it
+                    audio_key = f"story_audio_{st.session_state.audio_generated_time}"
+                    st.audio(audio_path, format='audio/mp3', autoplay=False, key=audio_key)
+                    st.info("🎵 Audio ready! Click play above to listen.")
+                except Exception as e:
+                    st.warning(f"Audio file issue: {str(e)}. Regenerating...")
+                    # Fall through to generate new audio
+                    audio_path = None
+            
+            if not audio_path or not os.path.exists(audio_path):
                 # Generate audio on demand
                 st.session_state.audio_generated_time = datetime.now().timestamp()  # Force unique audio key
                 with st.spinner("🎵 Generating audio..."):
-                    tts = gTTS(text=ex['story_text'], lang='en', slow=False)
-                    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-                        tts.save(tmp_file.name)
-                        st.session_state.audio_file_path = tmp_file.name
-                        # Display audio immediately with unique key to prevent caching
-                        audio_key = f"story_audio_{st.session_state.audio_generated_time}"
-                        st.audio(tmp_file.name, format='audio/mp3', autoplay=False, key=audio_key)
+                    try:
+                        tts = gTTS(text=ex['story_text'], lang='en', slow=False)
+                        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
+                            tts.save(tmp_file.name)
+                            st.session_state.audio_file_path = tmp_file.name
+                            # Display audio immediately with unique key to prevent caching
+                            audio_key = f"story_audio_{st.session_state.audio_generated_time}"
+                            st.audio(tmp_file.name, format='audio/mp3', autoplay=False, key=audio_key)
+                    except Exception as e:
+                        st.error(f"Failed to generate audio: {str(e)}")
         
         # Questions
         st.header("❓ Comprehension Questions")
