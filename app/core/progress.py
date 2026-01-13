@@ -91,7 +91,7 @@ def get_child_progress(child_id: int) -> Dict:
             GROUP BY word
             ORDER BY AVG(score) ASC
         ''', (child_id,))
-        weak_words = [{'word': row[0], 'avg_score': row[1], 'attempts': row[2]} for row in cursor.fetchall()}
+        weak_words = [{'word': row[0], 'avg_score': row[1], 'attempts': row[2]} for row in cursor.fetchall()]
 
     return {
         'total_exercises': total_exercises,
