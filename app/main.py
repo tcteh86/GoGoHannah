@@ -3,7 +3,6 @@ from gtts import gTTS
 import os
 import tempfile
 import base64
-from datetime import datetime
 from streamlit_mic_recorder import mic_recorder
 
 from vocab.loader import load_default_vocab, load_vocab_from_csv
@@ -17,6 +16,18 @@ st.set_page_config(page_title="GoGoHannah", page_icon="📚")
 
 st.title("📚 GoGoHannah")
 st.caption("AI-based English vocabulary and comprehension practice for young learners (5–9).")
+
+
+def generate_tts_bytes(text: str) -> bytes:
+    """Generate TTS audio bytes for a given text."""
+    tts = gTTS(text=text, lang="en", slow=False)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
+        tts.save(tmp_file.name)
+        temp_path = tmp_file.name
+    with open(temp_path, "rb") as audio_file:
+        audio_bytes = audio_file.read()
+    os.unlink(temp_path)
+    return audio_bytes
 
 # Practice Mode Selection
 practice_mode = st.radio("Choose Practice Mode:", ["Vocabulary Practice", "Comprehension Practice"], horizontal=True)
@@ -183,24 +194,20 @@ if practice_mode == "Vocabulary Practice":
         # Generate and play audio automatically when section loads (only once per word)
         if st.session_state.practice_started and not st.session_state.tts_played:
             st.session_state.tts_played = True
-            tts = gTTS(text=word, lang='en', slow=False)
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-                tts.save(tmp_file.name)
-                # Auto-play using HTML
-                audio_html = f"""
-                <audio autoplay>
-                    <source src="data:audio/mp3;base64,{base64.b64encode(open(tmp_file.name, 'rb').read()).decode()}" type="audio/mp3">
-                </audio>
-                """
-                st.markdown(audio_html, unsafe_allow_html=True)
-                st.audio(tmp_file.name, format='audio/mp3')  # Also show player for manual replay
+            audio_bytes = generate_tts_bytes(word)
+            # Auto-play using HTML
+            audio_html = f"""
+            <audio autoplay>
+                <source src="data:audio/mp3;base64,{base64.b64encode(audio_bytes).decode()}" type="audio/mp3">
+            </audio>
+            """
+            st.markdown(audio_html, unsafe_allow_html=True)
+            st.audio(audio_bytes, format='audio/mp3')  # Also show player for manual replay
 
         # Manual replay button
         if st.button("🔊 Play Word Again", key="replay_word"):
-            tts = gTTS(text=word, lang='en', slow=False)
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-                tts.save(tmp_file.name)
-                st.audio(tmp_file.name, format='audio/mp3')
+            audio_bytes = generate_tts_bytes(word)
+            st.audio(audio_bytes, format='audio/mp3')
 
         # Audio recording
         st.write("Click the microphone to record your pronunciation:")
@@ -215,48 +222,48 @@ if practice_mode == "Vocabulary Practice":
             st.session_state.last_audio_bytes = audio['bytes']
             st.session_state.audio_processed = True
             with st.spinner("🎤 Processing your pronunciation..."):
-                    try:
-                        # Transcribe audio
-                        transcription = transcribe_audio(audio['bytes'])
-                        st.write(f"**You said:** {transcription}")
-                
-                        # Calculate score
-                        score = calculate_pronunciation_score(transcription, word)
-                
-                        # Score Card
-                        st.subheader("📊 Pronunciation Score Card")
-                        col1, col2, col3 = st.columns([1, 2, 1])
-                        with col1:
-                            st.metric("Score", f"{score}/100")
-                        with col2:
-                            if score >= 90:
-                                st.success("🎉 Excellent! Perfect pronunciation!")
-                            elif score >= 80:
-                                st.info("👍 Great job! Almost perfect.")
-                            elif score >= 70:
-                                st.warning("🙂 Good! Keep practicing.")
-                            else:
-                                st.error("💪 Keep trying! Practice makes perfect.")
-                        with col3:
-                            st.metric("Accuracy", f"{score}%")
-                
-                        # Replay recorded audio
-                        st.subheader("🔊 Your Recording")
-                        st.audio(audio['bytes'], format='audio/wav')
-                
-                        # Save pronunciation result
+                try:
+                    # Transcribe audio
+                    transcription = transcribe_audio(audio['bytes'])
+                    st.write(f"**You said:** {transcription}")
+            
+                    # Calculate score
+                    score = calculate_pronunciation_score(transcription, word)
+            
+                    # Score Card
+                    st.subheader("📊 Pronunciation Score Card")
+                    col1, col2, col3 = st.columns([1, 2, 1])
+                    with col1:
+                        st.metric("Score", f"{score}/100")
+                    with col2:
+                        if score >= 90:
+                            st.success("🎉 Excellent! Perfect pronunciation!")
+                        elif score >= 80:
+                            st.info("👍 Great job! Almost perfect.")
+                        elif score >= 70:
+                            st.warning("🙂 Good! Keep practicing.")
+                        else:
+                            st.error("💪 Keep trying! Practice makes perfect.")
+                    with col3:
+                        st.metric("Accuracy", f"{score}%")
+            
+                    # Replay recorded audio
+                    st.subheader("🔊 Your Recording")
+                    st.audio(audio['bytes'], format='audio/wav')
+            
+                    # Save pronunciation result
+                    correct = score >= 80
+                    save_exercise(child_id, word, "pronunciation", score, correct)
+            
+                except LLMUnavailable as e:
+                    st.error(f"Could not process audio: {str(e)}")
+                    st.info("Try typing your pronunciation instead:")
+                    user_text = st.text_input("Type what you said:")
+                    if user_text:
+                        score = calculate_pronunciation_score(user_text, word)
+                        st.write(f"**Score: {score}/100**")
                         correct = score >= 80
                         save_exercise(child_id, word, "pronunciation", score, correct)
-                
-                    except LLMUnavailable as e:
-                        st.error(f"Could not process audio: {str(e)}")
-                        st.info("Try typing your pronunciation instead:")
-                        user_text = st.text_input("Type what you said:")
-                        if user_text:
-                            score = calculate_pronunciation_score(user_text, word)
-                            st.write(f"**Score: {score}/100**")
-                            correct = score >= 80
-                            save_exercise(child_id, word, "pronunciation", score, correct)
 
 elif practice_mode == "Comprehension Practice":
     st.header("📖 Comprehension Practice")
@@ -281,11 +288,11 @@ elif practice_mode == "Comprehension Practice":
     if "story_tts_played" not in st.session_state:
         st.session_state.story_tts_played = False
     if "questions_answered" not in st.session_state:
-        st.session_state.questions_answered = []
-    if "audio_generated_time" not in st.session_state:
-        st.session_state.audio_generated_time = None
-    if "audio_file_path" not in st.session_state:
-        st.session_state.audio_file_path = None
+        st.session_state.questions_answered = {}
+    if "comp_scores" not in st.session_state:
+        st.session_state.comp_scores = {}
+    if "story_audio_bytes" not in st.session_state:
+        st.session_state.story_audio_bytes = None
 
     if st.button("Generate New Story"):
         with st.spinner("🪄 Creating your magical story..."):
@@ -294,9 +301,9 @@ elif practice_mode == "Comprehension Practice":
                 st.session_state.comp_ex = ex
                 st.session_state.comp_started = True
                 st.session_state.story_tts_played = False
-                st.session_state.questions_answered = []
-                st.session_state.audio_generated_time = None
-                st.session_state.audio_file_path = None
+                st.session_state.questions_answered = {}
+                st.session_state.comp_scores = {}
+                st.session_state.story_audio_bytes = None
                 
                 # Generate image with progress
                 with st.spinner("🎨 Painting the story illustration..."):
@@ -310,11 +317,7 @@ elif practice_mode == "Comprehension Practice":
                 # Generate audio in background
                 with st.spinner("🎵 Preparing story audio..."):
                     try:
-                        tts = gTTS(text=ex['story_text'], lang='en', slow=False)
-                        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-                            tts.save(tmp_file.name)
-                            st.session_state.audio_file_path = tmp_file.name
-                            st.session_state.audio_generated_time = datetime.now().timestamp()
+                        st.session_state.story_audio_bytes = generate_tts_bytes(ex['story_text'])
                     except Exception as e:
                         st.warning(f"Audio preparation failed: {str(e)}. You can still read aloud manually.")
                 
@@ -342,34 +345,21 @@ elif practice_mode == "Comprehension Practice":
             st.session_state.story_tts_played = True
             
             # Check if audio is already generated and file exists
-            audio_path = st.session_state.get('audio_file_path')
-            if audio_path and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
-                try:
-                    # Audio already exists, just play it
-                    st.audio(audio_path, format='audio/mp3', autoplay=False)
-                    st.info("🎵 Audio ready! Click play above to listen.")
-                except Exception as e:
-                    st.warning(f"Audio file issue: {str(e)}. Regenerating...")
-                    # Fall through to generate new audio
-                    audio_path = None
-            
-            if not audio_path or not os.path.exists(audio_path):
+            audio_bytes = st.session_state.get('story_audio_bytes')
+            if audio_bytes:
+                st.audio(audio_bytes, format='audio/mp3', autoplay=False)
+                st.info("🎵 Audio ready! Click play above to listen.")
+            else:
                 # Generate audio on demand
-                st.session_state.audio_generated_time = datetime.now().timestamp()  # Force unique audio key
                 with st.spinner("🎵 Generating audio..."):
                     try:
-                        tts = gTTS(text=ex['story_text'], lang='en', slow=False)
-                        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-                            tts.save(tmp_file.name)
-                            st.session_state.audio_file_path = tmp_file.name
-                            # Display audio immediately
-                            st.audio(tmp_file.name, format='audio/mp3', autoplay=False)
+                        st.session_state.story_audio_bytes = generate_tts_bytes(ex['story_text'])
+                        st.audio(st.session_state.story_audio_bytes, format='audio/mp3', autoplay=False)
                     except Exception as e:
                         st.error(f"Failed to generate audio: {str(e)}")
         
         # Questions
         st.header("❓ Comprehension Questions")
-        total_score = 0
         for i, q in enumerate(ex['questions']):
             st.subheader(f"Question {i+1}")
             st.write(q['question'])
@@ -385,15 +375,19 @@ elif practice_mode == "Comprehension Practice":
                 correct = choice == q['answer']
                 if correct:
                     st.success("Correct! 🎉")
-                    total_score += 1
+                    st.session_state.comp_scores[i] = 1
                 else:
                     st.warning(f"Not quite. Correct answer is {q['answer']}: {q['choices'][q['answer']]}")
+                    st.session_state.comp_scores[i] = 0
+                
+                st.session_state.questions_answered[i] = True
                 
                 # Save result
                 save_exercise(child_id, f"comp_q{i+1}", "comprehension", 100 if correct else 0, correct)
         
-        if total_score == 3:
+        total_score = sum(st.session_state.comp_scores.values())
+        if len(st.session_state.comp_scores) == 3 and total_score == 3:
             st.balloons()
             st.success("🎉 Excellent! You got all questions right!")
-        elif total_score >= 1:
+        elif st.session_state.comp_scores:
             st.info(f"👍 Good job! You got {total_score}/3 correct.")
