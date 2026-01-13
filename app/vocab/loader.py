@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from core.safety import sanitize_word
+from app.core.safety import sanitize_word
 
 DEFAULT_VOCAB_PATH = Path(__file__).parent / "default_vocab.csv"
 

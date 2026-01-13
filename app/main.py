@@ -5,12 +5,12 @@ import tempfile
 import base64
 from streamlit_mic_recorder import mic_recorder
 
-from vocab.loader import load_default_vocab, load_vocab_from_csv
-from core.exercise import simple_exercise
-from core.safety import sanitize_word
-from core.scoring import check_answer, calculate_pronunciation_score
-from core.progress import get_or_create_child, save_exercise, get_child_progress, get_recommended_words, get_practiced_words_wheel, clear_child_records
-from llm.client import generate_vocab_exercise, LLMUnavailable, transcribe_audio, generate_comprehension_exercise, generate_story_image
+from app.vocab.loader import load_default_vocab, load_vocab_from_csv
+from app.core.exercise import simple_exercise
+from app.core.safety import sanitize_word
+from app.core.scoring import check_answer, calculate_pronunciation_score
+from app.core.progress import get_or_create_child, save_exercise, get_child_progress, get_recommended_words, get_practiced_words_wheel, clear_child_records
+from app.llm.client import generate_vocab_exercise, LLMUnavailable, transcribe_audio, generate_comprehension_exercise, generate_story_image
 
 st.set_page_config(page_title="GoGoHannah", page_icon="📚")
 
