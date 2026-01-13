@@ -346,8 +346,7 @@ elif practice_mode == "Comprehension Practice":
             if audio_path and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
                 try:
                     # Audio already exists, just play it
-                    audio_key = f"story_audio_{st.session_state.audio_generated_time}"
-                    st.audio(audio_path, format='audio/mp3', autoplay=False, key=audio_key)
+                    st.audio(audio_path, format='audio/mp3', autoplay=False)
                     st.info("🎵 Audio ready! Click play above to listen.")
                 except Exception as e:
                     st.warning(f"Audio file issue: {str(e)}. Regenerating...")
@@ -363,9 +362,8 @@ elif practice_mode == "Comprehension Practice":
                         with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
                             tts.save(tmp_file.name)
                             st.session_state.audio_file_path = tmp_file.name
-                            # Display audio immediately with unique key to prevent caching
-                            audio_key = f"story_audio_{st.session_state.audio_generated_time}"
-                            st.audio(tmp_file.name, format='audio/mp3', autoplay=False, key=audio_key)
+                            # Display audio immediately
+                            st.audio(tmp_file.name, format='audio/mp3', autoplay=False)
                     except Exception as e:
                         st.error(f"Failed to generate audio: {str(e)}")
         
