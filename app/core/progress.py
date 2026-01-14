@@ -178,6 +178,29 @@ def get_practiced_words_wheel(child_id: int) -> List[Dict]:
         
         return practiced_words
 
+def get_recent_exercises(child_id: int, limit: int = 20) -> List[Dict]:
+    """Get recent exercise history for a child."""
+    with _get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT word, exercise_type, score, correct, created_at
+            FROM exercises
+            WHERE child_id = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        ''', (child_id, limit))
+
+        return [
+            {
+                'word': row[0],
+                'exercise_type': row[1],
+                'score': row[2],
+                'correct': bool(row[3]),
+                'created_at': row[4]
+            }
+            for row in cursor.fetchall()
+        ]
+
 def clear_child_records(child_id: int):
     """Clear all exercise records for a child."""
     with _get_connection() as conn:

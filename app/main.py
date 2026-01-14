@@ -1,6 +1,7 @@
 import base64
 import os
 from pathlib import Path
+import random
 import sys
 import tempfile
 
@@ -16,7 +17,15 @@ from app.vocab.loader import load_default_vocab, load_vocab_from_csv
 from app.core.exercise import simple_exercise
 from app.core.safety import sanitize_word
 from app.core.scoring import check_answer, calculate_pronunciation_score
-from app.core.progress import get_or_create_child, save_exercise, get_child_progress, get_recommended_words, get_practiced_words_wheel, clear_child_records
+from app.core.progress import (
+    get_or_create_child,
+    save_exercise,
+    get_child_progress,
+    get_recommended_words,
+    get_practiced_words_wheel,
+    get_recent_exercises,
+    clear_child_records,
+)
 from app.llm.client import generate_vocab_exercise, LLMUnavailable, transcribe_audio, generate_comprehension_exercise, generate_story_image
 
 st.set_page_config(page_title="GoGoHannah", page_icon="📚")
@@ -36,18 +45,20 @@ def generate_tts_bytes(text: str) -> bytes:
     os.unlink(temp_path)
     return audio_bytes
 
-# Practice Mode Selection
-practice_mode = st.radio("Choose Practice Mode:", ["Vocabulary Practice", "Comprehension Practice"], horizontal=True)
+page = st.sidebar.radio("Pages", ["Practice", "Past Results", "Test & Check"])
 
 # Child name input
-child_name = st.text_input("Enter your name:", key="child_name")
+child_name = st.sidebar.text_input("Enter your name:", key="child_name")
 if not child_name.strip():
     st.info("Please enter your name to start practicing!")
     st.stop()
 
 child_id = get_or_create_child(child_name.strip())
 
-if practice_mode == "Vocabulary Practice":
+if page == "Practice":
+    # Practice Mode Selection
+    practice_mode = st.radio("Choose Practice Mode:", ["Vocabulary Practice", "Comprehension Practice"], horizontal=True)
+
     progress = get_child_progress(child_id)
     if progress['total_exercises'] > 0:
         st.subheader("📊 Your Progress")
@@ -272,129 +283,237 @@ if practice_mode == "Vocabulary Practice":
                         correct = score >= 80
                         save_exercise(child_id, word, "pronunciation", score, correct)
 
-elif practice_mode == "Comprehension Practice":
-    st.header("📖 Comprehension Practice")
-    st.write("Read a short story and answer questions to improve your understanding!")
+    if practice_mode == "Comprehension Practice":
+        st.header("📖 Comprehension Practice")
+        st.write("Read a short story and answer questions to improve your understanding!")
 
-    # Level selection
-    story_level = st.selectbox(
-        "Choose story difficulty level:",
-        ["beginner", "intermediate", "expert"],
-        format_func=lambda x: {
-            "beginner": "🌱 Beginner (Short & Simple)",
-            "intermediate": "🌿 Intermediate (Medium Length)",
-            "expert": "🌳 Expert (Longer & Advanced)"
-        }[x]
-    )
+        # Level selection
+        story_level = st.selectbox(
+            "Choose story difficulty level:",
+            ["beginner", "intermediate", "expert"],
+            format_func=lambda x: {
+                "beginner": "🌱 Beginner (Short & Simple)",
+                "intermediate": "🌿 Intermediate (Medium Length)",
+                "expert": "🌳 Expert (Longer & Advanced)"
+            }[x]
+        )
 
-    # Comprehension session state
-    if "comp_ex" not in st.session_state:
-        st.session_state.comp_ex = None
-    if "comp_started" not in st.session_state:
-        st.session_state.comp_started = False
-    if "story_tts_played" not in st.session_state:
-        st.session_state.story_tts_played = False
-    if "questions_answered" not in st.session_state:
-        st.session_state.questions_answered = {}
-    if "comp_scores" not in st.session_state:
-        st.session_state.comp_scores = {}
-    if "story_audio_bytes" not in st.session_state:
-        st.session_state.story_audio_bytes = None
+        # Comprehension session state
+        if "comp_ex" not in st.session_state:
+            st.session_state.comp_ex = None
+        if "comp_started" not in st.session_state:
+            st.session_state.comp_started = False
+        if "story_tts_played" not in st.session_state:
+            st.session_state.story_tts_played = False
+        if "questions_answered" not in st.session_state:
+            st.session_state.questions_answered = {}
+        if "comp_scores" not in st.session_state:
+            st.session_state.comp_scores = {}
+        if "story_audio_bytes" not in st.session_state:
+            st.session_state.story_audio_bytes = None
 
-    if st.button("Generate New Story"):
-        with st.spinner("🪄 Creating your magical story..."):
-            try:
-                ex = generate_comprehension_exercise(level=story_level)
-                st.session_state.comp_ex = ex
-                st.session_state.comp_started = True
-                st.session_state.story_tts_played = False
-                st.session_state.questions_answered = {}
-                st.session_state.comp_scores = {}
-                st.session_state.story_audio_bytes = None
-                
-                # Generate image with progress
-                with st.spinner("🎨 Painting the story illustration..."):
-                    try:
-                        image_url = generate_story_image(ex['image_description'])
-                        st.session_state.story_image = image_url
-                    except LLMUnavailable:
-                        st.session_state.story_image = None
-                        st.warning("Illustration couldn't be generated, but the story is ready!")
-                
-                # Generate audio in background
-                with st.spinner("🎵 Preparing story audio..."):
-                    try:
-                        st.session_state.story_audio_bytes = generate_tts_bytes(ex['story_text'])
-                    except Exception as e:
-                        st.warning(f"Audio preparation failed: {str(e)}. You can still read aloud manually.")
-                
-                st.success("✨ Your story is ready! Audio is prepared too - scroll down to read and enjoy.")
-                
-            except LLMUnavailable:
-                st.error("AI service unavailable. Please try again later.")
+        if st.button("Generate New Story"):
+            with st.spinner("🪄 Creating your magical story..."):
+                try:
+                    ex = generate_comprehension_exercise(level=story_level)
+                    st.session_state.comp_ex = ex
+                    st.session_state.comp_started = True
+                    st.session_state.story_tts_played = False
+                    st.session_state.questions_answered = {}
+                    st.session_state.comp_scores = {}
+                    st.session_state.story_audio_bytes = None
 
-    if st.session_state.comp_started and st.session_state.comp_ex:
-        ex = st.session_state.comp_ex
-        st.subheader(f"📚 {ex['story_title']}")
-        
-        # Create container for image to prevent re-rendering during audio playback
-        image_container = st.container()
-        with image_container:
-            # Display image if available
-            if 'story_image' in st.session_state and st.session_state.story_image:
-                st.image(st.session_state.story_image, caption="Story Illustration", use_container_width=True)
-        
-        # Story text
-        st.write(ex['story_text'])
-        
-        # Read Aloud Button - use key to prevent re-rendering
-        if st.button("🔊 Read Story Aloud", key="read_aloud_button"):
-            st.session_state.story_tts_played = True
-            
-            # Check if audio is already generated and file exists
-            audio_bytes = st.session_state.get('story_audio_bytes')
-            if audio_bytes:
-                st.audio(audio_bytes, format='audio/mp3', autoplay=False)
-                st.info("🎵 Audio ready! Click play above to listen.")
-            else:
-                # Generate audio on demand
-                with st.spinner("🎵 Generating audio..."):
-                    try:
-                        st.session_state.story_audio_bytes = generate_tts_bytes(ex['story_text'])
-                        st.audio(st.session_state.story_audio_bytes, format='audio/mp3', autoplay=False)
-                    except Exception as e:
-                        st.error(f"Failed to generate audio: {str(e)}")
-        
-        # Questions
-        st.header("❓ Comprehension Questions")
-        for i, q in enumerate(ex['questions']):
-            st.subheader(f"Question {i+1}")
-            st.write(q['question'])
-            
-            choice = st.radio(
-                f"Choose for Q{i+1}:",
-                list(q['choices'].keys()),
-                format_func=lambda k: f"{k}. {q['choices'][k]}",
-                key=f"q_{i}"
-            )
-            
-            if st.button(f"Check Q{i+1}", key=f"check_{i}"):
-                correct = choice == q['answer']
-                if correct:
-                    st.success("Correct! 🎉")
-                    st.session_state.comp_scores[i] = 1
+                    # Generate image with progress
+                    with st.spinner("🎨 Painting the story illustration..."):
+                        try:
+                            image_url = generate_story_image(ex['image_description'])
+                            st.session_state.story_image = image_url
+                        except LLMUnavailable:
+                            st.session_state.story_image = None
+                            st.warning("Illustration couldn't be generated, but the story is ready!")
+
+                    # Generate audio in background
+                    with st.spinner("🎵 Preparing story audio..."):
+                        try:
+                            st.session_state.story_audio_bytes = generate_tts_bytes(ex['story_text'])
+                        except Exception as e:
+                            st.warning(f"Audio preparation failed: {str(e)}. You can still read aloud manually.")
+
+                    st.success("✨ Your story is ready! Audio is prepared too - scroll down to read and enjoy.")
+
+                except LLMUnavailable:
+                    st.error("AI service unavailable. Please try again later.")
+
+        if st.session_state.comp_started and st.session_state.comp_ex:
+            ex = st.session_state.comp_ex
+            st.subheader(f"📚 {ex['story_title']}")
+
+            # Create container for image to prevent re-rendering during audio playback
+            image_container = st.container()
+            with image_container:
+                # Display image if available
+                if 'story_image' in st.session_state and st.session_state.story_image:
+                    st.image(st.session_state.story_image, caption="Story Illustration", use_container_width=True)
+
+            # Story text
+            st.write(ex['story_text'])
+
+            # Read Aloud Button - use key to prevent re-rendering
+            if st.button("🔊 Read Story Aloud", key="read_aloud_button"):
+                st.session_state.story_tts_played = True
+
+                # Check if audio is already generated and file exists
+                audio_bytes = st.session_state.get('story_audio_bytes')
+                if audio_bytes:
+                    st.audio(audio_bytes, format='audio/mp3', autoplay=False)
+                    st.info("🎵 Audio ready! Click play above to listen.")
                 else:
-                    st.warning(f"Not quite. Correct answer is {q['answer']}: {q['choices'][q['answer']]}")
-                    st.session_state.comp_scores[i] = 0
-                
-                st.session_state.questions_answered[i] = True
-                
-                # Save result
-                save_exercise(child_id, f"comp_q{i+1}", "comprehension", 100 if correct else 0, correct)
-        
-        total_score = sum(st.session_state.comp_scores.values())
-        if len(st.session_state.comp_scores) == 3 and total_score == 3:
-            st.balloons()
-            st.success("🎉 Excellent! You got all questions right!")
-        elif st.session_state.comp_scores:
-            st.info(f"👍 Good job! You got {total_score}/3 correct.")
+                    # Generate audio on demand
+                    with st.spinner("🎵 Generating audio..."):
+                        try:
+                            st.session_state.story_audio_bytes = generate_tts_bytes(ex['story_text'])
+                            st.audio(st.session_state.story_audio_bytes, format='audio/mp3', autoplay=False)
+                        except Exception as e:
+                            st.error(f"Failed to generate audio: {str(e)}")
+
+            # Questions
+            st.header("❓ Comprehension Questions")
+            for i, q in enumerate(ex['questions']):
+                st.subheader(f"Question {i+1}")
+                st.write(q['question'])
+
+                choice = st.radio(
+                    f"Choose for Q{i+1}:",
+                    list(q['choices'].keys()),
+                    format_func=lambda k: f"{k}. {q['choices'][k]}",
+                    key=f"q_{i}"
+                )
+
+                if st.button(f"Check Q{i+1}", key=f"check_{i}"):
+                    correct = choice == q['answer']
+                    if correct:
+                        st.success("Correct! 🎉")
+                        st.session_state.comp_scores[i] = 1
+                    else:
+                        st.warning(f"Not quite. Correct answer is {q['answer']}: {q['choices'][q['answer']]}")
+                        st.session_state.comp_scores[i] = 0
+
+                    st.session_state.questions_answered[i] = True
+
+                    # Save result
+                    save_exercise(child_id, f"comp_q{i+1}", "comprehension", 100 if correct else 0, correct)
+
+            total_score = sum(st.session_state.comp_scores.values())
+            if len(st.session_state.comp_scores) == 3 and total_score == 3:
+                st.balloons()
+                st.success("🎉 Excellent! You got all questions right!")
+            elif st.session_state.comp_scores:
+                st.info(f"👍 Good job! You got {total_score}/3 correct.")
+
+elif page == "Past Results":
+    st.header("📊 Past Results")
+    progress = get_child_progress(child_id)
+
+    if progress['total_exercises'] > 0:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Exercises", progress['total_exercises'])
+        with col2:
+            st.metric("Accuracy", f"{progress['accuracy']:.1%}")
+        with col3:
+            avg_quiz = progress['scores_by_type'].get('quiz', {}).get('avg_score', 0)
+            st.metric("Avg Quiz Score", f"{avg_quiz:.1f}")
+
+        st.subheader("📚 Recent Activity")
+        recent = get_recent_exercises(child_id, limit=20)
+        if recent:
+            st.dataframe(
+                [
+                    {
+                        "Word/Item": entry["word"],
+                        "Type": entry["exercise_type"],
+                        "Score": entry["score"],
+                        "Correct": "✅" if entry["correct"] else "❌",
+                        "Date": entry["created_at"],
+                    }
+                    for entry in recent
+                ],
+                use_container_width=True,
+            )
+        else:
+            st.info("No activity recorded yet. Try a practice session first!")
+
+        st.subheader("🧠 Words to Revisit")
+        weak_words = progress.get('weak_words', [])
+        if weak_words:
+            st.dataframe(
+                [
+                    {
+                        "Word": word["word"],
+                        "Avg Score": f"{word['avg_score']:.0f}",
+                        "Attempts": word["attempts"],
+                    }
+                    for word in weak_words[:10]
+                ],
+                use_container_width=True,
+            )
+        else:
+            st.success("Great job! No weak words detected yet.")
+    else:
+        st.info("No results yet. Start practicing to see your progress here!")
+
+elif page == "Test & Check":
+    st.header("📝 Test & Check")
+    st.write("Try a quick quiz to check how well you remember your recent words.")
+
+    if "quick_check_exercises" not in st.session_state:
+        st.session_state.quick_check_exercises = []
+    if "quick_check_results" not in st.session_state:
+        st.session_state.quick_check_results = {}
+
+    if st.button("Generate Quick Check"):
+        all_words = load_default_vocab()
+        recommended = get_recommended_words(child_id, all_words, 5)
+        candidates = recommended + [word for word in all_words if word not in recommended]
+        sample_size = min(3, len(candidates))
+        selected_words = random.sample(candidates, sample_size) if sample_size else []
+        st.session_state.quick_check_exercises = [
+            {"word": word, "exercise": simple_exercise(word)} for word in selected_words
+        ]
+        st.session_state.quick_check_results = {}
+
+    if not st.session_state.quick_check_exercises:
+        st.info("Generate a quick check to start your mini quiz.")
+    else:
+        correct_count = 0
+        for i, item in enumerate(st.session_state.quick_check_exercises):
+            ex = item["exercise"]
+            word = item["word"]
+            st.subheader(f"Question {i + 1}")
+            st.write(f"**Word:** {word}")
+            st.write("**Quiz:**", ex["quiz_question"])
+
+            choice = st.radio(
+                f"Choose for Q{i + 1}:",
+                list(ex["quiz_choices"].keys()),
+                format_func=lambda k: f"{k}. {ex['quiz_choices'][k]}",
+                key=f"qc_{i}",
+            )
+
+            if st.button(f"Check Q{i + 1}", key=f"qc_check_{i}"):
+                if i not in st.session_state.quick_check_results:
+                    correct = check_answer(choice, ex["quiz_answer"])
+                    st.session_state.quick_check_results[i] = correct
+                    save_exercise(child_id, word, "test", 100 if correct else 0, correct)
+
+            if i in st.session_state.quick_check_results:
+                if st.session_state.quick_check_results[i]:
+                    st.success("Correct! 🎉")
+                    correct_count += 1
+                else:
+                    st.warning(f"Not quite. Correct answer is {ex['quiz_answer']}.")
+
+        if st.session_state.quick_check_results:
+            total_questions = len(st.session_state.quick_check_exercises)
+            correct_total = sum(st.session_state.quick_check_results.values())
+            st.info(f"Your quick check score: {correct_total}/{total_questions}")
