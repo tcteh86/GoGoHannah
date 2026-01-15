@@ -7,11 +7,7 @@ __pycache__/
 venv/
 .env
 
-# streamlit
-.streamlit/
-
 # OS/editor
 .DS_Store
 .vscode/
 .idea/
-A Prototype of an AI-Based English Vocabulary Learning Assistant for Young Learners.docx

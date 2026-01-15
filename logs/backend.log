@@ -1,0 +1,36 @@
+2026-01-16 00:12:32,697 [INFO] generate_exercise request word='strong' child=None
+2026-01-16 00:12:36,385 [INFO] generate_exercise success word='strong' child=None source=llm
+2026-01-16 00:12:45,324 [INFO] generate_exercise request word='strong' child=None
+2026-01-16 00:12:48,131 [INFO] generate_exercise request word='excited' child=None
+2026-01-16 00:12:48,998 [INFO] generate_exercise success word='strong' child=None source=llm
+2026-01-16 00:12:51,618 [INFO] generate_exercise success word='excited' child=None source=llm
+2026-01-16 00:13:42,432 [INFO] generate_exercise request word='loud' child='Hannah'
+2026-01-16 00:13:45,867 [INFO] generate_exercise success word='loud' child='Hannah' source=llm
+2026-01-16 00:13:50,594 [INFO] exercise_check request word='loud' type=quiz child='Hannah' score=100 correct=True
+2026-01-16 00:13:50,602 [INFO] exercise_check saved word='loud' type=quiz child='Hannah' score=100 correct=True
+2026-01-16 00:14:12,957 [INFO] exercise_check request word='comp_q1' type=comprehension child='Hannah' score=0 correct=False
+2026-01-16 00:14:12,961 [INFO] exercise_check saved word='comp_q1' type=comprehension child='Hannah' score=0 correct=False
+2026-01-16 00:14:14,538 [INFO] exercise_check request word='comp_q2' type=comprehension child='Hannah' score=100 correct=True
+2026-01-16 00:14:14,546 [INFO] exercise_check saved word='comp_q2' type=comprehension child='Hannah' score=100 correct=True
+2026-01-16 00:14:16,084 [INFO] exercise_check request word='comp_q3' type=comprehension child='Hannah' score=100 correct=True
+2026-01-16 00:14:16,090 [INFO] exercise_check saved word='comp_q3' type=comprehension child='Hannah' score=100 correct=True
+2026-01-16 00:14:19,459 [INFO] exercise_check request word='comp_q2' type=comprehension child='Hannah' score=0 correct=False
+2026-01-16 00:14:19,470 [INFO] exercise_check saved word='comp_q2' type=comprehension child='Hannah' score=0 correct=False
+2026-01-16 00:14:21,198 [INFO] exercise_check request word='comp_q1' type=comprehension child='Hannah' score=0 correct=False
+2026-01-16 00:14:21,206 [INFO] exercise_check saved word='comp_q1' type=comprehension child='Hannah' score=0 correct=False
+2026-01-16 00:14:22,233 [INFO] exercise_check request word='comp_q1' type=comprehension child='Hannah' score=0 correct=False
+2026-01-16 00:14:22,242 [INFO] exercise_check saved word='comp_q1' type=comprehension child='Hannah' score=0 correct=False
+2026-01-16 00:14:22,796 [INFO] exercise_check request word='comp_q1' type=comprehension child='Hannah' score=100 correct=True
+2026-01-16 00:14:22,801 [INFO] exercise_check saved word='comp_q1' type=comprehension child='Hannah' score=100 correct=True
+2026-01-16 00:14:37,074 [INFO] exercise_check request word='post office' type=test child='Hannah' score=100 correct=True
+2026-01-16 00:14:37,083 [INFO] exercise_check saved word='post office' type=test child='Hannah' score=100 correct=True
+2026-01-16 00:14:39,342 [INFO] exercise_check request word='book' type=test child='Hannah' score=100 correct=True
+2026-01-16 00:14:39,355 [INFO] exercise_check saved word='book' type=test child='Hannah' score=100 correct=True
+2026-01-16 00:14:43,345 [INFO] exercise_check request word='diamond' type=test child='Hannah' score=100 correct=True
+2026-01-16 00:14:43,352 [INFO] exercise_check saved word='diamond' type=test child='Hannah' score=100 correct=True
+2026-01-16 00:14:45,676 [INFO] exercise_check request word='post office' type=test child='Hannah' score=0 correct=False
+2026-01-16 00:14:45,683 [INFO] exercise_check saved word='post office' type=test child='Hannah' score=0 correct=False
+2026-01-16 00:15:11,427 [INFO] generate_exercise request word='umbrella' child='Hannah'
+2026-01-16 00:15:16,853 [INFO] generate_exercise success word='umbrella' child='Hannah' source=llm
+2026-01-16 00:15:20,464 [INFO] exercise_check request word='umbrella' type=quiz child='Hannah' score=100 correct=True
+2026-01-16 00:15:20,474 [INFO] exercise_check saved word='umbrella' type=quiz child='Hannah' score=100 correct=True

@@ -1,78 +1,38 @@
-# GoGoHannah 📚✨
+# GoGoHannah (React + FastAPI backend)
 
-A prototype AI-based English vocabulary learning assistant for young learners (5–9).
+A prototype AI-based English vocabulary and comprehension assistant for young learners (5-9). Core logic lives in Python; a React/Next.js frontend will consume the FastAPI API.
 
-This repository contains a working **Streamlit MVP** that:
-- loads a default vocabulary list (or a parent-provided CSV)
-- runs a simple practice flow (definition, example sentence, quiz)
-- is structured so you can later add a bounded GenAI provider (e.g., Gemini) safely.
+## Current stack
+- Backend: FastAPI (`backend/app.py`) reusing `app/core` (safety, scoring, progress) and `app/llm` (OpenAI).
+- Data: Default vocab CSV (`app/vocab/default_vocab.csv`), optional CSV upload, SQLite (`progress.db`).
+- LLM: OpenAI (gpt-4o-mini for vocab/comprehension, DALL-E 3 for images, Whisper-1 for transcription).
 
-## Features (MVP)
-- Default primary-level vocabulary list
-- Optional vocabulary via CSV upload (must contain a `word` column)
-- Practice output: AI-generated definition + example sentence + multiple-choice quiz
-- Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
-- Progress tracking with personalized recommendations and detailed analytics
-- Practiced words wheel visualization with performance indicators
-- Smart word recommendation system (prioritizes weak words, avoids over-practice)
-- Record management with secure deletion
-- Clean project boundaries: UI vs core logic vs LLM wrapper
-
-## Tech Stack
-- Python
-- Streamlit
-- OpenAI GPT (for AI generation)
-
-## Quickstart (Local)
-
-### 1) Create and activate venv
+## Run the backend
 ```bash
 python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# macOS/Linux:
-source .venv/bin/activate
-```
-
-### 2) Install dependencies
-```bash
+.venv\Scripts\activate  # or source .venv/bin/activate
 pip install -r requirements.txt
+uvicorn backend.app:app --reload --port 8000
 ```
 
-### 3) Set up environment
-Copy `.env` and add your OpenAI API key:
-```
-OPENAI_API_KEY=your_openai_api_key_here
-```
+## Key endpoints
+- `GET /health`
+- `GET /vocab/default`
+- `POST /vocab/upload` (CSV)
+- `POST /exercise/generate`
+- `POST /exercise/check`
+- `POST /pronunciation/score`
+- `POST /pronunciation/transcribe` (audio -> text)
+- `POST /comprehension/generate`
+- `GET /progress/{child_name}`
+- `GET /quick-check`
+- `GET /ui` (temporary HTML UI for vocab/comprehension/quick-check)
 
-### 4) Run the app
+## Frontend (planned)
+- React/Next.js client (TypeScript) to consume the API for vocab practice, comprehension, pronunciation, and progress dashboards.
+- Configure API base (e.g., `NEXT_PUBLIC_API_BASE=http://localhost:8000`).
+
+## Tests
 ```bash
-streamlit run app/main.py
+pytest
 ```
-
-## CSV Format
-Your CSV must contain a column named `word`.
-
-```csv
-word
-happy
-brave
-gentle
-```
-
-## Roadmap
-- ✅ Add OpenAI integration for AI-generated definition/example/quiz (JSON-only output)
-- ✅ Add pronunciation practice with TTS and audio recording/scoring
-- ✅ Add progress tracking with personalized recommendations
-- ✅ Add record management with secure deletion
-- ✅ Add practiced words wheel and smart recommendation system
-- ✅ Add automatic pronunciation checking on recording stop
-- Add more guardrails + output validation
-- Add tests for parsing/validation
-
-## Notes on GenAI Safety (future)
-When you add GenAI:
-- enforce strict JSON schema output
-- validate output types and length
-- sanitize user-provided vocab words (length/character whitelist)
-- block disallowed topics for child-safe learning

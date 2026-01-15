@@ -5,10 +5,10 @@ dependencies:
   - python=3.11
   - pip
   - pip:
-      - streamlit>=1.32
       - pandas>=2.0
       - python-dotenv>=1.0
       - openai>=1.0
       - rapidfuzz>=3.0
-      - gtts>=2.5
-      - streamlit-mic-recorder>=0.0.8
+      - fastapi>=0.110
+      - uvicorn>=0.29
+      - python-multipart>=0.0.9
