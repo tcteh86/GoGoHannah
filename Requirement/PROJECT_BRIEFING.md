@@ -1,40 +1,186 @@
-# Project Briefing
+# PROJECT_BRIEFING.md
 
-## Overview
-- Goal: Build a web-based prototype that helps 5-9 year-olds practice and grow their English vocabulary with child-safe, AI-generated guidance.
-- Audience: Young learners, with parents/teachers configuring word lists; mentors evaluating progress through staged submissions.
-- Problem: Kids struggle to practice consistently; parents may lack time or confidence; enrichment options are costly; existing tools are static and limited.
-- Scope: Stage 1 focuses on text-based vocabulary practice using a default list plus optional parent-provided words (typed/pasted/CSV). Uses a bounded LLM (Gemini, school-provided) to generate simple definitions/examples/quiz items. Web UI with a clear practice flow; no complex personalization in this phase.
+## ITI123 – Generative AI & Deep Learning Project (2025S2)
 
-## Success Criteria
-- Proposal clearly states problem, user needs, chosen AI service (Gemini), integration plan, and evaluation plan (recall accuracy, engagement, qualitative feedback).
-- Prototype delivers vocab practice with default and custom lists; AI or deterministic fallback always returns definition/example/quiz with a validated structure.
-- User flow covers: select vocab set -> present practice items -> child interacts -> AI provides guidance -> session ends.
-- Milestone and final reports (<8 pages for milestone) articulate business problem, architecture, integration results, and design choices; final report includes deployment details.
-- Presentation demonstrates the working prototype and individual contributions, with clear metrics and outcomes.
+This document outlines the project structure, assessment stages, deliverables, and evaluation criteria for the ITI123 Generative AI & Deep Learning course project.
 
-## Constraints
-- Timeline: Four stages - Proposal, Milestone Report, Final Report, Final Presentation (dates per course schedule).
-- Budget/API limits: Use school-provided Gemini; other AI costs are not reimbursed. Keep prompts concise and usage minimal.
-- Platforms: Web (Streamlit prototype) targeting desktop/tablet/mobile browsers.
-- Data/Privacy: Child-safe content only; sanitize inputs; avoid storing PII beyond child name; keep outputs age-appropriate.
+---
 
-## Milestones
-- Stage 1: Project Proposal - problem definition, AI service selection/justification, integration scope, evaluation plan.
-- Stage 2: Milestone Report - progress update, design decisions, integration results; concise draft of final report (optional short demo video).
-- Stage 3: Final Report - effectiveness, completeness, and deployment details.
-- Stage 4: Final Presentation - demo, highlight individual contributions, methods, results.
-- Feature build checkpoints: UI + default/custom vocab flow; LLM generation + fallback; validated schema; basic metrics for recall/engagement.
+## 📌 Project Overview
 
-## Risks & Mitigations
-- Risk: API unavailability/quota limits -> Mitigation: deterministic fallback exercises; cache and retry strategy.
-- Risk: Unsafe or off-topic model output -> Mitigation: strict, child-safe prompts; JSON validation; topic filtering; input sanitization.
-- Risk: Scope creep vs timeline -> Mitigation: keep Phase 1 to vocabulary-only, defer advanced personalization.
-- Risk: Limited evaluation data -> Mitigation: small controlled tests; clearly state limitations and future evaluation plans.
+The project is assessed across **four stages**, covering proposal, development, deployment, and presentation.  
+Students are expected to design, build, evaluate, and deploy a **Generative AI–powered application** that solves a clearly defined user or business problem.
 
-## Open Questions
-- Exact due dates and submission formats for each stage?
-- Backup model or offline mode if Gemini is unavailable?
-- Where to host and persist progress data for demos (local file vs managed DB)?
-- Are pronunciation/spelling features required in this term or deferred to future work?
-- Accessibility and localization expectations (e.g., captions, multiple languages)?
+---
+
+## 🧩 Assessment Structure
+
+| Stage | Component | Weight |
+|------|----------|--------|
+| Stage 1 | Project Proposal | 20 Marks |
+| Stage 2 | Milestone Report | 35 Marks |
+| Stage 3 | Final Report & Deployment | 35 Marks |
+| Stage 4 | Final Presentation (Individual) | 10 Marks |
+| **Total** |  | **100 Marks** |
+
+---
+
+## 🚀 Stage 1: Project Proposal (20 Marks)
+
+### Objective
+Research and define a development plan around a **clearly identified problem**, suitable **Generative AI services**, integration scope, and expected outcomes.
+
+> ⚠️ Note: Costs incurred from external AI services will **not be reimbursed**, except for school-provided services (e.g. Gemini).
+
+### Proposal Requirements
+
+#### 1. Problem Formulation
+- Clearly define the problem area
+- Identify specific user needs
+- Explain why this problem is meaningful and worth solving
+
+#### 2. Method & AI Services
+- Identify the Generative AI service(s) or model(s) to be used
+- Justify the selection based on:
+  - Capability
+  - Scalability
+  - Deployment considerations
+  - Cost and accessibility
+
+#### 3. Integration & Features
+- Define the scope of system integration
+- Describe application features powered by GenAI
+- Explain user interaction flow and expected outcomes
+
+#### 4. Evaluation Plan
+- Define how success and effectiveness will be measured
+- Use clear, measurable, and goal-aligned metrics
+
+### Marking Criteria (20 Marks)
+
+| Criterion | Marks |
+|--------|------|
+| Problem Formulation & User Needs | 5 |
+| Method & AI Service Justification | 5 |
+| Integration, Features & User Flow | 5 |
+| Evaluation Plan | 5 |
+
+---
+
+## 🛠 Stage 2: Milestone Report (35 Marks)
+
+### Objective
+Demonstrate **tangible development progress** and validate design decisions through early implementation.
+
+The milestone report serves as an **early draft of the final report** and is primarily intended for **mentor feedback**.
+
+### Constraints
+- Maximum **8 pages** (excluding references)
+- Focus on **application**, not GenAI theory
+- Screenshots or short demo videos (≤10 minutes) are encouraged
+
+### Required Sections
+
+#### 1. Motivation
+- Restate the problem
+- Clarify specific user needs being addressed
+
+#### 2. Application Development
+- AI services/models used and justification
+- Technical architecture (data, tools, frameworks)
+- Integration approach and results
+- Completed and planned feature design
+- Observed risks and mitigation strategies
+- Next steps and development roadmap
+
+### Expectations
+- Working **operational prototype**
+- Evidence of **active risk mitigation**
+  - Prompt constraints
+  - Input filtering
+  - Guardrails and safety controls
+
+### Marking Criteria (35 Marks)
+
+| Criterion | Marks |
+|--------|------|
+| Problem & Service Validation | 7 |
+| Methodology & Integration Progress | 7 |
+| Feature Design & Preliminary Results | 7 |
+| Responsible AI & Risk Mitigation | 7 |
+| Plan, Cost Awareness & Report Quality | 7 |
+
+---
+
+## 📊 Stage 3: Final Report & Deployment (35 Marks)
+
+### Objective
+Deliver a **complete, deployed, and well-evaluated Generative AI application**.
+
+### Report Requirements
+- Maximum **15 pages** (excluding references)
+- Detailed documentation of:
+  - GenAI service usage
+  - System architecture
+  - Design decisions
+  - Evaluation results
+  - Deployment strategy
+
+### Deployment
+- Application must be deployed on a suitable target platform
+  - Web application
+  - Mobile app
+  - IoT system
+  - Robot / embedded system
+- Deployment should be robust, accessible, and reproducible
+
+### Code Submission
+- GitHub / GitLab repository preferred
+- Alternatively, a ZIP file ≤ 5MB
+- Include:
+  - Clean, organized code
+  - Clear README and file descriptions
+  - Evidence of source control and configuration management
+
+### Marking Criteria (35 Marks)
+
+| Criterion | Marks |
+|--------|------|
+| Originality & Completeness | 10 |
+| Application Effectiveness & Evaluation | 5 |
+| Code Quality & Documentation | 5 |
+| Deployment & Accessibility | 10 |
+| Report Quality | 5 |
+
+---
+
+## 🎤 Stage 4: Final Presentation (Individual) (10 Marks)
+
+### Objective
+Demonstrate **individual contribution**, technical understanding, and confidence in explaining the system.
+
+### Assessment Focus
+- Clear, structured, and engaging presentation
+- Smooth demonstration of application and deployment
+- Strong understanding of methodologies and results
+- Ability to answer questions independently and confidently
+
+---
+
+## 📎 Deliverables Summary
+
+- **Stage 1:** Project Proposal document
+- **Stage 2:** Milestone Report + optional demo video
+- **Stage 3:** Final Report + deployed application + code repository
+- **Stage 4:** Individual presentation
+
+---
+
+## ✅ Notes
+- This project emphasizes **practical integration**, not theoretical discussion
+- Clear problem framing, disciplined engineering, and responsible AI design are critical
+- Reusability, deployment readiness, and evaluation rigor are key success factors
+
+---
+
+_End of PROJECT_BRIEFING.md_
