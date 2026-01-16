@@ -26,6 +26,7 @@ Optional:
 - `GET /v1/progress/summary`
 - `GET /v1/progress/recommended`
 - `POST /v1/pronunciation/score`
+- `POST /v1/pronunciation/assess`
 
 ## Deploy (Render)
 1) Create a new Web Service connected to the repo.

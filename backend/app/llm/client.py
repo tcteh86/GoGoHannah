@@ -166,13 +166,13 @@ Return JSON with:
         raise LLMUnavailable(f"Failed to generate comprehension exercise: {str(exc)}")
 
 
-def transcribe_audio(audio_bytes: bytes) -> str:
+def transcribe_audio(audio_bytes: bytes, filename: str | None = None) -> str:
     """Transcribe audio using OpenAI Whisper."""
     try:
         from io import BytesIO
 
         audio_file = BytesIO(audio_bytes)
-        audio_file.name = "audio.wav"
+        audio_file.name = filename or "audio.wav"
 
         transcript = get_client().audio.transcriptions.create(
             model=TRANSCRIBE_MODEL,

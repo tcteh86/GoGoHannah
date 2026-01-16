@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:html';
+import 'dart:typed_data';
 
 import '../models/progress_summary.dart';
 import '../models/save_exercise.dart';
 import '../models/vocab_exercise.dart';
 import '../models/comprehension_exercise.dart';
+import '../models/pronunciation_assessment.dart';
 import 'api_client.dart';
 
 ApiClient getApiClient(String baseUrl) => _WebApiClient(baseUrl);
@@ -63,6 +65,29 @@ class _WebApiClient implements ApiClient {
       return score.toInt();
     }
     throw ApiException('Invalid score response');
+  }
+
+  @override
+  Future<PronunciationAssessment> assessPronunciationAudio({
+    required String word,
+    required Uint8List audioBytes,
+    required String mimeType,
+  }) async {
+    final formData = FormData();
+    formData.append('target_word', word);
+    final blob = Blob([audioBytes], mimeType);
+    formData.appendBlob('audio', blob, 'recording.webm');
+
+    final request = await HttpRequest.request(
+      '$_baseUrl/v1/pronunciation/assess',
+      method: 'POST',
+      sendData: formData,
+    );
+    if (request.status != null && request.status! >= 400) {
+      throw ApiException('Request failed (${request.status})');
+    }
+    final data = _decodeJson(request.responseText);
+    return PronunciationAssessment.fromJson(data);
   }
 
   @override

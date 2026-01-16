@@ -65,7 +65,7 @@ In progress:
   - Optional illustration generation hook.
   - Per-question saving for comprehension practice.
   - Phonics hints added to vocab exercises.
-  - Pronunciation scoring (text-based) added to UI.
+  - Pronunciation recording with immediate playback and scoring.
 
 Planned:
 - Audio transcription pipeline for pronunciation.

@@ -9,6 +9,8 @@ import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
 import '../widgets/mascot_header.dart';
 import '../utils/speech_helper.dart';
+import '../utils/audio_recorder.dart';
+import '../utils/audio_playback.dart';
 
 enum PracticeMode { vocabulary, comprehension }
 
@@ -45,22 +47,19 @@ class _PracticeScreenState extends State<PracticeScreen> {
   final Map<int, String> _compChoices = {};
   final Map<int, bool> _compAnswered = {};
 
-  final TextEditingController _pronunciationController = TextEditingController();
+  AudioRecording? _recording;
   int? _pronunciationScore;
+  String? _pronunciationTranscript;
   String? _pronunciationFeedback;
   bool _pronunciationLoading = false;
   final SpeechHelper _speechHelper = createSpeechHelper();
+  final AudioRecorder _audioRecorder = createAudioRecorder();
+  final AudioPlayback _audioPlayback = createAudioPlayback();
 
   @override
   void initState() {
     super.initState();
     _vocabFuture = widget.apiClient.fetchDefaultVocab();
-  }
-
-  @override
-  void dispose() {
-    _pronunciationController.dispose();
-    super.dispose();
   }
 
   Future<void> _generateExercise() async {
@@ -111,43 +110,67 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
-  Future<void> _scorePronunciation() async {
+  Future<void> _toggleRecording() async {
     final word = _selectedWord;
-    final input = _pronunciationController.text.trim();
-    if (word == null || word.isEmpty || input.isEmpty) {
+    if (word == null || word.isEmpty) {
       return;
     }
-    setState(() {
-      _pronunciationLoading = true;
-      _pronunciationScore = null;
-      _pronunciationFeedback = null;
-    });
-    try {
-      final score = await widget.apiClient.scorePronunciation(word, input);
-      final correct = score >= 80;
-      widget.sessionState.recordAnswer(correct: correct);
-      await widget.apiClient.saveExercise(
-        SaveExercise(
-          childName: widget.childName,
+    if (_audioRecorder.isRecording) {
+      setState(() {
+        _pronunciationLoading = true;
+        _pronunciationScore = null;
+        _pronunciationTranscript = null;
+        _pronunciationFeedback = null;
+      });
+      try {
+        final recording = await _audioRecorder.stop();
+        _recording = recording;
+        _audioPlayback.playUrl(recording.url);
+        final assessment = await widget.apiClient.assessPronunciationAudio(
           word: word,
-          exerciseType: 'pronunciation',
-          score: score,
-          correct: correct,
-        ),
-      );
+          audioBytes: recording.bytes,
+          mimeType: recording.mimeType,
+        );
+        final correct = assessment.score >= 80;
+        widget.sessionState.recordAnswer(correct: correct);
+        await widget.apiClient.saveExercise(
+          SaveExercise(
+            childName: widget.childName,
+            word: word,
+            exerciseType: 'pronunciation',
+            score: assessment.score,
+            correct: correct,
+          ),
+        );
+        setState(() {
+          _pronunciationScore = assessment.score;
+          _pronunciationTranscript = assessment.transcription;
+          _pronunciationFeedback = correct
+              ? 'Great pronunciation!'
+              : 'Keep practicing the sounds.';
+        });
+      } catch (error) {
+        setState(() {
+          _pronunciationFeedback = 'Unable to score pronunciation.';
+        });
+      } finally {
+        if (mounted) {
+          setState(() => _pronunciationLoading = false);
+        }
+      }
+    } else {
       setState(() {
-        _pronunciationScore = score;
-        _pronunciationFeedback = correct
-            ? 'Great pronunciation!'
-            : 'Keep practicing the sounds.';
+        _pronunciationScore = null;
+        _pronunciationTranscript = null;
+        _pronunciationFeedback = null;
       });
-    } catch (error) {
-      setState(() {
-        _pronunciationFeedback = 'Unable to score pronunciation.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _pronunciationLoading = false);
+      try {
+        await _audioRecorder.start();
+        setState(() {});
+      } catch (error) {
+        setState(() {
+          _pronunciationFeedback = 'Microphone permission needed.';
+        });
       }
     }
   }
@@ -253,6 +276,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
             _exercise = null;
             _feedback = null;
             _selectedChoice = null;
+            _recording = null;
+            _pronunciationScore = null;
+            _pronunciationTranscript = null;
+            _pronunciationFeedback = null;
           }),
           decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
@@ -300,26 +327,30 @@ class _PracticeScreenState extends State<PracticeScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        TextField(
-          controller: _pronunciationController,
-          decoration: const InputDecoration(
-            labelText: 'Type what you said',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 8),
         FilledButton.icon(
-          onPressed: _pronunciationLoading ? null : _scorePronunciation,
-          icon: const Icon(Icons.mic),
-          label: const Text('Score Pronunciation'),
+          onPressed: _pronunciationLoading ? null : _toggleRecording,
+          icon: Icon(_audioRecorder.isRecording ? Icons.stop : Icons.mic),
+          label: Text(_audioRecorder.isRecording ? 'Stop Recording' : 'Record'),
         ),
         if (_pronunciationLoading)
           const Padding(
             padding: EdgeInsets.only(top: 8),
             child: LoadingView(message: 'Scoring pronunciation...'),
           ),
-        if (_pronunciationScore != null) ...[
+        if (_recording != null) ...[
           const SizedBox(height: 8),
+          FilledButton.icon(
+            onPressed: () => _audioPlayback.playUrl(_recording!.url),
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Play Recording'),
+          ),
+        ],
+        if (_pronunciationTranscript != null) ...[
+          const SizedBox(height: 8),
+          Text('You said: $_pronunciationTranscript'),
+        ],
+        if (_pronunciationScore != null) ...[
+          const SizedBox(height: 4),
           Text('Score: $_pronunciationScore / 100'),
         ],
         if (_pronunciationFeedback != null) ...[

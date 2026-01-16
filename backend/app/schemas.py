@@ -53,3 +53,8 @@ class PronunciationScoreRequest(BaseModel):
 
 class PronunciationScoreResponse(BaseModel):
     score: int
+
+
+class PronunciationAudioResponse(BaseModel):
+    transcription: str
+    score: int

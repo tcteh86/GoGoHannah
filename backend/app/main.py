@@ -1,6 +1,6 @@
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.exercise import simple_comprehension_exercise, simple_exercise
@@ -18,10 +18,12 @@ from .llm.client import (
     generate_comprehension_exercise,
     generate_story_image,
     generate_vocab_exercise,
+    transcribe_audio,
 )
 from .schemas import (
     ComprehensionExerciseRequest,
     ComprehensionExerciseResponse,
+    PronunciationAudioResponse,
     PronunciationScoreRequest,
     PronunciationScoreResponse,
     SaveExerciseRequest,
@@ -154,3 +156,27 @@ def pronunciation_score(payload: PronunciationScoreRequest) -> dict:
 
     score = calculate_pronunciation_score(payload.user_text, target_word)
     return {"score": score}
+
+
+@app.post("/v1/pronunciation/assess", response_model=PronunciationAudioResponse)
+async def pronunciation_assess(
+    target_word: str = Form(...),
+    audio: UploadFile = File(...),
+) -> dict:
+    try:
+        word = sanitize_word(target_word)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Audio file is empty.")
+
+    try:
+        transcription = transcribe_audio(audio_bytes, filename=audio.filename)
+    except LLMUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+    score = calculate_pronunciation_score(transcription, word)
+
+    return {"transcription": transcription, "score": score}

@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import '../models/progress_summary.dart';
 import '../models/save_exercise.dart';
 import '../models/vocab_exercise.dart';
 import '../models/comprehension_exercise.dart';
+import '../models/pronunciation_assessment.dart';
 import 'api_client.dart';
 
 ApiClient getApiClient(String baseUrl) => _UnsupportedApiClient();
@@ -32,6 +35,14 @@ class _UnsupportedApiClient implements ApiClient {
 
   @override
   Future<int> scorePronunciation(String word, String userText) async =>
+      _unsupported();
+
+  @override
+  Future<PronunciationAssessment> assessPronunciationAudio({
+    required String word,
+    required Uint8List audioBytes,
+    required String mimeType,
+  }) async =>
       _unsupported();
 
   @override

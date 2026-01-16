@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import '../models/progress_summary.dart';
 import '../models/save_exercise.dart';
 import '../models/vocab_exercise.dart';
 import '../models/comprehension_exercise.dart';
+import '../models/pronunciation_assessment.dart';
 import 'api_client.dart';
 
 ApiClient getApiClient(String baseUrl) => _IoApiClient(baseUrl);
@@ -64,6 +66,15 @@ class _IoApiClient implements ApiClient {
       return score.toInt();
     }
     throw ApiException('Invalid score response');
+  }
+
+  @override
+  Future<PronunciationAssessment> assessPronunciationAudio({
+    required String word,
+    required Uint8List audioBytes,
+    required String mimeType,
+  }) async {
+    throw ApiException('Audio assessment is only supported on web for now.');
   }
 
   @override
