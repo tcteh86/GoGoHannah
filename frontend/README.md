@@ -5,8 +5,8 @@ web first, then Android after the web demo is stable.
 
 ## Local setup (developer machine with Flutter)
 1) Install Flutter SDK.
-2) From this directory, run:
-   - `flutter create . --platforms=web,android`
+2) Fetch dependencies:
+   - `flutter pub get`
 3) Run the web app:
    - `flutter run -d chrome --dart-define API_BASE_URL=http://localhost:8000`
 

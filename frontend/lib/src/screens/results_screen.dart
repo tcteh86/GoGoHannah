@@ -1,0 +1,126 @@
+import 'package:flutter/material.dart';
+
+import '../api/api_client.dart';
+import '../models/progress_summary.dart';
+import '../widgets/error_view.dart';
+import '../widgets/loading_view.dart';
+
+class ResultsScreen extends StatefulWidget {
+  final ApiClient apiClient;
+  final String childName;
+
+  const ResultsScreen({
+    super.key,
+    required this.apiClient,
+    required this.childName,
+  });
+
+  @override
+  State<ResultsScreen> createState() => _ResultsScreenState();
+}
+
+class _ResultsScreenState extends State<ResultsScreen> {
+  late Future<ProgressSummary> _summaryFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _summaryFuture = widget.apiClient.fetchProgressSummary(widget.childName);
+  }
+
+  void _refresh() {
+    setState(() {
+      _summaryFuture = widget.apiClient.fetchProgressSummary(widget.childName);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Results'),
+        actions: [
+          IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
+        ],
+      ),
+      body: FutureBuilder<ProgressSummary>(
+        future: _summaryFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const LoadingView(message: 'Loading progress...');
+          }
+          if (snapshot.hasError || !snapshot.hasData) {
+            return ErrorView(
+              message: 'Unable to load progress.',
+              onRetry: _refresh,
+            );
+          }
+          final summary = snapshot.data!;
+          final quizScore = summary.scoresByType['quiz']?.avgScore ?? 0;
+          return ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              _MetricCard(
+                title: 'Total Exercises',
+                value: summary.totalExercises.toString(),
+              ),
+              _MetricCard(
+                title: 'Accuracy',
+                value: '${(summary.accuracy * 100).toStringAsFixed(1)}%',
+              ),
+              _MetricCard(
+                title: 'Avg Quiz Score',
+                value: quizScore.toStringAsFixed(1),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Words to Revisit',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              if (summary.weakWords.isEmpty)
+                const Text('Great job! No weak words yet.')
+              else
+                ...summary.weakWords
+                    .map(
+                      (word) => ListTile(
+                        title: Text(word.word),
+                        subtitle: Text(
+                          'Avg score: ${word.avgScore.toStringAsFixed(0)} • Attempts: ${word.attempts}',
+                        ),
+                      ),
+                    )
+                    .toList(),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  final String title;
+  final String value;
+
+  const _MetricCard({required this.title, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 16)),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
