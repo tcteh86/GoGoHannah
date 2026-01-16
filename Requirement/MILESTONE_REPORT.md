@@ -67,6 +67,7 @@ In progress:
   - Phonics hints added to vocab exercises.
   - Pronunciation recording with immediate playback and scoring.
   - Backend file upload dependency added for audio assessment.
+  - Web audio recorder build fix for MediaRecorder events.
 
 Planned:
 - Audio transcription pipeline for pronunciation.

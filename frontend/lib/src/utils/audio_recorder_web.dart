@@ -11,6 +11,10 @@ class _WebAudioRecorder implements AudioRecorder {
   html.MediaStream? _stream;
   final List<html.Blob> _chunks = [];
   bool _isRecording = false;
+  final html.EventStreamProvider<html.Event> _dataAvailableStream =
+      html.EventStreamProvider<html.Event>('dataavailable');
+  final html.EventStreamProvider<html.Event> _stopStream =
+      html.EventStreamProvider<html.Event>('stop');
 
   @override
   bool get isRecording => _isRecording;
@@ -24,9 +28,10 @@ class _WebAudioRecorder implements AudioRecorder {
     _stream = await html.window.navigator.mediaDevices!
         .getUserMedia({'audio': true});
     _recorder = html.MediaRecorder(_stream!);
-    _recorder!.onDataAvailable.listen((event) {
-      if (event.data != null) {
-        _chunks.add(event.data!);
+    _dataAvailableStream.forTarget(_recorder!).listen((event) {
+      final data = (event as dynamic).data;
+      if (data is html.Blob) {
+        _chunks.add(data);
       }
     });
     _recorder!.start();
@@ -41,7 +46,7 @@ class _WebAudioRecorder implements AudioRecorder {
     final recorder = _recorder!;
     final completer = Completer<AudioRecording>();
 
-    recorder.onStop.first.then((_) async {
+    _stopStream.forTarget(recorder).first.then((_) async {
       _isRecording = false;
       final blob = html.Blob(_chunks, 'audio/webm');
       final url = html.Url.createObjectUrl(blob);
