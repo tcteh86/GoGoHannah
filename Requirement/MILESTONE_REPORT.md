@@ -47,10 +47,15 @@ Completed:
 - Pronunciation scoring endpoint (text similarity) for early validation.
 - Streamlit MVP removed to avoid framework collision.
 - Deployment guides added for Render (backend) and Firebase (frontend).
+- Live deployment on Render:
+  - Frontend: https://gogohannah-ui.onrender.com/
+  - Backend: https://gogohannah.onrender.com/
+- Smoke tests passed:
+  - Backend health and vocab endpoints.
+  - UI flow: generate exercise, check answer, refresh results.
 
 In progress:
-- Flutter web UI scaffold (next development step).
-- Frontend integration with vocab exercise + save progress.
+- Expand UI polish and engagement elements for web.
 
 Planned:
 - Audio transcription pipeline for pronunciation.
