@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from .core.exercise import simple_exercise
+from .core.exercise import simple_comprehension_exercise, simple_exercise
 from .core.progress import (
     get_child_progress,
     get_or_create_child,
@@ -12,8 +12,15 @@ from .core.progress import (
 )
 from .core.safety import sanitize_word
 from .core.scoring import calculate_pronunciation_score
-from .llm.client import LLMUnavailable, generate_vocab_exercise
+from .llm.client import (
+    LLMUnavailable,
+    generate_comprehension_exercise,
+    generate_story_image,
+    generate_vocab_exercise,
+)
 from .schemas import (
+    ComprehensionExerciseRequest,
+    ComprehensionExerciseResponse,
     PronunciationScoreRequest,
     PronunciationScoreResponse,
     SaveExerciseRequest,
@@ -71,6 +78,35 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
         "quiz_question": result["quiz_question"],
         "quiz_choices": result["quiz_choices"],
         "quiz_answer": result["quiz_answer"],
+        "source": source,
+    }
+
+
+@app.post("/v1/comprehension/exercise", response_model=ComprehensionExerciseResponse)
+def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
+    try:
+        result = generate_comprehension_exercise(
+            theme=payload.theme,
+            level=payload.level,
+        )
+        source = "llm"
+    except LLMUnavailable:
+        result = simple_comprehension_exercise(level=payload.level)
+        source = "fallback"
+
+    image_url = None
+    if payload.include_image:
+        try:
+            image_url = generate_story_image(result["image_description"])
+        except LLMUnavailable:
+            image_url = None
+
+    return {
+        "story_title": result["story_title"],
+        "story_text": result["story_text"],
+        "image_description": result["image_description"],
+        "image_url": image_url,
+        "questions": result["questions"],
         "source": source,
     }
 

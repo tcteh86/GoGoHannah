@@ -21,6 +21,7 @@ Optional:
 - `GET /healthz`
 - `GET /v1/vocab/default`
 - `POST /v1/vocab/exercise`
+- `POST /v1/comprehension/exercise`
 - `POST /v1/progress/exercise`
 - `GET /v1/progress/summary`
 - `GET /v1/progress/recommended`

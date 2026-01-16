@@ -1,6 +1,7 @@
 import '../models/progress_summary.dart';
 import '../models/save_exercise.dart';
 import '../models/vocab_exercise.dart';
+import '../models/comprehension_exercise.dart';
 import 'api_client.dart';
 
 ApiClient getApiClient(String baseUrl) => _UnsupportedApiClient();
@@ -19,6 +20,14 @@ class _UnsupportedApiClient implements ApiClient {
 
   @override
   Future<VocabExercise> generateVocabExercise(String word) async =>
+      _unsupported();
+
+  @override
+  Future<ComprehensionExercise> generateComprehensionExercise({
+    required String level,
+    String? theme,
+    bool includeImage = false,
+  }) async =>
       _unsupported();
 
   @override

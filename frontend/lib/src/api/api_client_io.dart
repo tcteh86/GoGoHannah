@@ -4,6 +4,7 @@ import 'dart:io';
 import '../models/progress_summary.dart';
 import '../models/save_exercise.dart';
 import '../models/vocab_exercise.dart';
+import '../models/comprehension_exercise.dart';
 import 'api_client.dart';
 
 ApiClient getApiClient(String baseUrl) => _IoApiClient(baseUrl);
@@ -35,6 +36,21 @@ class _IoApiClient implements ApiClient {
   Future<VocabExercise> generateVocabExercise(String word) async {
     final data = await _postJson('/v1/vocab/exercise', {'word': word});
     return VocabExercise.fromJson(data);
+  }
+
+  @override
+  Future<ComprehensionExercise> generateComprehensionExercise({
+    required String level,
+    String? theme,
+    bool includeImage = false,
+  }) async {
+    final payload = {
+      'level': level,
+      'theme': theme,
+      'include_image': includeImage,
+    };
+    final data = await _postJson('/v1/comprehension/exercise', payload);
+    return ComprehensionExercise.fromJson(data);
   }
 
   @override

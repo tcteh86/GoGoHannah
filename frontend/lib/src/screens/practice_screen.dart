@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../models/comprehension_exercise.dart';
 import '../models/save_exercise.dart';
 import '../models/session_state.dart';
 import '../models/vocab_exercise.dart';
 import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
 import '../widgets/mascot_header.dart';
+
+enum PracticeMode { vocabulary, comprehension }
 
 class PracticeScreen extends StatefulWidget {
   final ApiClient apiClient;
@@ -31,6 +34,15 @@ class _PracticeScreenState extends State<PracticeScreen> {
   String? _selectedChoice;
   String? _feedback;
   bool _loading = false;
+
+  PracticeMode _mode = PracticeMode.vocabulary;
+  ComprehensionExercise? _comprehension;
+  String? _comprehensionError;
+  bool _loadingComprehension = false;
+  String _storyLevel = 'beginner';
+  bool _includeImage = false;
+  final Map<int, String> _compChoices = {};
+  final Map<int, bool> _compAnswered = {};
 
   @override
   void initState() {
@@ -86,6 +98,254 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
+  Future<void> _generateComprehension() async {
+    setState(() {
+      _loadingComprehension = true;
+      _comprehension = null;
+      _comprehensionError = null;
+      _compChoices.clear();
+      _compAnswered.clear();
+    });
+    try {
+      final exercise = await widget.apiClient.generateComprehensionExercise(
+        level: _storyLevel,
+        includeImage: _includeImage,
+      );
+      setState(() {
+        _comprehension = exercise;
+      });
+    } catch (error) {
+      setState(() {
+        _comprehensionError = 'Unable to load a story. Try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loadingComprehension = false);
+      }
+    }
+  }
+
+  Future<void> _checkComprehensionAnswer(int index) async {
+    final exercise = _comprehension;
+    if (exercise == null || _compAnswered.containsKey(index)) {
+      return;
+    }
+    final choice = _compChoices[index];
+    if (choice == null) {
+      return;
+    }
+    final question = exercise.questions[index];
+    final correct = choice == question.answer;
+    setState(() {
+      _compAnswered[index] = correct;
+    });
+    widget.sessionState.recordAnswer(correct: correct);
+    await widget.apiClient.saveExercise(
+      SaveExercise(
+        childName: widget.childName,
+        word: 'comp_q${index + 1}',
+        exerciseType: 'comprehension',
+        score: correct ? 100 : 0,
+        correct: correct,
+      ),
+    );
+  }
+
+  Widget _buildModeSelector() {
+    return SegmentedButton<PracticeMode>(
+      segments: const [
+        ButtonSegment(
+          value: PracticeMode.vocabulary,
+          label: Text('Vocabulary'),
+        ),
+        ButtonSegment(
+          value: PracticeMode.comprehension,
+          label: Text('Story'),
+        ),
+      ],
+      selected: {_mode},
+      onSelectionChanged: (selection) {
+        setState(() {
+          _mode = selection.first;
+          _feedback = null;
+        });
+      },
+    );
+  }
+
+  Widget _buildVocabularySection(List<String> words) {
+    _selectedWord ??= words.isNotEmpty ? words.first : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Pick a word to practice:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: _selectedWord,
+          items: words
+              .map(
+                (word) => DropdownMenuItem(
+                  value: word,
+                  child: Text(word),
+                ),
+              )
+              .toList(),
+          onChanged: (value) => setState(() {
+            _selectedWord = value;
+            _exercise = null;
+            _feedback = null;
+            _selectedChoice = null;
+          }),
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: _loading ? null : _generateExercise,
+          icon: const Icon(Icons.auto_awesome),
+          label: const Text('Generate Exercise'),
+        ),
+        const SizedBox(height: 20),
+        if (_loading) const LoadingView(message: 'Creating exercise...'),
+        if (_exercise != null) ...[
+          _ExerciseCard(exercise: _exercise!),
+          const SizedBox(height: 16),
+          const Text(
+            'Choose the answer:',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          _AnswerChoices(
+            exercise: _exercise!,
+            selectedChoice: _selectedChoice,
+            onChanged: (value) => setState(() => _selectedChoice = value),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: _selectedChoice == null ? null : _checkAnswer,
+            child: const Text('Check Answer'),
+          ),
+        ],
+        if (_feedback != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            _feedback!,
+            style: const TextStyle(fontSize: 16),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildComprehensionSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Choose a story level:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: _storyLevel,
+          items: const [
+            DropdownMenuItem(value: 'beginner', child: Text('Beginner')),
+            DropdownMenuItem(value: 'intermediate', child: Text('Intermediate')),
+            DropdownMenuItem(value: 'expert', child: Text('Expert')),
+          ],
+          onChanged: (value) => setState(() {
+            _storyLevel = value ?? 'beginner';
+          }),
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 8),
+        SwitchListTile(
+          value: _includeImage,
+          onChanged: (value) => setState(() => _includeImage = value),
+          title: const Text('Include illustration'),
+          subtitle: const Text('Uses image generation credits.'),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: _loadingComprehension ? null : _generateComprehension,
+          icon: const Icon(Icons.menu_book),
+          label: const Text('Generate Story'),
+        ),
+        const SizedBox(height: 16),
+        if (_loadingComprehension)
+          const LoadingView(message: 'Creating your story...'),
+        if (_comprehensionError != null) ...[
+          Text(
+            _comprehensionError!,
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (_comprehension != null) _ComprehensionCard(exercise: _comprehension!),
+        if (_comprehension != null) ...[
+          const SizedBox(height: 12),
+          const Text(
+            'Questions',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ..._comprehension!.questions.asMap().entries.map((entry) {
+            final index = entry.key;
+            final question = entry.value;
+            final selected = _compChoices[index];
+            final answered = _compAnswered[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Q${index + 1}. ${question.question}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    ...['A', 'B', 'C']
+                        .where((key) => question.choices.containsKey(key))
+                        .map(
+                          (key) => RadioListTile<String>(
+                            value: key,
+                            groupValue: selected,
+                            onChanged: (value) => setState(() {
+                              if (value != null) {
+                                _compChoices[index] = value;
+                              }
+                            }),
+                            title: Text('${key}. ${question.choices[key]}'),
+                          ),
+                        ),
+                    const SizedBox(height: 4),
+                    FilledButton(
+                      onPressed: selected == null
+                          ? null
+                          : () => _checkComprehensionAnswer(index),
+                      child: const Text('Check'),
+                    ),
+                    if (answered != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        answered ? 'Correct!' : 'Not quite. Try again!',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -110,7 +370,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
             );
           }
           final words = snapshot.data!;
-          _selectedWord ??= words.isNotEmpty ? words.first : null;
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -119,63 +378,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 sessionState: widget.sessionState,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Pick a word to practice:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _selectedWord,
-                items: words
-                    .map(
-                      (word) => DropdownMenuItem(
-                        value: word,
-                        child: Text(word),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() {
-                  _selectedWord = value;
-                  _exercise = null;
-                  _feedback = null;
-                  _selectedChoice = null;
-                }),
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _loading ? null : _generateExercise,
-                icon: const Icon(Icons.auto_awesome),
-                label: const Text('Generate Exercise'),
-              ),
-              const SizedBox(height: 20),
-              if (_loading) const LoadingView(message: 'Creating exercise...'),
-              if (_exercise != null) ...[
-                _ExerciseCard(exercise: _exercise!),
-                const SizedBox(height: 16),
-                const Text(
-                  'Choose the answer:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                _AnswerChoices(
-                  exercise: _exercise!,
-                  selectedChoice: _selectedChoice,
-                  onChanged: (value) => setState(() => _selectedChoice = value),
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: _selectedChoice == null ? null : _checkAnswer,
-                  child: const Text('Check Answer'),
-                ),
-              ],
-              if (_feedback != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  _feedback!,
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ],
+              _buildModeSelector(),
+              const SizedBox(height: 16),
+              if (_mode == PracticeMode.vocabulary)
+                _buildVocabularySection(words)
+              else
+                _buildComprehensionSection(),
             ],
           );
         },
@@ -252,6 +460,49 @@ class _AnswerChoices extends StatelessWidget {
             ),
           )
           .toList(),
+    );
+  }
+}
+
+class _ComprehensionCard extends StatelessWidget {
+  final ComprehensionExercise exercise;
+
+  const _ComprehensionCard({required this.exercise});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              exercise.storyTitle,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            if (exercise.imageUrl != null && exercise.imageUrl!.isNotEmpty) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  exercise.imageUrl!,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Text(exercise.storyText),
+            if (exercise.source != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Source: ${exercise.source}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

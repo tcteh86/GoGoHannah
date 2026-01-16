@@ -4,10 +4,16 @@ import 'api_client_stub.dart'
 import '../models/progress_summary.dart';
 import '../models/save_exercise.dart';
 import '../models/vocab_exercise.dart';
+import '../models/comprehension_exercise.dart';
 
 abstract class ApiClient {
   Future<List<String>> fetchDefaultVocab();
   Future<VocabExercise> generateVocabExercise(String word);
+  Future<ComprehensionExercise> generateComprehensionExercise({
+    required String level,
+    String? theme,
+    bool includeImage = false,
+  });
   Future<void> saveExercise(SaveExercise payload);
   Future<ProgressSummary> fetchProgressSummary(String childName);
   Future<List<String>> fetchRecommendedWords(String childName, int limit);

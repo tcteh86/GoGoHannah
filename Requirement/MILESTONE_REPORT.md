@@ -60,6 +60,10 @@ In progress:
   - Daily goal tracker with progress bar.
   - Badge unlock for goal completion.
   - Streak counter (session-based).
+- Phase B (GenAI depth) started:
+  - Comprehension story mode with level selection.
+  - Optional illustration generation hook.
+  - Per-question saving for comprehension practice.
 
 Planned:
 - Audio transcription pipeline for pronunciation.
