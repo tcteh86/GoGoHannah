@@ -2,17 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../models/progress_summary.dart';
+import '../models/session_state.dart';
 import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
+import '../widgets/mascot_header.dart';
 
 class ResultsScreen extends StatefulWidget {
   final ApiClient apiClient;
   final String childName;
+  final SessionState sessionState;
 
   const ResultsScreen({
     super.key,
     required this.apiClient,
     required this.childName,
+    required this.sessionState,
   });
 
   @override
@@ -60,6 +64,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              MascotHeader(
+                childName: widget.childName,
+                sessionState: widget.sessionState,
+              ),
+              const SizedBox(height: 16),
               _MetricCard(
                 title: 'Total Exercises',
                 value: summary.totalExercises.toString(),

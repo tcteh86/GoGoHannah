@@ -2,18 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../models/save_exercise.dart';
+import '../models/session_state.dart';
 import '../models/vocab_exercise.dart';
 import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
+import '../widgets/mascot_header.dart';
 
 class PracticeScreen extends StatefulWidget {
   final ApiClient apiClient;
   final String childName;
+  final SessionState sessionState;
 
   const PracticeScreen({
     super.key,
     required this.apiClient,
     required this.childName,
+    required this.sessionState,
   });
 
   @override
@@ -70,6 +74,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     setState(() {
       _feedback = correct ? 'Correct! Great job!' : 'Nice try! Keep practicing.';
     });
+    widget.sessionState.recordAnswer(correct: correct);
     await widget.apiClient.saveExercise(
       SaveExercise(
         childName: widget.childName,
@@ -109,6 +114,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              MascotHeader(
+                childName: widget.childName,
+                sessionState: widget.sessionState,
+              ),
+              const SizedBox(height: 16),
               const Text(
                 'Pick a word to practice:',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

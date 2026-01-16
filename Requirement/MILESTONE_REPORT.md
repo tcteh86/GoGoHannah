@@ -55,7 +55,11 @@ Completed:
   - UI flow: generate exercise, check answer, refresh results.
 
 In progress:
-- Expand UI polish and engagement elements for web.
+- Phase A (Engagement) implementation in Flutter:
+  - Mascot header with animated reactions.
+  - Daily goal tracker with progress bar.
+  - Badge unlock for goal completion.
+  - Streak counter (session-based).
 
 Planned:
 - Audio transcription pipeline for pronunciation.
@@ -91,3 +95,4 @@ Next:
 2) Connect Flutter to backend endpoints.
 3) Deploy backend on Render, frontend on Firebase.
 4) Capture demo screenshots for milestone report.
+5) Complete Phase A engagement loop polishing.

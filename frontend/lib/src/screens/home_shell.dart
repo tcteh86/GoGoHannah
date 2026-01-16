@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../models/session_state.dart';
 import 'practice_screen.dart';
 import 'quick_check_screen.dart';
 import 'results_screen.dart';
@@ -18,6 +19,7 @@ class _HomeShellState extends State<HomeShell> {
   int _currentIndex = 0;
   String _childName = '';
   final TextEditingController _nameController = TextEditingController();
+  SessionState? _sessionState;
 
   @override
   void dispose() {
@@ -31,6 +33,9 @@ class _HomeShellState extends State<HomeShell> {
       return;
     }
     setState(() {
+      if (_childName != name || _sessionState == null) {
+        _sessionState = SessionState();
+      }
       _childName = name;
     });
   }
@@ -75,10 +80,23 @@ class _HomeShellState extends State<HomeShell> {
       );
     }
 
+    final sessionState = _sessionState ?? SessionState();
     final screens = [
-      PracticeScreen(apiClient: widget.apiClient, childName: _childName),
-      ResultsScreen(apiClient: widget.apiClient, childName: _childName),
-      QuickCheckScreen(apiClient: widget.apiClient, childName: _childName),
+      PracticeScreen(
+        apiClient: widget.apiClient,
+        childName: _childName,
+        sessionState: sessionState,
+      ),
+      ResultsScreen(
+        apiClient: widget.apiClient,
+        childName: _childName,
+        sessionState: sessionState,
+      ),
+      QuickCheckScreen(
+        apiClient: widget.apiClient,
+        childName: _childName,
+        sessionState: sessionState,
+      ),
     ];
 
     return Scaffold(

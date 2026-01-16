@@ -2,17 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../models/save_exercise.dart';
+import '../models/session_state.dart';
 import '../models/vocab_exercise.dart';
 import '../widgets/loading_view.dart';
+import '../widgets/mascot_header.dart';
 
 class QuickCheckScreen extends StatefulWidget {
   final ApiClient apiClient;
   final String childName;
+  final SessionState sessionState;
 
   const QuickCheckScreen({
     super.key,
     required this.apiClient,
     required this.childName,
+    required this.sessionState,
   });
 
   @override
@@ -53,6 +57,9 @@ class _QuickCheckScreenState extends State<QuickCheckScreen> {
 
   Future<void> _checkAnswer(int index) async {
     final item = _items[index];
+    if (_answered.containsKey(index)) {
+      return;
+    }
     final choice = _selectedChoices[index];
     if (choice == null) {
       return;
@@ -61,6 +68,7 @@ class _QuickCheckScreenState extends State<QuickCheckScreen> {
     setState(() {
       _answered[index] = correct;
     });
+    widget.sessionState.recordAnswer(correct: correct);
     await widget.apiClient.saveExercise(
       SaveExercise(
         childName: widget.childName,
@@ -81,6 +89,11 @@ class _QuickCheckScreenState extends State<QuickCheckScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          MascotHeader(
+            childName: widget.childName,
+            sessionState: widget.sessionState,
+          ),
+          const SizedBox(height: 16),
           const Text(
             'Try a quick quiz to check your recent words.',
             style: TextStyle(fontSize: 16),
