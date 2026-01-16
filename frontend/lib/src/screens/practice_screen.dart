@@ -332,6 +332,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
           icon: Icon(_audioRecorder.isRecording ? Icons.stop : Icons.mic),
           label: Text(_audioRecorder.isRecording ? 'Stop Recording' : 'Record'),
         ),
+        if (_audioRecorder.isRecording) ...[
+          const SizedBox(height: 6),
+          const Text('Recording... tap stop when you are done.'),
+        ],
         if (_pronunciationLoading)
           const Padding(
             padding: EdgeInsets.only(top: 8),

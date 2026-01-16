@@ -68,6 +68,7 @@ In progress:
   - Pronunciation recording with immediate playback and scoring.
   - Backend file upload dependency added for audio assessment.
   - Web audio recorder build fix for MediaRecorder events.
+  - Recording timeout guard and UX hint for stopping recording.
 
 Planned:
 - Audio transcription pipeline for pronunciation.

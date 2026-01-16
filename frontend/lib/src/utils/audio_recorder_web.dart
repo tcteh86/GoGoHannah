@@ -59,8 +59,20 @@ class _WebAudioRecorder implements AudioRecorder {
       ));
     });
 
+    try {
+      recorder.requestData();
+    } catch (_) {
+      // Some browsers may not support requestData; ignore.
+    }
     recorder.stop();
-    return completer.future;
+    return completer.future.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        _isRecording = false;
+        _cleanupStream();
+        throw StateError('Recording timed out.');
+      },
+    );
   }
 
   Future<Uint8List> _blobToBytes(html.Blob blob) async {
