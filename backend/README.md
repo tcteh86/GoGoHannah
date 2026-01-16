@@ -25,3 +25,13 @@ Optional:
 - `GET /v1/progress/summary`
 - `GET /v1/progress/recommended`
 - `POST /v1/pronunciation/score`
+
+## Deploy (Render)
+1) Create a new Web Service connected to the repo.
+2) Build command:
+   - `pip install -r backend/requirements.txt`
+3) Start command:
+   - `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
+4) Environment variables:
+   - `OPENAI_API_KEY=...`
+   - `GOGOHANNAH_CORS_ORIGINS=https://YOUR-FIREBASE-URL`

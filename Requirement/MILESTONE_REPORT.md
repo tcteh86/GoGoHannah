@@ -46,6 +46,7 @@ Completed:
 - Progress storage with child identity and exercise records.
 - Pronunciation scoring endpoint (text similarity) for early validation.
 - Streamlit MVP removed to avoid framework collision.
+- Deployment guides added for Render (backend) and Firebase (frontend).
 
 In progress:
 - Flutter web UI scaffold (next development step).
