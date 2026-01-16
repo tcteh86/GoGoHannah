@@ -27,3 +27,13 @@ From `frontend/`:
    - Update `.firebaserc` with your project ID.
 3) Deploy:
    - `firebase deploy --only hosting`
+
+## Deploy (Render Static Site)
+If you build on Render, Flutter can be cached between builds. Use a guarded
+clone to avoid `destination path ... already exists` errors.
+
+Example build command:
+- `bash -lc "if [ ! -d /opt/render/flutter ]; then git clone https://github.com/flutter/flutter.git -b stable --depth 1 /opt/render/flutter; fi && export PATH=\"/opt/render/flutter/bin:$PATH\" && flutter pub get && flutter build web --dart-define API_BASE_URL=$API_BASE_URL"`
+
+Publish directory:
+- `build/web`
