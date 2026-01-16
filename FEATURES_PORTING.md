@@ -1,32 +1,32 @@
 # GoGoHannah - Implemented Features and Porting Notes
 
 This document describes the implemented features and the core behaviors to port
-to another framework. It is based on the current code in `app/` and tests.
+to another framework. It reflects the current **Flutter + FastAPI** migration
+and the existing backend modules.
 
 ## 1) Architecture Overview
 
 UI layer:
-- `app/main.py` is the Streamlit entry point and orchestrates all user flows.
-- It owns UI state (session state), navigation, and input/output rendering.
+- Flutter app (under `frontend/`) provides navigation and kid-friendly UI.
 
 Core logic:
-- `app/core/exercise.py` provides a deterministic fallback exercise.
-- `app/core/scoring.py` evaluates answers and pronunciation similarity.
-- `app/core/safety.py` sanitizes vocabulary words.
-- `app/core/progress.py` persists and aggregates practice data.
+- `backend/app/core/exercise.py` provides a deterministic fallback exercise.
+- `backend/app/core/scoring.py` evaluates answers and pronunciation similarity.
+- `backend/app/core/safety.py` sanitizes vocabulary words.
+- `backend/app/core/progress.py` persists and aggregates practice data.
 
 LLM integration:
-- `app/llm/client.py` wraps OpenAI API usage.
-- `app/llm/prompts.py` defines the system prompt and task prompt.
+- `backend/app/llm/client.py` wraps OpenAI API usage.
+- `backend/app/llm/prompts.py` defines the system prompt and task prompt.
 
 Vocabulary data:
-- `app/vocab/default_vocab.csv` is the built-in vocabulary list.
-- `app/vocab/loader.py` loads default or uploaded CSV vocab lists.
+- `backend/app/vocab/default_vocab.csv` is the built-in vocabulary list.
+- `backend/app/vocab/loader.py` loads default or uploaded CSV vocab lists.
 
 ## 2) Data Model and Persistence
 
-SQLite database at `progress.db` (relative to repository root).
-Initialized on import of `app/core/progress.py`.
+SQLite database at `backend/data/progress.db` by default.
+Initialized on import of `backend/app/core/progress.py`.
 
 Tables:
 - `children`
@@ -56,7 +56,6 @@ Flow:
 - The name is inserted or retrieved from the `children` table.
 
 Porting notes:
-- Replace the Streamlit sidebar input with an equivalent UI field.
 - Keep the "gate" behavior: block all other flows until a name is provided.
 
 ### 3.2 Vocabulary source selection
@@ -108,8 +107,7 @@ Fallback:
 - Text input is scored the same way and still saved.
 
 Porting notes:
-- You can replace `gTTS` with another TTS provider,
-  but keep "auto-play once, replay on demand".
+- Keep "auto-play once, replay on demand" for pronunciation practice.
 - Keep the same scoring threshold for "correct" (score >= 80).
 
 ### 3.5 Comprehension practice (story + questions + illustration)
@@ -196,7 +194,6 @@ Audio and image:
 
 API key loading:
 - Environment variable `OPENAI_API_KEY`.
-- Streamlit secrets fallback.
 
 Porting notes:
 - Keep the same JSON schema validation to avoid malformed content.
@@ -207,9 +204,6 @@ Porting notes:
 Tests:
 - `tests/test_loader.py` verifies default vocab loads.
 - `tests/test_scoring.py` verifies answer checking logic.
-
-Debug helper:
-- `debug_llm.py` exercises `generate_vocab_exercise`.
 
 ## 6) Porting Checklist (Implementation Parity)
 

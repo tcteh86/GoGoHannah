@@ -1,4 +1,4 @@
-from app.core.scoring import check_answer
+from backend.app.core.scoring import check_answer
 
 
 def test_check_answer():

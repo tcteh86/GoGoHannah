@@ -8,11 +8,15 @@ venv/
 .env
 backend/data/*.db
 
-# streamlit
-.streamlit/
-
 # OS/editor
 .DS_Store
 .vscode/
 .idea/
 A Prototype of an AI-Based English Vocabulary Learning Assistant for Young Learners.docx
+
+# flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/

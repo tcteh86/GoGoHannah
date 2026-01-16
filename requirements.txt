@@ -1,7 +1,6 @@
-streamlit>=1.32
-pandas>=2.0
-python-dotenv>=1.0
-openai>=1.0
-rapidfuzz>=3.0
-gtts>=2.5
-streamlit-mic-recorder>=0.0.8
+pandas>=2.3
+python-dotenv>=1.2
+openai>=2.15
+rapidfuzz>=3.14
+fastapi>=0.128
+uvicorn>=0.40
