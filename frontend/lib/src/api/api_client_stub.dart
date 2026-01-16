@@ -31,6 +31,10 @@ class _UnsupportedApiClient implements ApiClient {
       _unsupported();
 
   @override
+  Future<int> scorePronunciation(String word, String userText) async =>
+      _unsupported();
+
+  @override
   Future<List<String>> fetchRecommendedWords(String childName, int limit) async =>
       _unsupported();
 

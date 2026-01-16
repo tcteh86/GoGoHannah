@@ -13,6 +13,7 @@ class VocabExerciseResponse(BaseModel):
     quiz_question: str
     quiz_choices: Dict[str, str]
     quiz_answer: str
+    phonics: Optional[str] = None
     source: Optional[str] = None
 
 

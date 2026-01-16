@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.exercise import simple_comprehension_exercise, simple_exercise
+from .core.phonics import phonics_hint
 from .core.progress import (
     get_child_progress,
     get_or_create_child,
@@ -78,6 +79,7 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
         "quiz_question": result["quiz_question"],
         "quiz_choices": result["quiz_choices"],
         "quiz_answer": result["quiz_answer"],
+        "phonics": phonics_hint(word),
         "source": source,
     }
 

@@ -14,6 +14,7 @@ abstract class ApiClient {
     String? theme,
     bool includeImage = false,
   });
+  Future<int> scorePronunciation(String word, String userText);
   Future<void> saveExercise(SaveExercise payload);
   Future<ProgressSummary> fetchProgressSummary(String childName);
   Future<List<String>> fetchRecommendedWords(String childName, int limit);

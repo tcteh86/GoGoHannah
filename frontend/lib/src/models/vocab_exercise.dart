@@ -4,6 +4,7 @@ class VocabExercise {
   final String quizQuestion;
   final Map<String, String> quizChoices;
   final String quizAnswer;
+  final String? phonics;
   final String? source;
 
   VocabExercise({
@@ -12,6 +13,7 @@ class VocabExercise {
     required this.quizQuestion,
     required this.quizChoices,
     required this.quizAnswer,
+    this.phonics,
     this.source,
   });
 
@@ -29,6 +31,7 @@ class VocabExercise {
       quizQuestion: json['quiz_question']?.toString() ?? '',
       quizChoices: choices,
       quizAnswer: json['quiz_answer']?.toString() ?? '',
+      phonics: json['phonics']?.toString(),
       source: json['source']?.toString(),
     );
   }

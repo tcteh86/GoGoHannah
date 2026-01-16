@@ -54,6 +54,19 @@ class _IoApiClient implements ApiClient {
   }
 
   @override
+  Future<int> scorePronunciation(String word, String userText) async {
+    final data = await _postJson('/v1/pronunciation/score', {
+      'target_word': word,
+      'user_text': userText,
+    });
+    final score = data['score'];
+    if (score is num) {
+      return score.toInt();
+    }
+    throw ApiException('Invalid score response');
+  }
+
+  @override
   Future<void> saveExercise(SaveExercise payload) async {
     await _postJson('/v1/progress/exercise', payload.toJson());
   }

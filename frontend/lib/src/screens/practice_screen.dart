@@ -8,6 +8,7 @@ import '../models/vocab_exercise.dart';
 import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
 import '../widgets/mascot_header.dart';
+import '../utils/speech_helper.dart';
 
 enum PracticeMode { vocabulary, comprehension }
 
@@ -44,10 +45,22 @@ class _PracticeScreenState extends State<PracticeScreen> {
   final Map<int, String> _compChoices = {};
   final Map<int, bool> _compAnswered = {};
 
+  final TextEditingController _pronunciationController = TextEditingController();
+  int? _pronunciationScore;
+  String? _pronunciationFeedback;
+  bool _pronunciationLoading = false;
+  final SpeechHelper _speechHelper = createSpeechHelper();
+
   @override
   void initState() {
     super.initState();
     _vocabFuture = widget.apiClient.fetchDefaultVocab();
+  }
+
+  @override
+  void dispose() {
+    _pronunciationController.dispose();
+    super.dispose();
   }
 
   Future<void> _generateExercise() async {
@@ -96,6 +109,47 @@ class _PracticeScreenState extends State<PracticeScreen> {
         correct: correct,
       ),
     );
+  }
+
+  Future<void> _scorePronunciation() async {
+    final word = _selectedWord;
+    final input = _pronunciationController.text.trim();
+    if (word == null || word.isEmpty || input.isEmpty) {
+      return;
+    }
+    setState(() {
+      _pronunciationLoading = true;
+      _pronunciationScore = null;
+      _pronunciationFeedback = null;
+    });
+    try {
+      final score = await widget.apiClient.scorePronunciation(word, input);
+      final correct = score >= 80;
+      widget.sessionState.recordAnswer(correct: correct);
+      await widget.apiClient.saveExercise(
+        SaveExercise(
+          childName: widget.childName,
+          word: word,
+          exerciseType: 'pronunciation',
+          score: score,
+          correct: correct,
+        ),
+      );
+      setState(() {
+        _pronunciationScore = score;
+        _pronunciationFeedback = correct
+            ? 'Great pronunciation!'
+            : 'Keep practicing the sounds.';
+      });
+    } catch (error) {
+      setState(() {
+        _pronunciationFeedback = 'Unable to score pronunciation.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _pronunciationLoading = false);
+      }
+    }
   }
 
   Future<void> _generateComprehension() async {
@@ -175,6 +229,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
   Widget _buildVocabularySection(List<String> words) {
     _selectedWord ??= words.isNotEmpty ? words.first : null;
+    final word = _selectedWord ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -210,7 +265,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
         const SizedBox(height: 20),
         if (_loading) const LoadingView(message: 'Creating exercise...'),
         if (_exercise != null) ...[
-          _ExerciseCard(exercise: _exercise!),
+          _ExerciseCard(
+            exercise: _exercise!,
+            word: word,
+            onListen: () => _speechHelper.speak(word),
+          ),
           const SizedBox(height: 16),
           const Text(
             'Choose the answer:',
@@ -234,6 +293,38 @@ class _PracticeScreenState extends State<PracticeScreen> {
             _feedback!,
             style: const TextStyle(fontSize: 16),
           ),
+        ],
+        const SizedBox(height: 16),
+        const Text(
+          'Pronunciation practice:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _pronunciationController,
+          decoration: const InputDecoration(
+            labelText: 'Type what you said',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: _pronunciationLoading ? null : _scorePronunciation,
+          icon: const Icon(Icons.mic),
+          label: const Text('Score Pronunciation'),
+        ),
+        if (_pronunciationLoading)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: LoadingView(message: 'Scoring pronunciation...'),
+          ),
+        if (_pronunciationScore != null) ...[
+          const SizedBox(height: 8),
+          Text('Score: $_pronunciationScore / 100'),
+        ],
+        if (_pronunciationFeedback != null) ...[
+          const SizedBox(height: 4),
+          Text(_pronunciationFeedback!),
         ],
       ],
     );
@@ -394,8 +485,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
 class _ExerciseCard extends StatelessWidget {
   final VocabExercise exercise;
+  final String word;
+  final VoidCallback onListen;
 
-  const _ExerciseCard({required this.exercise});
+  const _ExerciseCard({
+    required this.exercise,
+    required this.word,
+    required this.onListen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -406,6 +503,31 @@ class _ExerciseCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Word: $word',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: onListen,
+                  icon: const Icon(Icons.volume_up),
+                  tooltip: 'Listen to the word',
+                ),
+              ],
+            ),
+            if (exercise.phonics != null && exercise.phonics!.isNotEmpty) ...[
+              Text(
+                'Phonics: ${exercise.phonics}',
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
+              ),
+              const SizedBox(height: 8),
+            ],
             Text(
               'Definition: ${exercise.definition}',
               style: const TextStyle(fontSize: 16),
