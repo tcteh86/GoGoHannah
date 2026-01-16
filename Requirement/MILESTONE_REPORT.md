@@ -66,6 +66,7 @@ In progress:
   - Per-question saving for comprehension practice.
   - Phonics hints added to vocab exercises.
   - Pronunciation recording with immediate playback and scoring.
+  - Backend file upload dependency added for audio assessment.
 
 Planned:
 - Audio transcription pipeline for pronunciation.
