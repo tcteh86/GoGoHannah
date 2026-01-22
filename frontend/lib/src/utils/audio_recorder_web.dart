@@ -54,7 +54,11 @@ class _WebAudioRecorder implements AudioRecorder {
         }
       }
     });
-    _recorder!.start();
+    try {
+      _recorder!.start(250);
+    } catch (_) {
+      _recorder!.start();
+    }
     _startLevelMonitor();
     _isRecording = true;
   }
@@ -92,14 +96,7 @@ class _WebAudioRecorder implements AudioRecorder {
 
     _stopStream.forTarget(recorder).first.then((_) async {
       if (_chunks.isEmpty) {
-        final completer = _firstChunkCompleter;
-        if (completer != null && !completer.isCompleted) {
-          try {
-            await completer.future.timeout(const Duration(seconds: 1));
-          } catch (_) {
-            // Ignore timeout while waiting for final chunk.
-          }
-        }
+        await _waitForFirstChunk(const Duration(seconds: 2));
       }
       await finalizeRecording();
     });
@@ -121,7 +118,7 @@ class _WebAudioRecorder implements AudioRecorder {
     });
 
     return completer.future.timeout(
-      const Duration(seconds: 6),
+      const Duration(seconds: 8),
       onTimeout: () {
         _isRecording = false;
         _cleanupStream();
@@ -160,6 +157,18 @@ class _WebAudioRecorder implements AudioRecorder {
       return 'audio/webm';
     }
     return value;
+  }
+
+  Future<void> _waitForFirstChunk(Duration timeout) async {
+    final completer = _firstChunkCompleter;
+    if (completer == null || completer.isCompleted) {
+      return;
+    }
+    try {
+      await completer.future.timeout(timeout);
+    } catch (_) {
+      // Ignore timeout while waiting for chunk.
+    }
   }
 
   void _startLevelMonitor() {
