@@ -104,3 +104,11 @@ Next:
 3) Draft a RAG + embeddings prototype plan.
 4) Outline the multi-agent safety workflow.
 5) Explore weak-word analysis improvements and UX.
+
+---
+
+## 5) Update Log (Jan 22, 2026)
+- Marked Phase A engagement loop and Phase B GenAI depth as completed.
+- Added QA checklist for baseline verification (Requirement/QA_CHECKLIST.md).
+- Hardened web audio recording (timeouts, empty capture handling).
+- Added live audio level indicator and waveform preview for recordings.
