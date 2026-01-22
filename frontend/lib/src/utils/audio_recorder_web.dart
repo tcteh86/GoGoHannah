@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:html' as html;
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:web_audio' as webaudio;
 
 import 'package:flutter/foundation.dart';
 
@@ -12,9 +13,9 @@ AudioRecorder getAudioRecorder() => _WebAudioRecorder();
 class _WebAudioRecorder implements AudioRecorder {
   html.MediaRecorder? _recorder;
   html.MediaStream? _stream;
-  html.AudioContext? _audioContext;
-  html.AnalyserNode? _analyser;
-  html.MediaStreamAudioSourceNode? _sourceNode;
+  webaudio.AudioContext? _audioContext;
+  webaudio.AnalyserNode? _analyser;
+  webaudio.MediaStreamAudioSourceNode? _sourceNode;
   final List<html.Blob> _chunks = [];
   StreamSubscription<html.Event>? _dataSubscription;
   Completer<void>? _firstChunkCompleter;
@@ -165,7 +166,7 @@ class _WebAudioRecorder implements AudioRecorder {
     _levelNotifier.value = 0;
     _levelTimer?.cancel();
     try {
-      _audioContext = html.AudioContext();
+      _audioContext = webaudio.AudioContext();
       _analyser = _audioContext!.createAnalyser();
       _analyser!.fftSize = 2048;
       _sourceNode = _audioContext!.createMediaStreamSource(_stream!);
