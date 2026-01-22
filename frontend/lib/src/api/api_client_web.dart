@@ -75,8 +75,10 @@ class _WebApiClient implements ApiClient {
   }) async {
     final formData = FormData();
     formData.append('target_word', word);
-    final blob = Blob([audioBytes], mimeType);
-    formData.appendBlob('audio', blob, 'recording.webm');
+    final normalizedMimeType = _normalizeMimeType(mimeType);
+    final blob = Blob([audioBytes], normalizedMimeType);
+    final extension = _extensionForMime(normalizedMimeType);
+    formData.appendBlob('audio', blob, 'recording.$extension');
 
     final request = await HttpRequest.request(
       '$_baseUrl/v1/pronunciation/assess',
@@ -147,5 +149,31 @@ class _WebApiClient implements ApiClient {
       return decoded;
     }
     throw ApiException('Unexpected response format');
+  }
+
+  String _normalizeMimeType(String mimeType) {
+    final normalized = mimeType.trim();
+    if (normalized.isEmpty) {
+      return 'audio/webm';
+    }
+    return normalized.split(';').first;
+  }
+
+  String _extensionForMime(String mimeType) {
+    switch (mimeType) {
+      case 'audio/webm':
+        return 'webm';
+      case 'audio/ogg':
+        return 'ogg';
+      case 'audio/mp4':
+        return 'mp4';
+      case 'audio/mpeg':
+        return 'mp3';
+      case 'audio/wav':
+      case 'audio/x-wav':
+        return 'wav';
+      default:
+        return 'webm';
+    }
   }
 }
