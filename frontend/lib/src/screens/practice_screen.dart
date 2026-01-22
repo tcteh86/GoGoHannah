@@ -164,7 +164,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
         });
       } catch (error) {
         setState(() {
-          _pronunciationFeedback = 'Unable to score pronunciation.';
+          _pronunciationFeedback = _pronunciationErrorMessage(error);
         });
       } finally {
         if (mounted) {
@@ -188,6 +188,16 @@ class _PracticeScreenState extends State<PracticeScreen> {
         });
       }
     }
+  }
+
+  String _pronunciationErrorMessage(Object error) {
+    if (error is StateError) {
+      final message = error.message;
+      if (message != null && message.toString().isNotEmpty) {
+        return message.toString();
+      }
+    }
+    return 'Unable to score pronunciation.';
   }
 
   Future<void> _scoreTypedPronunciation() async {
