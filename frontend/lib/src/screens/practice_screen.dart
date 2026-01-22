@@ -9,7 +9,6 @@ import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
 import '../widgets/mascot_header.dart';
 import '../widgets/audio_level_indicator.dart';
-import '../widgets/recorded_audio_player.dart';
 import '../utils/speech_helper.dart';
 import '../utils/audio_recorder.dart';
 import '../utils/audio_playback.dart';
@@ -402,7 +401,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
-          RecordedAudioPlayer(url: _recording!.url),
+          FilledButton.icon(
+            onPressed: () => _audioPlayback.playUrl(_recording!.url),
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Play Recording'),
+          ),
         ],
         if (_pronunciationTranscript != null) ...[
           const SizedBox(height: 8),
