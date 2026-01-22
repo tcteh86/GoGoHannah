@@ -53,14 +53,12 @@ Completed:
 - Smoke tests passed:
   - Backend health and vocab endpoints.
   - UI flow: generate exercise, check answer, refresh results.
-
-In progress:
 - Phase A (Engagement) implementation in Flutter:
   - Mascot header with animated reactions.
   - Daily goal tracker with progress bar.
   - Badge unlock for goal completion.
   - Streak counter (session-based).
-- Phase B (GenAI depth) started:
+- Phase B (GenAI depth) shipped:
   - Comprehension story mode with level selection.
   - Optional illustration generation hook.
   - Per-question saving for comprehension practice.
@@ -70,9 +68,10 @@ In progress:
   - Web audio recorder build fix for MediaRecorder events.
   - Recording timeout guard and UX hint for stopping recording.
 
+In progress:
+- None (ready for next phase backlog).
+
 Planned:
-- Audio transcription pipeline for pronunciation.
-- Story comprehension generation + image support.
 - RAG + embeddings for smarter explanations.
 - Multi-agent workflow for safety + content generation.
 - LLM-based weak-word analysis.
@@ -81,11 +80,14 @@ Planned:
 Done:
 - Vocab exercise API with LLM fallback.
 - Progress save + summary endpoints.
-
-Next:
-- Flutter UI for vocab practice (web).
+- Flutter web UI for practice, results, and quick check.
 - Pronunciation analysis flow (audio + transcription).
 - Comprehension story flow (story + questions + illustration).
+
+Next:
+- RAG + embeddings for smarter explanations.
+- Multi-agent workflow for safety + content generation.
+- LLM-based weak-word analysis and recommendations.
 
 ---
 
@@ -97,11 +99,8 @@ Next:
 ---
 
 ## 4) Next Steps (before 29 Jan)
-1) Build Flutter web UI with three screens:
-   - Practice
-   - Past Results
-   - Test & Check
-2) Connect Flutter to backend endpoints.
-3) Deploy backend on Render, frontend on Firebase.
-4) Capture demo screenshots for milestone report.
-5) Complete Phase A engagement loop polishing.
+1) QA the engagement + GenAI flows end-to-end.
+2) Capture demo screenshots for milestone report.
+3) Draft a RAG + embeddings prototype plan.
+4) Outline the multi-agent safety workflow.
+5) Explore weak-word analysis improvements and UX.
