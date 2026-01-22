@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:html' as html;
+import 'dart:math' as math;
 import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import 'audio_recorder.dart';
 
@@ -9,9 +12,14 @@ AudioRecorder getAudioRecorder() => _WebAudioRecorder();
 class _WebAudioRecorder implements AudioRecorder {
   html.MediaRecorder? _recorder;
   html.MediaStream? _stream;
+  html.AudioContext? _audioContext;
+  html.AnalyserNode? _analyser;
+  html.MediaStreamAudioSourceNode? _sourceNode;
   final List<html.Blob> _chunks = [];
   StreamSubscription<html.Event>? _dataSubscription;
   Completer<void>? _firstChunkCompleter;
+  final ValueNotifier<double> _levelNotifier = ValueNotifier(0);
+  Timer? _levelTimer;
   bool _isRecording = false;
   final html.EventStreamProvider<html.Event> _dataAvailableStream =
       html.EventStreamProvider<html.Event>('dataavailable');
@@ -20,6 +28,9 @@ class _WebAudioRecorder implements AudioRecorder {
 
   @override
   bool get isRecording => _isRecording;
+
+  @override
+  ValueListenable<double> get levelListenable => _levelNotifier;
 
   @override
   Future<void> start() async {
@@ -43,6 +54,7 @@ class _WebAudioRecorder implements AudioRecorder {
       }
     });
     _recorder!.start();
+    _startLevelMonitor();
     _isRecording = true;
   }
 
@@ -99,6 +111,7 @@ class _WebAudioRecorder implements AudioRecorder {
     recorder.stop();
 
     _isRecording = false;
+    _stopLevelMonitor();
 
     Future.delayed(const Duration(seconds: 2), () async {
       if (!completer.isCompleted && _chunks.isNotEmpty) {
@@ -134,6 +147,7 @@ class _WebAudioRecorder implements AudioRecorder {
     _dataSubscription?.cancel();
     _dataSubscription = null;
     _firstChunkCompleter = null;
+    _stopLevelMonitor();
     _stream?.getTracks().forEach((track) => track.stop());
     _stream = null;
     _recorder = null;
@@ -145,5 +159,53 @@ class _WebAudioRecorder implements AudioRecorder {
       return 'audio/webm';
     }
     return value;
+  }
+
+  void _startLevelMonitor() {
+    _levelNotifier.value = 0;
+    _levelTimer?.cancel();
+    try {
+      _audioContext = html.AudioContext();
+      _analyser = _audioContext!.createAnalyser();
+      _analyser!.fftSize = 2048;
+      _sourceNode = _audioContext!.createMediaStreamSource(_stream!);
+      _sourceNode!.connectNode(_analyser!);
+
+      final buffer = Uint8List(_analyser!.fftSize);
+      _levelTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+        if (_analyser == null) {
+          return;
+        }
+        _analyser!.getByteTimeDomainData(buffer);
+        var sum = 0.0;
+        for (final value in buffer) {
+          final centered = (value - 128) / 128.0;
+          sum += centered * centered;
+        }
+        final rms = math.sqrt(sum / buffer.length);
+        final normalized = rms.clamp(0.0, 1.0);
+        if (_levelNotifier.value != normalized) {
+          _levelNotifier.value = normalized;
+        }
+      });
+    } catch (_) {
+      _levelNotifier.value = 0;
+    }
+  }
+
+  void _stopLevelMonitor() {
+    _levelTimer?.cancel();
+    _levelTimer = null;
+    _levelNotifier.value = 0;
+    try {
+      _sourceNode?.disconnect();
+    } catch (_) {}
+    try {
+      _analyser?.disconnect();
+    } catch (_) {}
+    _sourceNode = null;
+    _analyser = null;
+    _audioContext?.close();
+    _audioContext = null;
   }
 }

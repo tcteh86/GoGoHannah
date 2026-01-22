@@ -8,6 +8,8 @@ import '../models/vocab_exercise.dart';
 import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
 import '../widgets/mascot_header.dart';
+import '../widgets/audio_level_indicator.dart';
+import '../widgets/recorded_audio_player.dart';
 import '../utils/speech_helper.dart';
 import '../utils/audio_recorder.dart';
 import '../utils/audio_playback.dart';
@@ -385,6 +387,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
         if (_audioRecorder.isRecording) ...[
           const SizedBox(height: 6),
           const Text('Recording... tap stop when you are done.'),
+          const SizedBox(height: 8),
+          AudioLevelIndicator(levelListenable: _audioRecorder.levelListenable),
         ],
         if (_pronunciationLoading)
           const Padding(
@@ -393,11 +397,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
           ),
         if (_recording != null) ...[
           const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: () => _audioPlayback.playUrl(_recording!.url),
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Play Recording'),
+          const Text(
+            'Recorded audio:',
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: 6),
+          RecordedAudioPlayer(url: _recording!.url),
         ],
         if (_pronunciationTranscript != null) ...[
           const SizedBox(height: 8),
