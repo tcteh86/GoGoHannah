@@ -53,9 +53,31 @@ class _WebAudioRecorder implements AudioRecorder {
     }
     final recorder = _recorder!;
     final completer = Completer<AudioRecording>();
+    final mimeType = _normalizeMimeType(recorder.mimeType);
+
+    Future<void> finalizeRecording() async {
+      if (completer.isCompleted) {
+        return;
+      }
+      if (_chunks.isEmpty) {
+        _cleanupStream();
+        completer.completeError(
+          StateError('No audio captured. Try recording again.'),
+        );
+        return;
+      }
+      final blob = html.Blob(_chunks, mimeType);
+      final url = html.Url.createObjectUrl(blob);
+      final bytes = await _blobToBytes(blob);
+      _cleanupStream();
+      completer.complete(AudioRecording(
+        bytes: bytes,
+        mimeType: blob.type.isNotEmpty ? blob.type : mimeType,
+        url: url,
+      ));
+    }
 
     _stopStream.forTarget(recorder).first.then((_) async {
-      _isRecording = false;
       if (_chunks.isEmpty) {
         final completer = _firstChunkCompleter;
         if (completer != null && !completer.isCompleted) {
@@ -66,21 +88,7 @@ class _WebAudioRecorder implements AudioRecorder {
           }
         }
       }
-      if (_chunks.isEmpty) {
-        _cleanupStream();
-        completer.completeError(StateError('No audio captured. Try recording again.'));
-        return;
-      }
-      final mimeType = _normalizeMimeType(recorder.mimeType);
-      final blob = html.Blob(_chunks, mimeType);
-      final url = html.Url.createObjectUrl(blob);
-      final bytes = await _blobToBytes(blob);
-      _cleanupStream();
-      completer.complete(AudioRecording(
-        bytes: bytes,
-        mimeType: blob.type.isNotEmpty ? blob.type : mimeType,
-        url: url,
-      ));
+      await finalizeRecording();
     });
 
     try {
@@ -89,12 +97,21 @@ class _WebAudioRecorder implements AudioRecorder {
       // Some browsers may not support requestData; ignore.
     }
     recorder.stop();
+
+    _isRecording = false;
+
+    Future.delayed(const Duration(seconds: 2), () async {
+      if (!completer.isCompleted && _chunks.isNotEmpty) {
+        await finalizeRecording();
+      }
+    });
+
     return completer.future.timeout(
-      const Duration(seconds: 10),
+      const Duration(seconds: 6),
       onTimeout: () {
         _isRecording = false;
         _cleanupStream();
-        throw StateError('Recording timed out.');
+        throw StateError('No audio captured. Try recording again.');
       },
     );
   }
