@@ -220,12 +220,34 @@ class _PracticeScreenState extends State<PracticeScreen> {
     await widget.apiClient.saveExercise(
       SaveExercise(
         childName: widget.childName,
-        word: 'comp_q${index + 1}',
+        word: _comprehensionSaveLabel(question, index),
         exerciseType: 'comprehension',
         score: correct ? 100 : 0,
         correct: correct,
       ),
     );
+  }
+
+  String _comprehensionSaveLabel(ComprehensionQuestion question, int index) {
+    final cleaned = question.question.replaceAll(
+      RegExp(r"[^A-Za-z\s\-']"),
+      '',
+    );
+    final normalized = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.isNotEmpty) {
+      return normalized.length <= 32
+          ? normalized
+          : normalized.substring(0, 32).trim();
+    }
+    const fallback = [
+      'Story Question One',
+      'Story Question Two',
+      'Story Question Three',
+    ];
+    if (index >= 0 && index < fallback.length) {
+      return fallback[index];
+    }
+    return 'Story Question';
   }
 
   Widget _buildModeSelector() {
