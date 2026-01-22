@@ -172,7 +172,8 @@ class _WebAudioRecorder implements AudioRecorder {
       _sourceNode = _audioContext!.createMediaStreamSource(_stream!);
       _sourceNode!.connectNode(_analyser!);
 
-      final buffer = Uint8List(_analyser!.fftSize);
+      final fftSize = _analyser?.fftSize ?? 2048;
+      final buffer = Uint8List(fftSize);
       _levelTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
         if (_analyser == null) {
           return;
