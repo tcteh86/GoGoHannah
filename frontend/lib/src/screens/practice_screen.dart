@@ -52,6 +52,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
   String? _pronunciationTranscript;
   String? _pronunciationFeedback;
   bool _pronunciationLoading = false;
+  final TextEditingController _typedController = TextEditingController();
+  String _typedPronunciation = '';
+  int? _typedScore;
+  String? _typedFeedback;
+  bool _typedLoading = false;
+  String? _lastAutoPlayedWord;
   final SpeechHelper _speechHelper = createSpeechHelper();
   final AudioRecorder _audioRecorder = createAudioRecorder();
   final AudioPlayback _audioPlayback = createAudioPlayback();
@@ -60,6 +66,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
   void initState() {
     super.initState();
     _vocabFuture = widget.apiClient.fetchDefaultVocab();
+  }
+
+  @override
+  void dispose() {
+    _typedController.dispose();
+    super.dispose();
   }
 
   Future<void> _generateExercise() async {
@@ -78,6 +90,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       setState(() {
         _exercise = exercise;
       });
+      _maybeAutoPlayWord(word);
     } catch (error) {
       setState(() {
         _feedback = 'Unable to load exercise. Try again.';
@@ -169,10 +182,61 @@ class _PracticeScreenState extends State<PracticeScreen> {
         setState(() {});
       } catch (error) {
         setState(() {
-          _pronunciationFeedback = 'Microphone permission needed.';
+          _pronunciationFeedback = error is UnsupportedError
+              ? 'Audio recording is not supported on this device.'
+              : 'Microphone permission needed.';
         });
       }
     }
+  }
+
+  Future<void> _scoreTypedPronunciation() async {
+    final word = _selectedWord;
+    final typed = _typedPronunciation.trim();
+    if (word == null || word.isEmpty || typed.isEmpty) {
+      return;
+    }
+    setState(() {
+      _typedLoading = true;
+      _typedScore = null;
+      _typedFeedback = null;
+    });
+    try {
+      final score = await widget.apiClient.scorePronunciation(word, typed);
+      final correct = score >= 80;
+      widget.sessionState.recordAnswer(correct: correct);
+      await widget.apiClient.saveExercise(
+        SaveExercise(
+          childName: widget.childName,
+          word: word,
+          exerciseType: 'pronunciation',
+          score: score,
+          correct: correct,
+        ),
+      );
+      setState(() {
+        _typedScore = score;
+        _typedFeedback =
+            correct ? 'Great pronunciation!' : 'Keep practicing the sounds.';
+      });
+    } catch (error) {
+      setState(() {
+        _typedFeedback = 'Unable to score typed pronunciation.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _typedLoading = false);
+      }
+    }
+  }
+
+  void _maybeAutoPlayWord(String word) {
+    final trimmed = word.trim();
+    if (trimmed.isEmpty || trimmed == _lastAutoPlayedWord) {
+      return;
+    }
+    _lastAutoPlayedWord = trimmed;
+    _speechHelper.speak(trimmed);
   }
 
   Future<void> _generateComprehension() async {
@@ -220,12 +284,34 @@ class _PracticeScreenState extends State<PracticeScreen> {
     await widget.apiClient.saveExercise(
       SaveExercise(
         childName: widget.childName,
-        word: 'comp_q${index + 1}',
+        word: _comprehensionSaveLabel(question, index),
         exerciseType: 'comprehension',
         score: correct ? 100 : 0,
         correct: correct,
       ),
     );
+  }
+
+  String _comprehensionSaveLabel(ComprehensionQuestion question, int index) {
+    final cleaned = question.question.replaceAll(
+      RegExp(r"[^A-Za-z\s\-']"),
+      '',
+    );
+    final normalized = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.isNotEmpty) {
+      final truncated =
+          normalized.length <= 32 ? normalized : normalized.substring(0, 32);
+      return truncated.trim();
+    }
+    const fallback = [
+      'Story Question One',
+      'Story Question Two',
+      'Story Question Three',
+    ];
+    if (index >= 0 && index < fallback.length) {
+      return fallback[index];
+    }
+    return 'Story Question';
   }
 
   Widget _buildModeSelector() {
@@ -280,6 +366,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
             _pronunciationScore = null;
             _pronunciationTranscript = null;
             _pronunciationFeedback = null;
+            _typedController.clear();
+            _typedPronunciation = '';
+            _typedScore = null;
+            _typedFeedback = null;
           }),
           decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
@@ -361,6 +451,46 @@ class _PracticeScreenState extends State<PracticeScreen> {
           const SizedBox(height: 4),
           Text(_pronunciationFeedback!),
         ],
+        const SizedBox(height: 16),
+        const Text(
+          'Or type what you said:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _typedController,
+          enabled: !_typedLoading,
+          maxLength: 128,
+          decoration: const InputDecoration(
+            hintText: 'Type your pronunciation',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (value) => setState(() {
+            _typedPronunciation = value;
+            _typedScore = null;
+            _typedFeedback = null;
+          }),
+        ),
+        FilledButton.icon(
+          onPressed: _typedLoading || _typedPronunciation.trim().isEmpty
+              ? null
+              : _scoreTypedPronunciation,
+          icon: const Icon(Icons.spellcheck),
+          label: const Text('Score Typed Pronunciation'),
+        ),
+        if (_typedLoading)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: LoadingView(message: 'Scoring typed pronunciation...'),
+          ),
+        if (_typedScore != null) ...[
+          const SizedBox(height: 4),
+          Text('Typed score: $_typedScore / 100'),
+        ],
+        if (_typedFeedback != null) ...[
+          const SizedBox(height: 4),
+          Text(_typedFeedback!),
+        ],
       ],
     );
   }
@@ -409,7 +539,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
           ),
           const SizedBox(height: 12),
         ],
-        if (_comprehension != null) _ComprehensionCard(exercise: _comprehension!),
+        if (_comprehension != null)
+          _ComprehensionCard(
+            exercise: _comprehension!,
+            onListen: () => _speechHelper.speak(_comprehension!.storyText),
+          ),
         if (_comprehension != null) ...[
           const SizedBox(height: 12),
           const Text(
@@ -623,8 +757,12 @@ class _AnswerChoices extends StatelessWidget {
 
 class _ComprehensionCard extends StatelessWidget {
   final ComprehensionExercise exercise;
+  final VoidCallback? onListen;
 
-  const _ComprehensionCard({required this.exercise});
+  const _ComprehensionCard({
+    required this.exercise,
+    this.onListen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -639,6 +777,14 @@ class _ComprehensionCard extends StatelessWidget {
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
+            if (onListen != null) ...[
+              FilledButton.icon(
+                onPressed: onListen,
+                icon: const Icon(Icons.volume_up),
+                label: const Text('Read Story Aloud'),
+              ),
+              const SizedBox(height: 8),
+            ],
             if (exercise.imageUrl != null && exercise.imageUrl!.isNotEmpty) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
