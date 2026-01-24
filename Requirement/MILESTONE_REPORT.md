@@ -69,7 +69,7 @@ Completed:
   - Recording timeout guard and UX hint for stopping recording.
 
 In progress:
-- None (ready for next phase backlog).
+- RAG + embeddings backend scaffolding (approved plan).
 
 Planned:
 - RAG + embeddings for smarter explanations.
@@ -112,3 +112,4 @@ Next:
 - Added QA checklist for baseline verification (Requirement/QA_CHECKLIST.md).
 - Hardened web audio recording (timeouts, empty capture handling).
 - Added live audio level indicator and waveform preview for recordings.
+- RAG + embeddings implementation plan approved.

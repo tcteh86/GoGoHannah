@@ -7,8 +7,16 @@ definition, example_sentence, quiz_question, quiz_choices, quiz_answer.
 """
 
 
-def build_task_prompt(word: str) -> str:
+def _format_context(context: list[str] | None) -> str:
+    if not context:
+        return ""
+    lines = "\n".join(f"- {item}" for item in context)
+    return f"\nReference context (use for consistency only; do not copy verbatim):\n{lines}\n"
+
+
+def build_task_prompt(word: str, context: list[str] | None = None) -> str:
     return f"""Target word: "{word}"
+{_format_context(context)}
 Create:
 1) a short, simple definition (max 12 words)
 2) one example sentence (max 12 words)

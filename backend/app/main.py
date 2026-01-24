@@ -11,6 +11,7 @@ from .core.progress import (
     get_recommended_words,
     save_exercise,
 )
+from .core.rag import retrieve_context, store_document
 from .core.safety import sanitize_word
 from .core.scoring import calculate_pronunciation_score
 from .llm.client import (
@@ -68,14 +69,15 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
+    context = retrieve_context(f"vocabulary word {word}")
     try:
-        result = generate_vocab_exercise(word)
+        result = generate_vocab_exercise(word, context=context)
         source = "llm"
     except LLMUnavailable:
         result = simple_exercise(word)
         source = "fallback"
 
-    return {
+    response = {
         "definition": result["definition"],
         "example_sentence": result["example_sentence"],
         "quiz_question": result["quiz_question"],
@@ -85,13 +87,29 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
         "source": source,
     }
 
+    store_document(
+        text=(
+            f"Word: {word}\n"
+            f"Definition: {response['definition']}\n"
+            f"Example: {response['example_sentence']}\n"
+            f"Phonics: {response['phonics']}"
+        ),
+        doc_type="vocab_exercise",
+        metadata={"word": word, "source": source},
+    )
+
+    return response
+
 
 @app.post("/v1/comprehension/exercise", response_model=ComprehensionExerciseResponse)
 def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
+    context_query = payload.theme or f"children story level {payload.level}"
+    context = retrieve_context(context_query)
     try:
         result = generate_comprehension_exercise(
             theme=payload.theme,
             level=payload.level,
+            context=context,
         )
         source = "llm"
     except LLMUnavailable:
@@ -105,7 +123,7 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
         except LLMUnavailable:
             image_url = None
 
-    return {
+    response = {
         "story_title": result["story_title"],
         "story_text": result["story_text"],
         "image_description": result["image_description"],
@@ -113,6 +131,19 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
         "questions": result["questions"],
         "source": source,
     }
+
+    store_document(
+        text=(
+            f"Title: {response['story_title']}\n"
+            f"Story: {response['story_text']}\n"
+            "Questions:\n"
+            + "\n".join(q["question"] for q in response["questions"])
+        ),
+        doc_type="comprehension_story",
+        metadata={"level": payload.level, "theme": payload.theme, "source": source},
+    )
+
+    return response
 
 
 @app.post("/v1/progress/exercise")

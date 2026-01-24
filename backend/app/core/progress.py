@@ -1,21 +1,11 @@
-import os
-import sqlite3
-from pathlib import Path
 from typing import Dict, List
 
-DATA_DIR = Path(__file__).resolve().parents[2] / "data"
-DEFAULT_DB_PATH = DATA_DIR / "progress.db"
-DB_PATH = Path(os.getenv("GOGOHANNAH_DB_PATH", str(DEFAULT_DB_PATH)))
-
-
-def _get_connection() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    return sqlite3.connect(str(DB_PATH))
+from .db import get_connection
 
 
 def init_db() -> None:
     """Initialize the database with required tables."""
-    with _get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -44,7 +34,7 @@ def init_db() -> None:
 
 def get_or_create_child(name: str) -> int:
     """Get child ID or create new child."""
-    with _get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM children WHERE name = ?", (name,))
         result = cursor.fetchone()
@@ -61,7 +51,7 @@ def get_or_create_child(name: str) -> int:
 
 def save_exercise(child_id: int, word: str, exercise_type: str, score: int, correct: bool) -> None:
     """Save an exercise result."""
-    with _get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -75,7 +65,7 @@ def save_exercise(child_id: int, word: str, exercise_type: str, score: int, corr
 
 def get_child_progress(child_id: int) -> Dict:
     """Get progress summary for a child."""
-    with _get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM exercises WHERE child_id = ?", (child_id,))
         total_exercises = cursor.fetchone()[0]
@@ -125,7 +115,7 @@ def get_child_progress(child_id: int) -> Dict:
 
 def get_recommended_words(child_id: int, all_words: List[str], limit: int = 10) -> List[str]:
     """Get recommended words with smart prioritization."""
-    with _get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -171,7 +161,7 @@ def get_recommended_words(child_id: int, all_words: List[str], limit: int = 10) 
 
 def get_recent_exercises(child_id: int, limit: int = 20) -> List[Dict]:
     """Get recent exercise history for a child."""
-    with _get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -198,7 +188,7 @@ def get_recent_exercises(child_id: int, limit: int = 20) -> List[Dict]:
 
 def clear_child_records(child_id: int) -> None:
     """Clear all exercise records for a child."""
-    with _get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM exercises WHERE child_id = ?", (child_id,))
         cursor.execute("DELETE FROM children WHERE id = ?", (child_id,))

@@ -34,20 +34,21 @@ def get_client() -> OpenAI:
 MODEL_NAME = os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini")
 IMAGE_MODEL = os.getenv("OPENAI_IMAGE_MODEL", "dall-e-3")
 TRANSCRIBE_MODEL = os.getenv("OPENAI_TRANSCRIBE_MODEL", "whisper-1")
+EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
 
 
 class LLMUnavailable(Exception):
     pass
 
 
-def generate_vocab_exercise(word: str) -> Dict[str, Any]:
+def generate_vocab_exercise(word: str, context: list[str] | None = None) -> Dict[str, Any]:
     """Generate a vocab exercise for `word` using OpenAI."""
     try:
         response = get_client().chat.completions.create(
             model=MODEL_NAME,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": build_task_prompt(word)},
+                {"role": "user", "content": build_task_prompt(word, context=context)},
             ],
             response_format={"type": "json_object"},
             temperature=0.7,
@@ -80,7 +81,11 @@ def generate_vocab_exercise(word: str) -> Dict[str, Any]:
         raise LLMUnavailable(f"Failed to generate exercise: {str(exc)}")
 
 
-def generate_comprehension_exercise(theme: str = None, level: str = "intermediate") -> Dict[str, Any]:
+def generate_comprehension_exercise(
+    theme: str = None,
+    level: str = "intermediate",
+    context: list[str] | None = None,
+) -> Dict[str, Any]:
     """Generate a comprehension exercise with a short story and questions."""
     level_configs = {
         "beginner": {
@@ -103,6 +108,14 @@ def generate_comprehension_exercise(theme: str = None, level: str = "intermediat
     config = level_configs.get(level, level_configs["intermediate"])
 
     try:
+        context_block = ""
+        if context:
+            context_lines = "\n".join(f"- {item}" for item in context)
+            context_block = (
+                "\nReference context (use for consistency only; do not copy verbatim):\n"
+                f"{context_lines}\n"
+            )
+
         prompt = f"""Generate a short, engaging children's storybook suitable for ages 5-9, followed by 3 multiple-choice comprehension questions.
 
 Requirements:
@@ -111,6 +124,7 @@ Requirements:
 - Questions: {config['question_complexity']}
 - Each question has 3 choices (A, B, C)
 - Provide a detailed image description for an illustration of the main scene
+{context_block}
 
 {"Focus on theme: " + theme if theme else "Choose an appropriate theme like animals, family, school, adventure, or friendship."}
 
@@ -182,6 +196,18 @@ def transcribe_audio(audio_bytes: bytes, filename: str | None = None) -> str:
         return transcript.strip()
     except Exception as exc:
         raise LLMUnavailable(f"Failed to transcribe audio: {str(exc)}")
+
+
+def embed_text(text: str) -> list[float]:
+    """Create embeddings for a text snippet."""
+    try:
+        response = get_client().embeddings.create(
+            model=EMBEDDING_MODEL,
+            input=text,
+        )
+        return response.data[0].embedding
+    except Exception as exc:
+        raise LLMUnavailable(f"Failed to embed text: {str(exc)}")
 
 
 def generate_story_image(description: str) -> str:

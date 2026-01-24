@@ -17,6 +17,8 @@ issues so a new agent can continue work if the session ends.
   - Text similarity scoring endpoint.
   - Audio upload endpoint (Whisper transcription + scoring).
 - SQLite persistence for children + exercises.
+- RAG scaffolding (documents + embeddings tables, retrieval utilities, prompt
+  context injection) gated by `GOGOHANNAH_RAG_ENABLED`.
 
 ## 2) Implemented (Frontend)
 - Flutter web UI:
@@ -46,7 +48,7 @@ issues so a new agent can continue work if the session ends.
   - /v1/pronunciation/score + /v1/pronunciation/assess
 
 ## 4) Pending / Planned
-- RAG + embeddings for contextual generation.
+- RAG enablement + QA (set env flag, validate results).
 - Multi-agent safety workflow (review + rewrite + fallback).
 - Weak-word analysis improvements (recency + mastery).
 - Manual UI QA pass + screenshots for report.
