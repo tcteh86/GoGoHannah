@@ -55,6 +55,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
   String? _pronunciationTranscript;
   String? _pronunciationFeedback;
   bool _pronunciationLoading = false;
+  final TextEditingController _typedController = TextEditingController();
+  String _typedPronunciation = '';
+  int? _typedScore;
+  String? _typedFeedback;
+  bool _typedLoading = false;
   String? _lastAutoPlayedWord;
   final SpeechHelper _speechHelper = createSpeechHelper();
   final AudioRecorder _audioRecorder = createAudioRecorder();
@@ -273,7 +278,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
         _pronunciationFeedback = null;
       });
       try {
-        _waveformNotifier.value = [];
         await _audioRecorder.start();
         setState(() {});
       } catch (error) {
@@ -294,6 +298,46 @@ class _PracticeScreenState extends State<PracticeScreen> {
       }
     }
     return 'Unable to score pronunciation.';
+  }
+
+  Future<void> _scoreTypedPronunciation() async {
+    final word = _selectedWord;
+    final typed = _typedPronunciation.trim();
+    if (word == null || word.isEmpty || typed.isEmpty) {
+      return;
+    }
+    setState(() {
+      _typedLoading = true;
+      _typedScore = null;
+      _typedFeedback = null;
+    });
+    try {
+      final score = await widget.apiClient.scorePronunciation(word, typed);
+      final correct = score >= 80;
+      widget.sessionState.recordAnswer(correct: correct);
+      await widget.apiClient.saveExercise(
+        SaveExercise(
+          childName: widget.childName,
+          word: word,
+          exerciseType: 'pronunciation',
+          score: score,
+          correct: correct,
+        ),
+      );
+      setState(() {
+        _typedScore = score;
+        _typedFeedback =
+            correct ? 'Great pronunciation!' : 'Keep practicing the sounds.';
+      });
+    } catch (error) {
+      setState(() {
+        _typedFeedback = 'Unable to score typed pronunciation.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _typedLoading = false);
+      }
+    }
   }
 
   void _maybeAutoPlayWord(String word) {
@@ -432,6 +476,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
             _pronunciationScore = null;
             _pronunciationTranscript = null;
             _pronunciationFeedback = null;
+            _typedController.clear();
+            _typedPronunciation = '';
+            _typedScore = null;
+            _typedFeedback = null;
           }),
           decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
@@ -500,18 +548,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
-          ValueListenableBuilder<List<double>>(
-            valueListenable: _waveformNotifier,
-            builder: (context, levels, _) {
-              if (levels.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: AudioWaveformPreview(levels: levels),
-              );
-            },
-          ),
           FilledButton.icon(
             onPressed: () => _audioPlayback.playUrl(_recording!.url),
             icon: const Icon(Icons.play_arrow),
@@ -529,6 +565,46 @@ class _PracticeScreenState extends State<PracticeScreen> {
         if (_pronunciationFeedback != null) ...[
           const SizedBox(height: 4),
           Text(_pronunciationFeedback!),
+        ],
+        const SizedBox(height: 16),
+        const Text(
+          'Or type what you said:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _typedController,
+          enabled: !_typedLoading,
+          maxLength: 128,
+          decoration: const InputDecoration(
+            hintText: 'Type your pronunciation',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (value) => setState(() {
+            _typedPronunciation = value;
+            _typedScore = null;
+            _typedFeedback = null;
+          }),
+        ),
+        FilledButton.icon(
+          onPressed: _typedLoading || _typedPronunciation.trim().isEmpty
+              ? null
+              : _scoreTypedPronunciation,
+          icon: const Icon(Icons.spellcheck),
+          label: const Text('Score Typed Pronunciation'),
+        ),
+        if (_typedLoading)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: LoadingView(message: 'Scoring typed pronunciation...'),
+          ),
+        if (_typedScore != null) ...[
+          const SizedBox(height: 4),
+          Text('Typed score: $_typedScore / 100'),
+        ],
+        if (_typedFeedback != null) ...[
+          const SizedBox(height: 4),
+          Text(_typedFeedback!),
         ],
       ],
     );
