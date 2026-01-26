@@ -22,10 +22,6 @@ class _WebAudioRecorder implements AudioRecorder {
   Timer? _levelTimer;
   bool _isRecording = false;
   StreamSubscription<html.Event>? _dataSubscription;
-  final html.EventStreamProvider<html.Event> _dataAvailableStream =
-      html.EventStreamProvider<html.Event>('dataavailable');
-  final html.EventStreamProvider<html.Event> _stopStream =
-      html.EventStreamProvider<html.Event>('stop');
 
   @override
   bool get isRecording => _isRecording;
@@ -42,12 +38,19 @@ class _WebAudioRecorder implements AudioRecorder {
     _firstChunkCompleter = Completer<void>();
     _stream = await html.window.navigator.mediaDevices!
         .getUserMedia({'audio': true});
-    final options = _recorderOptions();
-    _recorder =
-        options == null ? html.MediaRecorder(_stream!) : html.MediaRecorder(_stream!, options);
+    html.MediaRecorder recorder;
+    try {
+      recorder = html.MediaRecorder(_stream!);
+    } catch (_) {
+      final options = _recorderOptions();
+      recorder = options == null
+          ? html.MediaRecorder(_stream!)
+          : html.MediaRecorder(_stream!, options);
+    }
+    _recorder = recorder;
     _dataSubscription?.cancel();
-    _dataSubscription = _dataAvailableStream.forTarget(_recorder!).listen((event) {
-      final data = (event as dynamic).data;
+    _dataSubscription = recorder.onDataAvailable.listen((event) {
+      final data = event.data;
       if (data is html.Blob && data.size > 0) {
         _chunks.add(data);
         final completer = _firstChunkCompleter;
@@ -56,11 +59,7 @@ class _WebAudioRecorder implements AudioRecorder {
         }
       }
     });
-    try {
-      _recorder!.start(250);
-    } catch (_) {
-      _recorder!.start();
-    }
+    recorder.start();
     _startLevelMonitor();
     _isRecording = true;
   }
@@ -97,7 +96,7 @@ class _WebAudioRecorder implements AudioRecorder {
     }
 
     const chunkTimeout = Duration(seconds: 4);
-    _stopStream.forTarget(recorder).first.then((_) async {
+    recorder.onStop.first.then((_) async {
       if (_chunks.isEmpty) {
         await _waitForFirstChunk(chunkTimeout);
       }
