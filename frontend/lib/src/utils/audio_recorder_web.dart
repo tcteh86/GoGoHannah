@@ -21,7 +21,11 @@ class _WebAudioRecorder implements AudioRecorder {
   final ValueNotifier<double> _levelNotifier = ValueNotifier(0);
   Timer? _levelTimer;
   bool _isRecording = false;
-  StreamSubscription<html.BlobEvent>? _dataSubscription;
+  StreamSubscription<html.Event>? _dataSubscription;
+  final html.EventStreamProvider<html.Event> _dataAvailableStream =
+      html.EventStreamProvider<html.Event>('dataavailable');
+  final html.EventStreamProvider<html.Event> _stopStream =
+      html.EventStreamProvider<html.Event>('stop');
 
   @override
   bool get isRecording => _isRecording;
@@ -42,8 +46,8 @@ class _WebAudioRecorder implements AudioRecorder {
     _recorder =
         options == null ? html.MediaRecorder(_stream!) : html.MediaRecorder(_stream!, options);
     _dataSubscription?.cancel();
-    _dataSubscription = _recorder!.onDataAvailable.listen((event) {
-      final data = event.data;
+    _dataSubscription = _dataAvailableStream.forTarget(_recorder!).listen((event) {
+      final data = (event as dynamic).data;
       if (data is html.Blob && data.size > 0) {
         _chunks.add(data);
         final completer = _firstChunkCompleter;
@@ -92,7 +96,7 @@ class _WebAudioRecorder implements AudioRecorder {
       ));
     }
 
-    recorder.onStop.first.then((_) async {
+    _stopStream.forTarget(recorder).first.then((_) async {
       if (_chunks.isEmpty) {
         await _waitForFirstChunk(const Duration(seconds: 2));
       }
