@@ -92,9 +92,10 @@ class _WebAudioRecorder implements AudioRecorder {
       ));
     }
 
+    const chunkTimeout = Duration(seconds: 4);
     recorder.onStop.first.then((_) async {
       if (_chunks.isEmpty) {
-        await _waitForFirstChunk(const Duration(seconds: 2));
+        await _waitForFirstChunk(chunkTimeout);
       }
       await finalizeRecording();
     });
@@ -109,14 +110,20 @@ class _WebAudioRecorder implements AudioRecorder {
     _isRecording = false;
     _stopLevelMonitor();
 
-    Future.delayed(const Duration(seconds: 2), () async {
+    Future.delayed(chunkTimeout, () async {
+      if (completer.isCompleted) {
+        return;
+      }
+      if (_chunks.isEmpty) {
+        await _waitForFirstChunk(chunkTimeout);
+      }
       if (!completer.isCompleted && _chunks.isNotEmpty) {
         await finalizeRecording();
       }
     });
 
     return completer.future.timeout(
-      const Duration(seconds: 8),
+      const Duration(seconds: 12),
       onTimeout: () {
         _isRecording = false;
         _cleanupStream();
