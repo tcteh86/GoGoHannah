@@ -531,10 +531,20 @@ class _PracticeScreenState extends State<PracticeScreen> {
               );
             },
           ),
-          FilledButton.icon(
-            onPressed: () => _audioPlayback.playUrl(_recording!.url),
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Play Recording'),
+          Wrap(
+            spacing: 12,
+            children: [
+              FilledButton.icon(
+                onPressed: () => _audioPlayback.playUrl(_recording!.url),
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Play Recording'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _audioPlayback.playUrl(_recording!.url),
+                icon: const Icon(Icons.replay),
+                label: const Text('Replay'),
+              ),
+            ],
           ),
         ],
         if (_pronunciationTranscript != null) ...[
