@@ -21,11 +21,7 @@ class _WebAudioRecorder implements AudioRecorder {
   final ValueNotifier<double> _levelNotifier = ValueNotifier(0);
   Timer? _levelTimer;
   bool _isRecording = false;
-  StreamSubscription<html.Event>? _dataSubscription;
-  final html.EventStreamProvider<html.Event> _dataAvailableStream =
-      html.EventStreamProvider<html.Event>('dataavailable');
-  final html.EventStreamProvider<html.Event> _stopStream =
-      html.EventStreamProvider<html.Event>('stop');
+  StreamSubscription<html.BlobEvent>? _dataSubscription;
 
   @override
   bool get isRecording => _isRecording;
@@ -46,8 +42,8 @@ class _WebAudioRecorder implements AudioRecorder {
     _recorder =
         options == null ? html.MediaRecorder(_stream!) : html.MediaRecorder(_stream!, options);
     _dataSubscription?.cancel();
-    _dataSubscription = _dataAvailableStream.forTarget(_recorder!).listen((event) {
-      final data = (event as dynamic).data;
+    _dataSubscription = _recorder!.onDataAvailable.listen((event) {
+      final data = event.data;
       if (data is html.Blob && data.size > 0) {
         _chunks.add(data);
         final completer = _firstChunkCompleter;
@@ -96,9 +92,10 @@ class _WebAudioRecorder implements AudioRecorder {
       ));
     }
 
-    _stopStream.forTarget(recorder).first.then((_) async {
+    const chunkTimeout = Duration(seconds: 4);
+    recorder.onStop.first.then((_) async {
       if (_chunks.isEmpty) {
-        await _waitForFirstChunk(const Duration(seconds: 2));
+        await _waitForFirstChunk(chunkTimeout);
       }
       await finalizeRecording();
     });
@@ -113,14 +110,20 @@ class _WebAudioRecorder implements AudioRecorder {
     _isRecording = false;
     _stopLevelMonitor();
 
-    Future.delayed(const Duration(seconds: 2), () async {
+    Future.delayed(chunkTimeout, () async {
+      if (completer.isCompleted) {
+        return;
+      }
+      if (_chunks.isEmpty) {
+        await _waitForFirstChunk(chunkTimeout);
+      }
       if (!completer.isCompleted && _chunks.isNotEmpty) {
         await finalizeRecording();
       }
     });
 
     return completer.future.timeout(
-      const Duration(seconds: 8),
+      const Duration(seconds: 12),
       onTimeout: () {
         _isRecording = false;
         _cleanupStream();
