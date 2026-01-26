@@ -7,6 +7,7 @@ import '../models/save_exercise.dart';
 import '../models/vocab_exercise.dart';
 import '../models/comprehension_exercise.dart';
 import '../models/pronunciation_assessment.dart';
+import '../models/rag_debug_result.dart';
 import 'api_client.dart';
 
 ApiClient getApiClient(String baseUrl) => _WebApiClient(baseUrl);
@@ -113,6 +114,21 @@ class _WebApiClient implements ApiClient {
       return words.map((word) => word.toString()).toList();
     }
     throw ApiException('Invalid recommended response');
+  }
+
+  @override
+  Future<RagDebugResult> fetchRagDebug({
+    required String query,
+    String? childName,
+    int limit = 5,
+  }) async {
+    final encodedQuery = Uri.encodeComponent(query);
+    final encodedChild =
+        childName == null ? '' : '&child_name=${Uri.encodeComponent(childName)}';
+    final data = await _getJson(
+      '/v1/debug/rag?query=$encodedQuery$encodedChild&limit=$limit',
+    );
+    return RagDebugResult.fromJson(data);
   }
 
   Future<Map<String, dynamic>> _getJson(String path) async {

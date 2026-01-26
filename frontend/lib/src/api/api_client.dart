@@ -8,6 +8,7 @@ import '../models/save_exercise.dart';
 import '../models/vocab_exercise.dart';
 import '../models/comprehension_exercise.dart';
 import '../models/pronunciation_assessment.dart';
+import '../models/rag_debug_result.dart';
 
 abstract class ApiClient {
   Future<List<String>> fetchDefaultVocab();
@@ -26,6 +27,11 @@ abstract class ApiClient {
   Future<void> saveExercise(SaveExercise payload);
   Future<ProgressSummary> fetchProgressSummary(String childName);
   Future<List<String>> fetchRecommendedWords(String childName, int limit);
+  Future<RagDebugResult> fetchRagDebug({
+    required String query,
+    String? childName,
+    int limit,
+  });
 }
 
 ApiClient createApiClient(String baseUrl) => getApiClient(baseUrl);

@@ -15,6 +15,14 @@ def rag_enabled() -> bool:
     }
 
 
+def debug_enabled() -> bool:
+    return os.getenv("GOGOHANNAH_DEBUG", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
+
 def init_rag_tables() -> None:
     with get_connection() as conn:
         cursor = conn.cursor()

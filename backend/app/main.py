@@ -11,7 +11,7 @@ from .core.progress import (
     get_recommended_words,
     save_exercise,
 )
-from .core.rag import retrieve_context, store_document
+from .core.rag import debug_enabled, rag_enabled, retrieve_context, store_document
 from .core.safety import sanitize_word
 from .core.scoring import calculate_pronunciation_score
 from .llm.client import (
@@ -145,6 +145,21 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
 
     return response
 
+@app.get("/v1/debug/rag")
+def rag_debug(query: str, child_name: str | None = None, limit: int = 5) -> dict:
+    if not debug_enabled():
+        raise HTTPException(status_code=404, detail="Debug endpoint disabled.")
+    child_id = None
+    if child_name:
+        child_id = get_or_create_child(child_name.strip())
+    results = retrieve_context(query, child_id=child_id, top_k=limit)
+    return {
+        "enabled": rag_enabled(),
+        "query": query,
+        "child_name": child_name,
+        "results": results,
+        "message": None if rag_enabled() else "RAG disabled.",
+    }
 
 @app.post("/v1/progress/exercise")
 def progress_save(payload: SaveExerciseRequest) -> dict:

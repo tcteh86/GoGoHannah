@@ -8,13 +8,14 @@ import '../models/vocab_exercise.dart';
 import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
 import '../widgets/mascot_header.dart';
-import '../widgets/audio_level_indicator.dart';
-import '../widgets/audio_waveform_preview.dart';
 import '../utils/speech_helper.dart';
 import '../utils/audio_recorder.dart';
 import '../utils/audio_playback.dart';
 
 enum PracticeMode { vocabulary, comprehension }
+
+const bool _ragDebugEnabled =
+    bool.fromEnvironment('GOGOHANNAH_DEBUG', defaultValue: false);
 
 class PracticeScreen extends StatefulWidget {
   final ApiClient apiClient;
@@ -58,31 +59,17 @@ class _PracticeScreenState extends State<PracticeScreen> {
   final SpeechHelper _speechHelper = createSpeechHelper();
   final AudioRecorder _audioRecorder = createAudioRecorder();
   final AudioPlayback _audioPlayback = createAudioPlayback();
-  final ValueNotifier<List<double>> _waveformNotifier = ValueNotifier([]);
-  late final VoidCallback _waveformListener;
+  bool _ragDebugLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _waveformListener = () {
-      if (!_audioRecorder.isRecording) {
-        return;
-      }
-      final updated = List<double>.from(_waveformNotifier.value);
-      updated.add(_audioRecorder.levelListenable.value);
-      if (updated.length > 60) {
-        updated.removeAt(0);
-      }
-      _waveformNotifier.value = updated;
-    };
-    _audioRecorder.levelListenable.addListener(_waveformListener);
     _vocabFuture = widget.apiClient.fetchDefaultVocab();
   }
 
   @override
   void dispose() {
-    _audioRecorder.levelListenable.removeListener(_waveformListener);
-    _waveformNotifier.dispose();
+    _typedController.dispose();
     super.dispose();
   }
 
@@ -133,6 +120,102 @@ class _PracticeScreenState extends State<PracticeScreen> {
         correct: correct,
       ),
     );
+  }
+
+  Future<void> _showRagDebug() async {
+    final query = _mode == PracticeMode.vocabulary
+        ? (_selectedWord ?? '')
+        : (_comprehension?.storyTitle ?? _storyLevel);
+    if (query.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Select a word or story first.')),
+        );
+      }
+      return;
+    }
+    setState(() => _ragDebugLoading = true);
+    try {
+      final result = await widget.apiClient.fetchRagDebug(
+        query: query,
+        childName: widget.childName,
+        limit: 5,
+      );
+      if (!mounted) {
+        return;
+      }
+      final results = result.results;
+      final message = result.message ??
+          (results.isEmpty ? 'No retrieval results found.' : null);
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('RAG Retrieval Debug'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Query: ${result.query}'),
+                    const SizedBox(height: 8),
+                    Text('RAG enabled: ${result.enabled ? 'Yes' : 'No'}'),
+                    if (message != null) ...[
+                      const SizedBox(height: 12),
+                      Text(message),
+                    ],
+                    if (results.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Top matches:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 6),
+                      ...results.asMap().entries.map(
+                            (entry) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text('${entry.key + 1}. ${entry.value}'),
+                            ),
+                          ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('RAG Debug Error'),
+            content: Text(error.toString()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _ragDebugLoading = false);
+      }
+    }
   }
 
   Future<void> _toggleRecording() async {
@@ -404,8 +487,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
         if (_audioRecorder.isRecording) ...[
           const SizedBox(height: 6),
           const Text('Recording... tap stop when you are done.'),
-          const SizedBox(height: 8),
-          AudioLevelIndicator(levelListenable: _audioRecorder.levelListenable),
         ],
         if (_pronunciationLoading)
           const Padding(
@@ -597,6 +678,18 @@ class _PracticeScreenState extends State<PracticeScreen> {
               ),
               const SizedBox(height: 16),
               _buildModeSelector(),
+              if (_ragDebugEnabled) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _ragDebugLoading ? null : _showRagDebug,
+                  icon: const Icon(Icons.bug_report),
+                  label: Text(
+                    _ragDebugLoading
+                        ? 'Loading retrieval...'
+                        : 'Debug: Retrieval',
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               if (_mode == PracticeMode.vocabulary)
                 _buildVocabularySection(words)
