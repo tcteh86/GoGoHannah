@@ -8,6 +8,8 @@ import '../models/vocab_exercise.dart';
 import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
 import '../widgets/mascot_header.dart';
+import '../widgets/audio_level_indicator.dart';
+import '../widgets/audio_waveform_preview.dart';
 import '../utils/speech_helper.dart';
 import '../utils/audio_recorder.dart';
 import '../utils/audio_playback.dart';
@@ -59,16 +61,32 @@ class _PracticeScreenState extends State<PracticeScreen> {
   final SpeechHelper _speechHelper = createSpeechHelper();
   final AudioRecorder _audioRecorder = createAudioRecorder();
   final AudioPlayback _audioPlayback = createAudioPlayback();
+  final ValueNotifier<List<double>> _waveformNotifier = ValueNotifier([]);
+  late final VoidCallback _waveformListener;
   bool _ragDebugLoading = false;
 
   @override
   void initState() {
     super.initState();
+    _waveformListener = () {
+      if (!_audioRecorder.isRecording) {
+        return;
+      }
+      final updated = List<double>.from(_waveformNotifier.value);
+      updated.add(_audioRecorder.levelListenable.value);
+      if (updated.length > 60) {
+        updated.removeAt(0);
+      }
+      _waveformNotifier.value = updated;
+    };
+    _audioRecorder.levelListenable.addListener(_waveformListener);
     _vocabFuture = widget.apiClient.fetchDefaultVocab();
   }
 
   @override
   void dispose() {
+    _audioRecorder.levelListenable.removeListener(_waveformListener);
+    _waveformNotifier.dispose();
     super.dispose();
   }
 
@@ -272,6 +290,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
         _pronunciationFeedback = null;
       });
       try {
+        _waveformNotifier.value = [];
         await _audioRecorder.start();
         setState(() {});
       } catch (error) {
@@ -485,6 +504,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
         if (_audioRecorder.isRecording) ...[
           const SizedBox(height: 6),
           const Text('Recording... tap stop when you are done.'),
+          const SizedBox(height: 8),
+          AudioLevelIndicator(levelListenable: _audioRecorder.levelListenable),
         ],
         if (_pronunciationLoading)
           const Padding(
@@ -498,6 +519,18 @@ class _PracticeScreenState extends State<PracticeScreen> {
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
+          ValueListenableBuilder<List<double>>(
+            valueListenable: _waveformNotifier,
+            builder: (context, levels, _) {
+              if (levels.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: AudioWaveformPreview(levels: levels),
+              );
+            },
+          ),
           FilledButton.icon(
             onPressed: () => _audioPlayback.playUrl(_recording!.url),
             icon: const Icon(Icons.play_arrow),
