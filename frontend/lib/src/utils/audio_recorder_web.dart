@@ -17,15 +17,11 @@ class _WebAudioRecorder implements AudioRecorder {
   webaudio.AnalyserNode? _analyser;
   webaudio.MediaStreamAudioSourceNode? _sourceNode;
   final List<html.Blob> _chunks = [];
-  StreamSubscription<html.Event>? _dataSubscription;
   Completer<void>? _firstChunkCompleter;
   final ValueNotifier<double> _levelNotifier = ValueNotifier(0);
   Timer? _levelTimer;
   bool _isRecording = false;
-  final html.EventStreamProvider<html.Event> _dataAvailableStream =
-      html.EventStreamProvider<html.Event>('dataavailable');
-  final html.EventStreamProvider<html.Event> _stopStream =
-      html.EventStreamProvider<html.Event>('stop');
+  StreamSubscription<html.BlobEvent>? _dataSubscription;
 
   @override
   bool get isRecording => _isRecording;
@@ -42,10 +38,12 @@ class _WebAudioRecorder implements AudioRecorder {
     _firstChunkCompleter = Completer<void>();
     _stream = await html.window.navigator.mediaDevices!
         .getUserMedia({'audio': true});
-    _recorder = html.MediaRecorder(_stream!);
+    final options = _recorderOptions();
+    _recorder =
+        options == null ? html.MediaRecorder(_stream!) : html.MediaRecorder(_stream!, options);
     _dataSubscription?.cancel();
-    _dataSubscription = _dataAvailableStream.forTarget(_recorder!).listen((event) {
-      final data = (event as dynamic).data;
+    _dataSubscription = _recorder!.onDataAvailable.listen((event) {
+      final data = event.data;
       if (data is html.Blob && data.size > 0) {
         _chunks.add(data);
         final completer = _firstChunkCompleter;
@@ -94,7 +92,7 @@ class _WebAudioRecorder implements AudioRecorder {
       ));
     }
 
-    _stopStream.forTarget(recorder).first.then((_) async {
+    recorder.onStop.first.then((_) async {
       if (_chunks.isEmpty) {
         await _waitForFirstChunk(const Duration(seconds: 2));
       }
@@ -157,6 +155,22 @@ class _WebAudioRecorder implements AudioRecorder {
       return 'audio/webm';
     }
     return value;
+  }
+
+  Map<String, String>? _recorderOptions() {
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+      'audio/mp4',
+    ];
+    for (final mimeType in candidates) {
+      if (html.MediaRecorder.isTypeSupported(mimeType)) {
+        return {'mimeType': mimeType};
+      }
+    }
+    return null;
   }
 
   Future<void> _waitForFirstChunk(Duration timeout) async {
