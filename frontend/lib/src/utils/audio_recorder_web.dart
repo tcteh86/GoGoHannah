@@ -1,31 +1,20 @@
 import 'dart:async';
 import 'dart:html' as html;
-import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:web_audio' as webaudio;
 
 import 'package:flutter/foundation.dart';
+import 'package:record/record.dart';
 
 import 'audio_recorder.dart';
 
 AudioRecorder getAudioRecorder() => _WebAudioRecorder();
 
 class _WebAudioRecorder implements AudioRecorder {
-  html.MediaRecorder? _recorder;
-  html.MediaStream? _stream;
-  webaudio.AudioContext? _audioContext;
-  webaudio.AnalyserNode? _analyser;
-  webaudio.MediaStreamAudioSourceNode? _sourceNode;
-  final List<html.Blob> _chunks = [];
-  Completer<void>? _firstChunkCompleter;
+  final Record _record = Record();
+  StreamSubscription<Amplitude>? _amplitudeSubscription;
   final ValueNotifier<double> _levelNotifier = ValueNotifier(0);
-  Timer? _levelTimer;
   bool _isRecording = false;
-  StreamSubscription<html.Event>? _dataSubscription;
-  final html.EventStreamProvider<html.Event> _dataAvailableStream =
-      html.EventStreamProvider<html.Event>('dataavailable');
-  final html.EventStreamProvider<html.Event> _stopStream =
-      html.EventStreamProvider<html.Event>('stop');
+  String _mimeType = 'audio/webm';
 
   @override
   bool get isRecording => _isRecording;
@@ -38,203 +27,109 @@ class _WebAudioRecorder implements AudioRecorder {
     if (_isRecording) {
       return;
     }
-    _chunks.clear();
-    _firstChunkCompleter = Completer<void>();
-    _stream = await html.window.navigator.mediaDevices!
-        .getUserMedia({'audio': true});
-    final options = _recorderOptions();
-    _recorder =
-        options == null ? html.MediaRecorder(_stream!) : html.MediaRecorder(_stream!, options);
-    _dataSubscription?.cancel();
-    _dataSubscription = _dataAvailableStream.forTarget(_recorder!).listen((event) {
-      final data = (event as dynamic).data;
-      if (data is html.Blob && data.size > 0) {
-        _chunks.add(data);
-        final completer = _firstChunkCompleter;
-        if (completer != null && !completer.isCompleted) {
-          completer.complete();
-        }
-      }
-    });
-    try {
-      _recorder!.start(250);
-    } catch (_) {
-      _recorder!.start();
+    final allowed = await _record.hasPermission();
+    if (!allowed) {
+      throw UnsupportedError('Microphone permission needed.');
     }
-    _startLevelMonitor();
+    const config = RecordConfig(encoder: AudioEncoder.opus);
+    _mimeType = _mimeTypeForEncoder(config.encoder);
+    await _record.start(config);
     _isRecording = true;
+    _startAmplitudeMonitor();
   }
 
   @override
   Future<AudioRecording> stop() async {
-    if (!_isRecording || _recorder == null) {
+    if (!_isRecording) {
       throw StateError('Recorder is not running.');
     }
-    final recorder = _recorder!;
-    final completer = Completer<AudioRecording>();
-    final mimeType = _normalizeMimeType(recorder.mimeType);
-
-    Future<void> finalizeRecording() async {
-      if (completer.isCompleted) {
-        return;
-      }
-      if (_chunks.isEmpty) {
-        _cleanupStream();
-        completer.completeError(
-          StateError('No audio captured. Try recording again.'),
-        );
-        return;
-      }
-      final blob = html.Blob(_chunks, mimeType);
-      final url = html.Url.createObjectUrl(blob);
-      final bytes = await _blobToBytes(blob);
-      _cleanupStream();
-      completer.complete(AudioRecording(
-        bytes: bytes,
-        mimeType: blob.type.isNotEmpty ? blob.type : mimeType,
-        url: url,
-      ));
-    }
-
-    _stopStream.forTarget(recorder).first.then((_) async {
-      if (_chunks.isEmpty) {
-        await _waitForFirstChunk(const Duration(seconds: 2));
-      }
-      await finalizeRecording();
-    });
-
-    try {
-      recorder.requestData();
-    } catch (_) {
-      // Some browsers may not support requestData; ignore.
-    }
-    recorder.stop();
-
+    final path = await _record.stop();
     _isRecording = false;
-    _stopLevelMonitor();
+    await _stopAmplitudeMonitor();
+    if (path == null || path.isEmpty) {
+      throw StateError('No audio captured. Try recording again.');
+    }
+    final bytes = await _readBytes(path);
+    final mimeType = _resolveMimeType(path);
+    return AudioRecording(bytes: bytes, mimeType: mimeType, url: path);
+  }
 
-    Future.delayed(const Duration(seconds: 2), () async {
-      if (!completer.isCompleted && _chunks.isNotEmpty) {
-        await finalizeRecording();
-      }
-    });
-
-    return completer.future.timeout(
-      const Duration(seconds: 8),
-      onTimeout: () {
-        _isRecording = false;
-        _cleanupStream();
-        throw StateError('No audio captured. Try recording again.');
-      },
+  Future<Uint8List> _readBytes(String path) async {
+    if (path.startsWith('data:')) {
+      final data = UriData.parse(path);
+      return Uint8List.fromList(data.contentAsBytes());
+    }
+    final response = await html.HttpRequest.request(
+      path,
+      responseType: 'arraybuffer',
     );
+    final buffer = response.response as ByteBuffer;
+    return Uint8List.view(buffer);
   }
 
-  Future<Uint8List> _blobToBytes(html.Blob blob) async {
-    final reader = html.FileReader();
-    final completer = Completer<Uint8List>();
-    reader.readAsArrayBuffer(blob);
-    reader.onLoad.listen((_) {
-      final buffer = reader.result as ByteBuffer;
-      completer.complete(Uint8List.view(buffer));
-    });
-    reader.onError.listen((_) {
-      completer.completeError(StateError('Failed to read audio blob.'));
-    });
-    return completer.future;
-  }
-
-  void _cleanupStream() {
-    _dataSubscription?.cancel();
-    _dataSubscription = null;
-    _firstChunkCompleter = null;
-    _stopLevelMonitor();
-    _stream?.getTracks().forEach((track) => track.stop());
-    _stream = null;
-    _recorder = null;
-  }
-
-  String _normalizeMimeType(String? mimeType) {
-    final value = (mimeType ?? '').trim();
-    if (value.isEmpty) {
-      return 'audio/webm';
+  String _resolveMimeType(String path) {
+    if (path.startsWith('data:')) {
+      final data = UriData.parse(path);
+      return data.mimeType;
     }
-    return value;
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.wav')) {
+      return 'audio/wav';
+    }
+    if (lower.endsWith('.mp3')) {
+      return 'audio/mpeg';
+    }
+    if (lower.endsWith('.m4a') || lower.endsWith('.mp4')) {
+      return 'audio/mp4';
+    }
+    if (lower.endsWith('.ogg')) {
+      return 'audio/ogg';
+    }
+    return _mimeType;
   }
 
-  Map<String, String>? _recorderOptions() {
-    const candidates = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/ogg;codecs=opus',
-      'audio/ogg',
-      'audio/mp4',
-    ];
-    for (final mimeType in candidates) {
-      if (html.MediaRecorder.isTypeSupported(mimeType)) {
-        return {'mimeType': mimeType};
-      }
-    }
-    return null;
-  }
-
-  Future<void> _waitForFirstChunk(Duration timeout) async {
-    final completer = _firstChunkCompleter;
-    if (completer == null || completer.isCompleted) {
-      return;
-    }
-    try {
-      await completer.future.timeout(timeout);
-    } catch (_) {
-      // Ignore timeout while waiting for chunk.
-    }
-  }
-
-  void _startLevelMonitor() {
+  void _startAmplitudeMonitor() {
     _levelNotifier.value = 0;
-    _levelTimer?.cancel();
-    try {
-      _audioContext = webaudio.AudioContext();
-      _analyser = _audioContext!.createAnalyser();
-      _analyser!.fftSize = 2048;
-      _sourceNode = _audioContext!.createMediaStreamSource(_stream!);
-      _sourceNode!.connectNode(_analyser!);
-
-      final fftSize = _analyser?.fftSize ?? 2048;
-      final buffer = Uint8List(fftSize);
-      _levelTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-        if (_analyser == null) {
-          return;
-        }
-        _analyser!.getByteTimeDomainData(buffer);
-        var sum = 0.0;
-        for (final value in buffer) {
-          final centered = (value - 128) / 128.0;
-          sum += centered * centered;
-        }
-        final rms = math.sqrt(sum / buffer.length);
-        final normalized = rms.clamp(0.0, 1.0);
-        if (_levelNotifier.value != normalized) {
-          _levelNotifier.value = normalized;
-        }
-      });
-    } catch (_) {
-      _levelNotifier.value = 0;
-    }
+    _amplitudeSubscription?.cancel();
+    _amplitudeSubscription = _record
+        .onAmplitudeChanged(const Duration(milliseconds: 120))
+        .listen((amplitude) {
+      _levelNotifier.value = _normalizeAmplitude(amplitude.current);
+    });
   }
 
-  void _stopLevelMonitor() {
-    _levelTimer?.cancel();
-    _levelTimer = null;
+  Future<void> _stopAmplitudeMonitor() async {
+    await _amplitudeSubscription?.cancel();
+    _amplitudeSubscription = null;
     _levelNotifier.value = 0;
-    try {
-      _sourceNode?.disconnect();
-    } catch (_) {}
-    try {
-      _analyser?.disconnect();
-    } catch (_) {}
-    _sourceNode = null;
-    _analyser = null;
-    _audioContext?.close();
-    _audioContext = null;
+  }
+
+  double _normalizeAmplitude(double currentDb) {
+    const minDb = -60.0;
+    const maxDb = 0.0;
+    if (currentDb <= minDb) {
+      return 0.0;
+    }
+    if (currentDb >= maxDb) {
+      return 1.0;
+    }
+    return (currentDb - minDb) / (maxDb - minDb);
+  }
+
+  String _mimeTypeForEncoder(AudioEncoder encoder) {
+    switch (encoder) {
+      case AudioEncoder.wav:
+        return 'audio/wav';
+      case AudioEncoder.flac:
+        return 'audio/flac';
+      case AudioEncoder.aacLc:
+      case AudioEncoder.aacEld:
+      case AudioEncoder.aacHe:
+        return 'audio/mp4';
+      case AudioEncoder.opus:
+        return 'audio/webm';
+      default:
+        return 'audio/webm';
+    }
   }
 }
