@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:html' as html;
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:web_audio' as webaudio';
+import 'dart:web_audio' as webaudio;
 
 import 'package:flutter/foundation.dart';
 
@@ -12,8 +12,7 @@ AudioRecorder getAudioRecorder() => _WebAudioRecorder();
 
 /// `dart:html` does not expose MediaRecorder's `ondataavailable` / `onstop`
 /// as typed getters in all SDK versions. Bind via DOM event names instead.
-const _onDataAvailable =
-    html.EventStreamProvider<html.Event>('dataavailable');
+const _onDataAvailable = html.EventStreamProvider<html.Event>('dataavailable');
 const _onStop = html.EventStreamProvider<html.Event>('stop');
 
 class _WebAudioRecorder implements AudioRecorder {
@@ -47,8 +46,8 @@ class _WebAudioRecorder implements AudioRecorder {
     _chunks.clear();
     _firstChunkCompleter = Completer<void>();
 
-    _stream = await html.window.navigator.mediaDevices!
-        .getUserMedia({'audio': true});
+    _stream =
+        await html.window.navigator.mediaDevices!.getUserMedia({'audio': true});
 
     html.MediaRecorder recorder;
     try {
