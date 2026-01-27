@@ -1,0 +1,9 @@
+{
+  "name": "GoGoHannah",
+  "short_name": "GoGoHannah",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F6F4FF",
+  "theme_color": "#6B4EFF",
+  "description": "AI-based English vocabulary practice for ages 5-9."
+}

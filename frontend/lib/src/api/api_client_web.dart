@@ -1,0 +1,195 @@
+import 'dart:convert';
+import 'dart:html';
+import 'dart:typed_data';
+
+import '../models/progress_summary.dart';
+import '../models/save_exercise.dart';
+import '../models/vocab_exercise.dart';
+import '../models/comprehension_exercise.dart';
+import '../models/pronunciation_assessment.dart';
+import '../models/rag_debug_result.dart';
+import 'api_client.dart';
+
+ApiClient getApiClient(String baseUrl) => _WebApiClient(baseUrl);
+
+class ApiException implements Exception {
+  final String message;
+  ApiException(this.message);
+  @override
+  String toString() => message;
+}
+
+class _WebApiClient implements ApiClient {
+  final String _baseUrl;
+
+  _WebApiClient(String baseUrl) : _baseUrl = baseUrl.replaceAll(RegExp(r'/$'), '');
+
+  @override
+  Future<List<String>> fetchDefaultVocab() async {
+    final data = await _getJson('/v1/vocab/default');
+    final words = data['words'];
+    if (words is List) {
+      return words.map((word) => word.toString()).toList();
+    }
+    throw ApiException('Invalid vocab response');
+  }
+
+  @override
+  Future<VocabExercise> generateVocabExercise(String word) async {
+    final data = await _postJson('/v1/vocab/exercise', {'word': word});
+    return VocabExercise.fromJson(data);
+  }
+
+  @override
+  Future<ComprehensionExercise> generateComprehensionExercise({
+    required String level,
+    String? theme,
+    bool includeImage = false,
+  }) async {
+    final payload = {
+      'level': level,
+      'theme': theme,
+      'include_image': includeImage,
+    };
+    final data = await _postJson('/v1/comprehension/exercise', payload);
+    return ComprehensionExercise.fromJson(data);
+  }
+
+  @override
+  Future<int> scorePronunciation(String word, String userText) async {
+    final data = await _postJson('/v1/pronunciation/score', {
+      'target_word': word,
+      'user_text': userText,
+    });
+    final score = data['score'];
+    if (score is num) {
+      return score.toInt();
+    }
+    throw ApiException('Invalid score response');
+  }
+
+  @override
+  Future<PronunciationAssessment> assessPronunciationAudio({
+    required String word,
+    required Uint8List audioBytes,
+    required String mimeType,
+  }) async {
+    final formData = FormData();
+    formData.append('target_word', word);
+    final normalizedMimeType = _normalizeMimeType(mimeType);
+    final blob = Blob([audioBytes], normalizedMimeType);
+    final extension = _extensionForMime(normalizedMimeType);
+    formData.appendBlob('audio', blob, 'recording.$extension');
+
+    final request = await HttpRequest.request(
+      '$_baseUrl/v1/pronunciation/assess',
+      method: 'POST',
+      sendData: formData,
+    );
+    if (request.status != null && request.status! >= 400) {
+      throw ApiException('Request failed (${request.status})');
+    }
+    final data = _decodeJson(request.responseText);
+    return PronunciationAssessment.fromJson(data);
+  }
+
+  @override
+  Future<void> saveExercise(SaveExercise payload) async {
+    await _postJson('/v1/progress/exercise', payload.toJson());
+  }
+
+  @override
+  Future<ProgressSummary> fetchProgressSummary(String childName) async {
+    final data = await _getJson('/v1/progress/summary?child_name=${Uri.encodeComponent(childName)}');
+    return ProgressSummary.fromJson(data);
+  }
+
+  @override
+  Future<List<String>> fetchRecommendedWords(String childName, int limit) async {
+    final data = await _getJson(
+      '/v1/progress/recommended?child_name=${Uri.encodeComponent(childName)}&limit=$limit',
+    );
+    final words = data['words'];
+    if (words is List) {
+      return words.map((word) => word.toString()).toList();
+    }
+    throw ApiException('Invalid recommended response');
+  }
+
+  @override
+  Future<RagDebugResult> fetchRagDebug({
+    required String query,
+    String? childName,
+    int limit = 5,
+  }) async {
+    final encodedQuery = Uri.encodeComponent(query);
+    final encodedChild =
+        childName == null ? '' : '&child_name=${Uri.encodeComponent(childName)}';
+    final data = await _getJson(
+      '/v1/debug/rag?query=$encodedQuery$encodedChild&limit=$limit',
+    );
+    return RagDebugResult.fromJson(data);
+  }
+
+  Future<Map<String, dynamic>> _getJson(String path) async {
+    final request = await HttpRequest.request(
+      '$_baseUrl$path',
+      method: 'GET',
+      requestHeaders: {'Content-Type': 'application/json'},
+    );
+    if (request.status != null && request.status! >= 400) {
+      throw ApiException('Request failed (${request.status})');
+    }
+    return _decodeJson(request.responseText);
+  }
+
+  Future<Map<String, dynamic>> _postJson(String path, Map<String, dynamic> payload) async {
+    final request = await HttpRequest.request(
+      '$_baseUrl$path',
+      method: 'POST',
+      sendData: jsonEncode(payload),
+      requestHeaders: {'Content-Type': 'application/json'},
+    );
+    if (request.status != null && request.status! >= 400) {
+      throw ApiException('Request failed (${request.status})');
+    }
+    return _decodeJson(request.responseText);
+  }
+
+  Map<String, dynamic> _decodeJson(String? responseText) {
+    if (responseText == null || responseText.isEmpty) {
+      return {};
+    }
+    final decoded = jsonDecode(responseText);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+    throw ApiException('Unexpected response format');
+  }
+
+  String _normalizeMimeType(String mimeType) {
+    final normalized = mimeType.trim();
+    if (normalized.isEmpty) {
+      return 'audio/webm';
+    }
+    return normalized.split(';').first;
+  }
+
+  String _extensionForMime(String mimeType) {
+    switch (mimeType) {
+      case 'audio/webm':
+        return 'webm';
+      case 'audio/ogg':
+        return 'ogg';
+      case 'audio/mp4':
+        return 'mp4';
+      case 'audio/mpeg':
+        return 'mp3';
+      case 'audio/wav':
+      case 'audio/x-wav':
+        return 'wav';
+      default:
+        return 'webm';
+    }
+  }
+}

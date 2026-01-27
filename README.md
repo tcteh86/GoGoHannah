@@ -2,10 +2,9 @@
 
 A prototype AI-based English vocabulary learning assistant for young learners (5–9).
 
-This repository contains a working **Streamlit MVP** that:
-- loads a default vocabulary list (or a parent-provided CSV)
-- runs a simple practice flow (definition, example sentence, quiz)
-- is structured so you can later add a bounded GenAI provider (e.g., Gemini) safely.
+This repository is migrating to a **Flutter (web) + FastAPI** architecture that
+prioritizes a child-friendly UI and a clear GenAI backend. The goal is to keep
+the learning experience engaging while showcasing GenAI techniques.
 
 ## Features (MVP)
 - Default primary-level vocabulary list
@@ -19,36 +18,33 @@ This repository contains a working **Streamlit MVP** that:
 - Clean project boundaries: UI vs core logic vs LLM wrapper
 
 ## Tech Stack
-- Python
-- Streamlit
-- OpenAI GPT (for AI generation)
+- Flutter (web first, Android later)
+- FastAPI (Python backend)
+- OpenAI API (text, audio, image)
 
 ## Quickstart (Local)
 
-### 1) Create and activate venv
+### 1) Backend setup (FastAPI)
 ```bash
 python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# macOS/Linux:
 source .venv/bin/activate
+pip install -r backend/requirements.txt
 ```
 
-### 2) Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 3) Set up environment
-Copy `.env` and add your OpenAI API key:
+Set up `.env`:
 ```
 OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-### 4) Run the app
+Run the API:
 ```bash
-streamlit run app/main.py
+uvicorn backend.app.main:app --reload
 ```
+
+### 2) Frontend setup (Flutter)
+From `frontend/`:
+- `flutter create . --platforms=web,android`
+- `flutter run -d chrome --dart-define API_BASE_URL=http://localhost:8000`
 
 ## CSV Format
 Your CSV must contain a column named `word`.
@@ -61,14 +57,12 @@ gentle
 ```
 
 ## Roadmap
-- ✅ Add OpenAI integration for AI-generated definition/example/quiz (JSON-only output)
-- ✅ Add pronunciation practice with TTS and audio recording/scoring
-- ✅ Add progress tracking with personalized recommendations
-- ✅ Add record management with secure deletion
-- ✅ Add practiced words wheel and smart recommendation system
-- ✅ Add automatic pronunciation checking on recording stop
-- Add more guardrails + output validation
-- Add tests for parsing/validation
+- ✅ Backend API scaffold with OpenAI integration (vocab exercises)
+- ✅ Progress tracking endpoints
+- ⏳ Flutter web UI (practice, results, quick check)
+- ⏳ Pronunciation (audio + transcription)
+- ⏳ Comprehension stories + illustration
+- ⏳ RAG + embeddings + multi-agent workflow
 
 ## Notes on GenAI Safety (future)
 When you add GenAI:

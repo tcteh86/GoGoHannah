@@ -1,0 +1,881 @@
+import 'package:flutter/material.dart';
+
+import '../api/api_client.dart';
+import '../models/comprehension_exercise.dart';
+import '../models/save_exercise.dart';
+import '../models/session_state.dart';
+import '../models/vocab_exercise.dart';
+import '../widgets/error_view.dart';
+import '../widgets/loading_view.dart';
+import '../widgets/mascot_header.dart';
+import '../widgets/audio_level_indicator.dart';
+import '../widgets/audio_waveform_preview.dart';
+import '../utils/speech_helper.dart';
+import '../utils/audio_recorder.dart';
+import '../utils/audio_playback.dart';
+
+enum PracticeMode { vocabulary, comprehension }
+
+const bool _ragDebugEnabled =
+    bool.fromEnvironment('GOGOHANNAH_DEBUG', defaultValue: false);
+
+class PracticeScreen extends StatefulWidget {
+  final ApiClient apiClient;
+  final String childName;
+  final SessionState sessionState;
+
+  const PracticeScreen({
+    super.key,
+    required this.apiClient,
+    required this.childName,
+    required this.sessionState,
+  });
+
+  @override
+  State<PracticeScreen> createState() => _PracticeScreenState();
+}
+
+class _PracticeScreenState extends State<PracticeScreen> {
+  late Future<List<String>> _vocabFuture;
+  String? _selectedWord;
+  VocabExercise? _exercise;
+  String? _selectedChoice;
+  String? _feedback;
+  bool _loading = false;
+
+  PracticeMode _mode = PracticeMode.vocabulary;
+  ComprehensionExercise? _comprehension;
+  String? _comprehensionError;
+  bool _loadingComprehension = false;
+  String _storyLevel = 'beginner';
+  bool _includeImage = false;
+  final Map<int, String> _compChoices = {};
+  final Map<int, bool> _compAnswered = {};
+
+  AudioRecording? _recording;
+  int? _pronunciationScore;
+  String? _pronunciationTranscript;
+  String? _pronunciationFeedback;
+  bool _pronunciationLoading = false;
+  String? _lastAutoPlayedWord;
+  final SpeechHelper _speechHelper = createSpeechHelper();
+  final AudioRecorder _audioRecorder = createAudioRecorder();
+  final AudioPlayback _audioPlayback = createAudioPlayback();
+  final ValueNotifier<List<double>> _waveformNotifier = ValueNotifier([]);
+  late final VoidCallback _waveformListener;
+  bool _ragDebugLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _waveformListener = () {
+      if (!_audioRecorder.isRecording) {
+        return;
+      }
+      final updated = List<double>.from(_waveformNotifier.value);
+      updated.add(_audioRecorder.levelListenable.value);
+      if (updated.length > 60) {
+        updated.removeAt(0);
+      }
+      _waveformNotifier.value = updated;
+    };
+    _audioRecorder.levelListenable.addListener(_waveformListener);
+    _vocabFuture = widget.apiClient.fetchDefaultVocab();
+  }
+
+  @override
+  void dispose() {
+    _audioRecorder.levelListenable.removeListener(_waveformListener);
+    _waveformNotifier.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generateExercise() async {
+    final word = _selectedWord;
+    if (word == null || word.isEmpty) {
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _exercise = null;
+      _selectedChoice = null;
+      _feedback = null;
+    });
+    try {
+      final exercise = await widget.apiClient.generateVocabExercise(word);
+      setState(() {
+        _exercise = exercise;
+      });
+      _maybeAutoPlayWord(word);
+    } catch (error) {
+      setState(() {
+        _feedback = 'Unable to load exercise. Try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _checkAnswer() async {
+    final exercise = _exercise;
+    if (exercise == null || _selectedChoice == null) {
+      return;
+    }
+    final correct = _selectedChoice == exercise.quizAnswer;
+    setState(() {
+      _feedback = correct ? 'Correct! Great job!' : 'Nice try! Keep practicing.';
+    });
+    widget.sessionState.recordAnswer(correct: correct);
+    await widget.apiClient.saveExercise(
+      SaveExercise(
+        childName: widget.childName,
+        word: _selectedWord ?? '',
+        exerciseType: 'quiz',
+        score: correct ? 100 : 0,
+        correct: correct,
+      ),
+    );
+  }
+
+  Future<void> _showRagDebug() async {
+    final query = _mode == PracticeMode.vocabulary
+        ? (_selectedWord ?? '')
+        : (_comprehension?.storyTitle ?? _storyLevel);
+    if (query.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Select a word or story first.')),
+        );
+      }
+      return;
+    }
+    setState(() => _ragDebugLoading = true);
+    try {
+      final result = await widget.apiClient.fetchRagDebug(
+        query: query,
+        childName: widget.childName,
+        limit: 5,
+      );
+      if (!mounted) {
+        return;
+      }
+      final results = result.results;
+      final message = result.message ??
+          (results.isEmpty ? 'No retrieval results found.' : null);
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('RAG Retrieval Debug'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Query: ${result.query}'),
+                    const SizedBox(height: 8),
+                    Text('RAG enabled: ${result.enabled ? 'Yes' : 'No'}'),
+                    if (message != null) ...[
+                      const SizedBox(height: 12),
+                      Text(message),
+                    ],
+                    if (results.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Top matches:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 6),
+                      ...results.asMap().entries.map(
+                            (entry) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text('${entry.key + 1}. ${entry.value}'),
+                            ),
+                          ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('RAG Debug Error'),
+            content: Text(error.toString()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _ragDebugLoading = false);
+      }
+    }
+  }
+
+  Future<void> _toggleRecording() async {
+    final word = _selectedWord;
+    if (word == null || word.isEmpty) {
+      return;
+    }
+    if (_audioRecorder.isRecording) {
+      setState(() {
+        _pronunciationLoading = true;
+        _pronunciationScore = null;
+        _pronunciationTranscript = null;
+        _pronunciationFeedback = null;
+      });
+      try {
+        final recording = await _audioRecorder.stop();
+        _recording = recording;
+        _audioPlayback.playUrl(recording.url);
+        final assessment = await widget.apiClient.assessPronunciationAudio(
+          word: word,
+          audioBytes: recording.bytes,
+          mimeType: recording.mimeType,
+        );
+        final correct = assessment.score >= 80;
+        widget.sessionState.recordAnswer(correct: correct);
+        await widget.apiClient.saveExercise(
+          SaveExercise(
+            childName: widget.childName,
+            word: word,
+            exerciseType: 'pronunciation',
+            score: assessment.score,
+            correct: correct,
+          ),
+        );
+        setState(() {
+          _pronunciationScore = assessment.score;
+          _pronunciationTranscript = assessment.transcription;
+          _pronunciationFeedback = correct
+              ? 'Great pronunciation!'
+              : 'Keep practicing the sounds.';
+        });
+      } catch (error) {
+        setState(() {
+          _pronunciationFeedback = _pronunciationErrorMessage(error);
+        });
+      } finally {
+        if (mounted) {
+          setState(() => _pronunciationLoading = false);
+        }
+      }
+    } else {
+      setState(() {
+        _pronunciationScore = null;
+        _pronunciationTranscript = null;
+        _pronunciationFeedback = null;
+      });
+      try {
+        _waveformNotifier.value = [];
+        await _audioRecorder.start();
+        setState(() {});
+      } catch (error) {
+        setState(() {
+          _pronunciationFeedback = error is UnsupportedError
+              ? 'Audio recording is not supported on this device.'
+              : 'Microphone permission needed.';
+        });
+      }
+    }
+  }
+
+  String _pronunciationErrorMessage(Object error) {
+    if (error is StateError) {
+      final message = error.message;
+      if (message != null && message.toString().isNotEmpty) {
+        return message.toString();
+      }
+    }
+    return 'Unable to score pronunciation.';
+  }
+
+  void _maybeAutoPlayWord(String word) {
+    final trimmed = word.trim();
+    if (trimmed.isEmpty || trimmed == _lastAutoPlayedWord) {
+      return;
+    }
+    _lastAutoPlayedWord = trimmed;
+    _speechHelper.speak(trimmed);
+  }
+
+  Future<void> _generateComprehension() async {
+    setState(() {
+      _loadingComprehension = true;
+      _comprehension = null;
+      _comprehensionError = null;
+      _compChoices.clear();
+      _compAnswered.clear();
+    });
+    try {
+      final exercise = await widget.apiClient.generateComprehensionExercise(
+        level: _storyLevel,
+        includeImage: _includeImage,
+      );
+      setState(() {
+        _comprehension = exercise;
+      });
+    } catch (error) {
+      setState(() {
+        _comprehensionError = 'Unable to load a story. Try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loadingComprehension = false);
+      }
+    }
+  }
+
+  Future<void> _checkComprehensionAnswer(int index) async {
+    final exercise = _comprehension;
+    if (exercise == null || _compAnswered.containsKey(index)) {
+      return;
+    }
+    final choice = _compChoices[index];
+    if (choice == null) {
+      return;
+    }
+    final question = exercise.questions[index];
+    final correct = choice == question.answer;
+    setState(() {
+      _compAnswered[index] = correct;
+    });
+    widget.sessionState.recordAnswer(correct: correct);
+    await widget.apiClient.saveExercise(
+      SaveExercise(
+        childName: widget.childName,
+        word: _comprehensionSaveLabel(question, index),
+        exerciseType: 'comprehension',
+        score: correct ? 100 : 0,
+        correct: correct,
+      ),
+    );
+  }
+
+  String _comprehensionSaveLabel(ComprehensionQuestion question, int index) {
+    final cleaned = question.question.replaceAll(
+      RegExp(r"[^A-Za-z\s\-']"),
+      '',
+    );
+    final normalized = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.isNotEmpty) {
+      final truncated =
+          normalized.length <= 32 ? normalized : normalized.substring(0, 32);
+      return truncated.trim();
+    }
+    const fallback = [
+      'Story Question One',
+      'Story Question Two',
+      'Story Question Three',
+    ];
+    if (index >= 0 && index < fallback.length) {
+      return fallback[index];
+    }
+    return 'Story Question';
+  }
+
+  Widget _buildModeSelector() {
+    return SegmentedButton<PracticeMode>(
+      segments: const [
+        ButtonSegment(
+          value: PracticeMode.vocabulary,
+          label: Text('Vocabulary'),
+        ),
+        ButtonSegment(
+          value: PracticeMode.comprehension,
+          label: Text('Story'),
+        ),
+      ],
+      selected: {_mode},
+      onSelectionChanged: (selection) {
+        setState(() {
+          _mode = selection.first;
+          _feedback = null;
+        });
+      },
+    );
+  }
+
+  Widget _buildVocabularySection(List<String> words) {
+    _selectedWord ??= words.isNotEmpty ? words.first : null;
+    final word = _selectedWord ?? '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Pick a word to practice:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: _selectedWord,
+          items: words
+              .map(
+                (word) => DropdownMenuItem(
+                  value: word,
+                  child: Text(word),
+                ),
+              )
+              .toList(),
+          onChanged: (value) => setState(() {
+            _selectedWord = value;
+            _exercise = null;
+            _feedback = null;
+            _selectedChoice = null;
+            _recording = null;
+            _pronunciationScore = null;
+            _pronunciationTranscript = null;
+            _pronunciationFeedback = null;
+          }),
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: _loading ? null : _generateExercise,
+          icon: const Icon(Icons.auto_awesome),
+          label: const Text('Generate Exercise'),
+        ),
+        const SizedBox(height: 20),
+        if (_loading) const LoadingView(message: 'Creating exercise...'),
+        if (_exercise != null) ...[
+          _ExerciseCard(
+            exercise: _exercise!,
+            word: word,
+            onListen: () => _speechHelper.speak(word),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Choose the answer:',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          _AnswerChoices(
+            exercise: _exercise!,
+            selectedChoice: _selectedChoice,
+            onChanged: (value) => setState(() => _selectedChoice = value),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: _selectedChoice == null ? null : _checkAnswer,
+            child: const Text('Check Answer'),
+          ),
+        ],
+        if (_feedback != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            _feedback!,
+            style: const TextStyle(fontSize: 16),
+          ),
+        ],
+        const SizedBox(height: 16),
+        const Text(
+          'Pronunciation practice:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: _pronunciationLoading ? null : _toggleRecording,
+          icon: Icon(_audioRecorder.isRecording ? Icons.stop : Icons.mic),
+          label: Text(_audioRecorder.isRecording ? 'Stop Recording' : 'Record'),
+        ),
+        if (_audioRecorder.isRecording) ...[
+          const SizedBox(height: 6),
+          const Text('Recording... tap stop when you are done.'),
+          const SizedBox(height: 8),
+          AudioLevelIndicator(levelListenable: _audioRecorder.levelListenable),
+        ],
+        if (_pronunciationLoading)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: LoadingView(message: 'Scoring pronunciation...'),
+          ),
+        if (_recording != null) ...[
+          const SizedBox(height: 8),
+          const Text(
+            'Recorded audio:',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          ValueListenableBuilder<List<double>>(
+            valueListenable: _waveformNotifier,
+            builder: (context, levels, _) {
+              if (levels.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: AudioWaveformPreview(levels: levels),
+              );
+            },
+          ),
+          FilledButton.icon(
+            onPressed: () => _audioPlayback.playUrl(_recording!.url),
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Play Back'),
+          ),
+        ],
+        if (_pronunciationTranscript != null) ...[
+          const SizedBox(height: 8),
+          Text('You said: $_pronunciationTranscript'),
+        ],
+        if (_pronunciationScore != null) ...[
+          const SizedBox(height: 4),
+          Text('Score: $_pronunciationScore / 100'),
+        ],
+        if (_pronunciationFeedback != null) ...[
+          const SizedBox(height: 4),
+          Text(_pronunciationFeedback!),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildComprehensionSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Choose a story level:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: _storyLevel,
+          items: const [
+            DropdownMenuItem(value: 'beginner', child: Text('Beginner')),
+            DropdownMenuItem(value: 'intermediate', child: Text('Intermediate')),
+            DropdownMenuItem(value: 'expert', child: Text('Expert')),
+          ],
+          onChanged: (value) => setState(() {
+            _storyLevel = value ?? 'beginner';
+          }),
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 8),
+        SwitchListTile(
+          value: _includeImage,
+          onChanged: (value) => setState(() => _includeImage = value),
+          title: const Text('Include illustration'),
+          subtitle: const Text('Uses image generation credits.'),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: _loadingComprehension ? null : _generateComprehension,
+          icon: const Icon(Icons.menu_book),
+          label: const Text('Generate Story'),
+        ),
+        const SizedBox(height: 16),
+        if (_loadingComprehension)
+          const LoadingView(message: 'Creating your story...'),
+        if (_comprehensionError != null) ...[
+          Text(
+            _comprehensionError!,
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (_comprehension != null)
+          _ComprehensionCard(
+            exercise: _comprehension!,
+            onListen: () => _speechHelper.speak(_comprehension!.storyText),
+          ),
+        if (_comprehension != null) ...[
+          const SizedBox(height: 12),
+          const Text(
+            'Questions',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ..._comprehension!.questions.asMap().entries.map((entry) {
+            final index = entry.key;
+            final question = entry.value;
+            final selected = _compChoices[index];
+            final answered = _compAnswered[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Q${index + 1}. ${question.question}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    ...['A', 'B', 'C']
+                        .where((key) => question.choices.containsKey(key))
+                        .map(
+                          (key) => RadioListTile<String>(
+                            value: key,
+                            groupValue: selected,
+                            onChanged: (value) => setState(() {
+                              if (value != null) {
+                                _compChoices[index] = value;
+                              }
+                            }),
+                            title: Text('${key}. ${question.choices[key]}'),
+                          ),
+                        ),
+                    const SizedBox(height: 4),
+                    FilledButton(
+                      onPressed: selected == null
+                          ? null
+                          : () => _checkComprehensionAnswer(index),
+                      child: const Text('Check'),
+                    ),
+                    if (answered != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        answered ? 'Correct!' : 'Not quite. Try again!',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Practice'),
+        backgroundColor: const Color(0xFFF6F4FF),
+      ),
+      body: FutureBuilder<List<String>>(
+        future: _vocabFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const LoadingView(message: 'Loading words...');
+          }
+          if (snapshot.hasError || !snapshot.hasData) {
+            return ErrorView(
+              message: 'Unable to load vocabulary list.',
+              onRetry: () {
+                setState(() {
+                  _vocabFuture = widget.apiClient.fetchDefaultVocab();
+                });
+              },
+            );
+          }
+          final words = snapshot.data!;
+          return ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              MascotHeader(
+                childName: widget.childName,
+                sessionState: widget.sessionState,
+              ),
+              const SizedBox(height: 16),
+              _buildModeSelector(),
+              if (_ragDebugEnabled) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _ragDebugLoading ? null : _showRagDebug,
+                  icon: const Icon(Icons.bug_report),
+                  label: Text(
+                    _ragDebugLoading
+                        ? 'Loading retrieval...'
+                        : 'Debug: Retrieval',
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              if (_mode == PracticeMode.vocabulary)
+                _buildVocabularySection(words)
+              else
+                _buildComprehensionSection(),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ExerciseCard extends StatelessWidget {
+  final VocabExercise exercise;
+  final String word;
+  final VoidCallback onListen;
+
+  const _ExerciseCard({
+    required this.exercise,
+    required this.word,
+    required this.onListen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Word: $word',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: onListen,
+                  icon: const Icon(Icons.volume_up),
+                  tooltip: 'Listen to the word',
+                ),
+              ],
+            ),
+            if (exercise.phonics != null && exercise.phonics!.isNotEmpty) ...[
+              Text(
+                'Phonics: ${exercise.phonics}',
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Text(
+              'Definition: ${exercise.definition}',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Example: ${exercise.exampleSentence}',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Quiz: ${exercise.quizQuestion}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            if (exercise.source != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Source: ${exercise.source}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AnswerChoices extends StatelessWidget {
+  final VocabExercise exercise;
+  final String? selectedChoice;
+  final ValueChanged<String?> onChanged;
+
+  const _AnswerChoices({
+    required this.exercise,
+    required this.selectedChoice,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final keys = ['A', 'B', 'C'];
+    return Column(
+      children: keys
+          .where((key) => exercise.quizChoices.containsKey(key))
+          .map(
+            (key) => RadioListTile<String>(
+              value: key,
+              groupValue: selectedChoice,
+              onChanged: onChanged,
+              title: Text('${key}. ${exercise.quizChoices[key]}'),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _ComprehensionCard extends StatelessWidget {
+  final ComprehensionExercise exercise;
+  final VoidCallback? onListen;
+
+  const _ComprehensionCard({
+    required this.exercise,
+    this.onListen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              exercise.storyTitle,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            if (onListen != null) ...[
+              FilledButton.icon(
+                onPressed: onListen,
+                icon: const Icon(Icons.volume_up),
+                label: const Text('Read Story Aloud'),
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (exercise.imageUrl != null && exercise.imageUrl!.isNotEmpty) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  exercise.imageUrl!,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Text(exercise.storyText),
+            if (exercise.source != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Source: ${exercise.source}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
