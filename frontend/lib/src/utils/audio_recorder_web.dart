@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:html' as html;
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:web_audio' as webaudio;
+import 'dart:web_audio' as webaudio';
 
 import 'package:flutter/foundation.dart';
 
@@ -10,16 +10,25 @@ import 'audio_recorder.dart';
 
 AudioRecorder getAudioRecorder() => _WebAudioRecorder();
 
+/// `dart:html` does not expose MediaRecorder's `ondataavailable` / `onstop`
+/// as typed getters in all SDK versions. Bind via DOM event names instead.
+const _onDataAvailable =
+    html.EventStreamProvider<html.Event>('dataavailable');
+const _onStop = html.EventStreamProvider<html.Event>('stop');
+
 class _WebAudioRecorder implements AudioRecorder {
   html.MediaRecorder? _recorder;
   html.MediaStream? _stream;
   webaudio.AudioContext? _audioContext;
   webaudio.AnalyserNode? _analyser;
   webaudio.MediaStreamAudioSourceNode? _sourceNode;
+
   final List<html.Blob> _chunks = [];
   Completer<void>? _firstChunkCompleter;
+
   final ValueNotifier<double> _levelNotifier = ValueNotifier(0);
   Timer? _levelTimer;
+
   bool _isRecording = false;
   StreamSubscription<html.Event>? _dataSubscription;
 
@@ -34,10 +43,13 @@ class _WebAudioRecorder implements AudioRecorder {
     if (_isRecording) {
       return;
     }
+
     _chunks.clear();
     _firstChunkCompleter = Completer<void>();
+
     _stream = await html.window.navigator.mediaDevices!
         .getUserMedia({'audio': true});
+
     html.MediaRecorder recorder;
     try {
       recorder = html.MediaRecorder(_stream!);
@@ -47,18 +59,26 @@ class _WebAudioRecorder implements AudioRecorder {
           ? html.MediaRecorder(_stream!)
           : html.MediaRecorder(_stream!, options);
     }
+
     _recorder = recorder;
+
     _dataSubscription?.cancel();
-    _dataSubscription = recorder.onDataAvailable.listen((event) {
-      final data = event.data;
+    _dataSubscription = _onDataAvailable.forTarget(recorder).listen((event) {
+      // The event is a BlobEvent in the browser. Dart typing may not expose
+      // html.BlobEvent consistently, so use dynamic to get `.data`.
+      final dynamic blobEvent = event;
+      final dynamic data = blobEvent.data;
+
       if (data is html.Blob && data.size > 0) {
         _chunks.add(data);
+
         final completer = _firstChunkCompleter;
         if (completer != null && !completer.isCompleted) {
           completer.complete();
         }
       }
     });
+
     recorder.start();
     _startLevelMonitor();
     _isRecording = true;
@@ -69,14 +89,14 @@ class _WebAudioRecorder implements AudioRecorder {
     if (!_isRecording || _recorder == null) {
       throw StateError('Recorder is not running.');
     }
+
     final recorder = _recorder!;
     final completer = Completer<AudioRecording>();
     final mimeType = _normalizeMimeType(recorder.mimeType);
 
     Future<void> finalizeRecording() async {
-      if (completer.isCompleted) {
-        return;
-      }
+      if (completer.isCompleted) return;
+
       if (_chunks.isEmpty) {
         _cleanupStream();
         completer.completeError(
@@ -84,9 +104,11 @@ class _WebAudioRecorder implements AudioRecorder {
         );
         return;
       }
+
       final blob = html.Blob(_chunks, mimeType);
       final url = html.Url.createObjectUrl(blob);
       final bytes = await _blobToBytes(blob);
+
       _cleanupStream();
       completer.complete(AudioRecording(
         bytes: bytes,
@@ -96,7 +118,8 @@ class _WebAudioRecorder implements AudioRecorder {
     }
 
     const chunkTimeout = Duration(seconds: 4);
-    recorder.onStop.first.then((_) async {
+
+    _onStop.forTarget(recorder).first.then((_) async {
       if (_chunks.isEmpty) {
         await _waitForFirstChunk(chunkTimeout);
       }
@@ -108,15 +131,16 @@ class _WebAudioRecorder implements AudioRecorder {
     } catch (_) {
       // Some browsers may not support requestData; ignore.
     }
+
     recorder.stop();
 
     _isRecording = false;
     _stopLevelMonitor();
 
+    // Fallback: in case stop event is delayed and chunks arrive late
     Future.delayed(chunkTimeout, () async {
-      if (completer.isCompleted) {
-        return;
-      }
+      if (completer.isCompleted) return;
+
       if (_chunks.isEmpty) {
         await _waitForFirstChunk(chunkTimeout);
       }
@@ -138,14 +162,18 @@ class _WebAudioRecorder implements AudioRecorder {
   Future<Uint8List> _blobToBytes(html.Blob blob) async {
     final reader = html.FileReader();
     final completer = Completer<Uint8List>();
+
     reader.readAsArrayBuffer(blob);
+
     reader.onLoad.listen((_) {
       final buffer = reader.result as ByteBuffer;
       completer.complete(Uint8List.view(buffer));
     });
+
     reader.onError.listen((_) {
       completer.completeError(StateError('Failed to read audio blob.'));
     });
+
     return completer.future;
   }
 
@@ -153,7 +181,9 @@ class _WebAudioRecorder implements AudioRecorder {
     _dataSubscription?.cancel();
     _dataSubscription = null;
     _firstChunkCompleter = null;
+
     _stopLevelMonitor();
+
     _stream?.getTracks().forEach((track) => track.stop());
     _stream = null;
     _recorder = null;
@@ -161,9 +191,7 @@ class _WebAudioRecorder implements AudioRecorder {
 
   String _normalizeMimeType(String? mimeType) {
     final value = (mimeType ?? '').trim();
-    if (value.isEmpty) {
-      return 'audio/webm';
-    }
+    if (value.isEmpty) return 'audio/webm';
     return value;
   }
 
@@ -185,9 +213,8 @@ class _WebAudioRecorder implements AudioRecorder {
 
   Future<void> _waitForFirstChunk(Duration timeout) async {
     final completer = _firstChunkCompleter;
-    if (completer == null || completer.isCompleted) {
-      return;
-    }
+    if (completer == null || completer.isCompleted) return;
+
     try {
       await completer.future.timeout(timeout);
     } catch (_) {
@@ -198,27 +225,33 @@ class _WebAudioRecorder implements AudioRecorder {
   void _startLevelMonitor() {
     _levelNotifier.value = 0;
     _levelTimer?.cancel();
+
     try {
       _audioContext = webaudio.AudioContext();
       _analyser = _audioContext!.createAnalyser();
       _analyser!.fftSize = 2048;
+
       _sourceNode = _audioContext!.createMediaStreamSource(_stream!);
       _sourceNode!.connectNode(_analyser!);
 
       final fftSize = _analyser?.fftSize ?? 2048;
       final buffer = Uint8List(fftSize);
+
       _levelTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-        if (_analyser == null) {
-          return;
-        }
-        _analyser!.getByteTimeDomainData(buffer);
+        final analyser = _analyser;
+        if (analyser == null) return;
+
+        analyser.getByteTimeDomainData(buffer);
+
         var sum = 0.0;
         for (final value in buffer) {
           final centered = (value - 128) / 128.0;
           sum += centered * centered;
         }
+
         final rms = math.sqrt(sum / buffer.length);
         final normalized = rms.clamp(0.0, 1.0);
+
         if (_levelNotifier.value != normalized) {
           _levelNotifier.value = normalized;
         }
@@ -232,14 +265,18 @@ class _WebAudioRecorder implements AudioRecorder {
     _levelTimer?.cancel();
     _levelTimer = null;
     _levelNotifier.value = 0;
+
     try {
       _sourceNode?.disconnect();
     } catch (_) {}
+
     try {
       _analyser?.disconnect();
     } catch (_) {}
+
     _sourceNode = null;
     _analyser = null;
+
     _audioContext?.close();
     _audioContext = null;
   }
