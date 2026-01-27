@@ -23,7 +23,7 @@ class _WebAudioRecorder implements AudioRecorder {
   webaudio.MediaStreamAudioSourceNode? _sourceNode;
 
   final List<html.Blob> _chunks = [];
-  Completer<void>? _firstChunkCompleter;
+  Completer<void>? _firstDataEventCompleter;
 
   final ValueNotifier<double> _levelNotifier = ValueNotifier(0);
   Timer? _levelTimer;
@@ -39,13 +39,12 @@ class _WebAudioRecorder implements AudioRecorder {
 
   @override
   Future<void> start() async {
-    if (_isRecording) {
-      return;
-    }
+    if (_isRecording) return;
 
     _chunks.clear();
-    _firstChunkCompleter = Completer<void>();
+    _firstDataEventCompleter = Completer<void>();
 
+    // NOTE: getUserMedia requires HTTPS (or localhost) and a user gesture.
     _stream =
         await html.window.navigator.mediaDevices!.getUserMedia({'audio': true});
 
@@ -61,24 +60,30 @@ class _WebAudioRecorder implements AudioRecorder {
 
     _recorder = recorder;
 
+    // Listen for chunks via DOM events.
     _dataSubscription?.cancel();
     _dataSubscription = _onDataAvailable.forTarget(recorder).listen((event) {
-      // The event is a BlobEvent in the browser. Dart typing may not expose
-      // html.BlobEvent consistently, so use dynamic to get `.data`.
       final dynamic blobEvent = event;
       final dynamic data = blobEvent.data;
 
-      if (data is html.Blob && data.size > 0) {
-        _chunks.add(data);
+      if (data is html.Blob) {
+        // Some browsers emit an empty Blob first; signal that we've received
+        // at least one dataavailable event (even if empty).
+        final c = _firstDataEventCompleter;
+        if (c != null && !c.isCompleted) c.complete();
 
-        final completer = _firstChunkCompleter;
-        if (completer != null && !completer.isCompleted) {
-          completer.complete();
+        // Only store non-empty chunks
+        if (data.size > 0) {
+          _chunks.add(data);
         }
       }
     });
 
-    recorder.start();
+    // ✅ IMPORTANT FIX:
+    // Provide a timeslice so dataavailable fires periodically (not only at stop).
+    // This avoids "_chunks is empty" in many environments.
+    recorder.start(250); // 250ms chunks (tune 100-500ms as you like)
+
     _startLevelMonitor();
     _isRecording = true;
   }
@@ -119,31 +124,37 @@ class _WebAudioRecorder implements AudioRecorder {
     const chunkTimeout = Duration(seconds: 4);
 
     _onStop.forTarget(recorder).first.then((_) async {
+      // Give the browser a moment to flush final dataavailable
+      // (some browsers fire stop slightly before the last chunk is observed).
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      // If nothing captured yet, wait briefly for at least one dataavailable event.
       if (_chunks.isEmpty) {
-        await _waitForFirstChunk(chunkTimeout);
+        await _waitForFirstDataEvent(chunkTimeout);
+        // Another tiny delay to allow chunk list to fill
+        await Future.delayed(const Duration(milliseconds: 150));
       }
+
       await finalizeRecording();
     });
 
-    try {
-      recorder.requestData();
-    } catch (_) {
-      // Some browsers may not support requestData; ignore.
-    }
-
+    // ✅ IMPORTANT FIX:
+    // Don't force requestData() right before stop; it can be flaky and isn't
+    // needed once we start with a timeslice.
     recorder.stop();
 
     _isRecording = false;
     _stopLevelMonitor();
 
-    // Fallback: in case stop event is delayed and chunks arrive late
+    // Fallback: if stop event is delayed
     Future.delayed(chunkTimeout, () async {
       if (completer.isCompleted) return;
 
       if (_chunks.isEmpty) {
-        await _waitForFirstChunk(chunkTimeout);
+        await _waitForFirstDataEvent(chunkTimeout);
+        await Future.delayed(const Duration(milliseconds: 150));
       }
-      if (!completer.isCompleted && _chunks.isNotEmpty) {
+      if (!completer.isCompleted) {
         await finalizeRecording();
       }
     });
@@ -179,7 +190,7 @@ class _WebAudioRecorder implements AudioRecorder {
   void _cleanupStream() {
     _dataSubscription?.cancel();
     _dataSubscription = null;
-    _firstChunkCompleter = null;
+    _firstDataEventCompleter = null;
 
     _stopLevelMonitor();
 
@@ -210,14 +221,14 @@ class _WebAudioRecorder implements AudioRecorder {
     return null;
   }
 
-  Future<void> _waitForFirstChunk(Duration timeout) async {
-    final completer = _firstChunkCompleter;
+  Future<void> _waitForFirstDataEvent(Duration timeout) async {
+    final completer = _firstDataEventCompleter;
     if (completer == null || completer.isCompleted) return;
 
     try {
       await completer.future.timeout(timeout);
     } catch (_) {
-      // Ignore timeout while waiting for chunk.
+      // Ignore timeout while waiting for first dataavailable event.
     }
   }
 
