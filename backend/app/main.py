@@ -18,7 +18,7 @@ from .core.progress import (
     get_recommended_words,
     save_exercise,
 )
-from .core.study_time import add_study_time, get_study_time
+from .core.study_time import add_study_time, get_study_time, get_total_study_time
 from .core.rag import debug_enabled, rag_enabled, retrieve_context, store_document
 from .core.safety import sanitize_word
 from .core.scoring import calculate_pronunciation_score
@@ -43,6 +43,7 @@ from .schemas import (
     RecentExercisesResponse,
     StudyTimeAddRequest,
     StudyTimeResponse,
+    StudyTimeTotalResponse,
     SaveExerciseRequest,
     VocabExerciseRequest,
     VocabExerciseResponse,
@@ -271,6 +272,13 @@ def progress_time_get(child_name: str, date_str: str) -> dict:
     child_id = get_or_create_child(child_name.strip())
     total = get_study_time(child_id, study_date)
     return {"date": date_str, "total_seconds": total}
+
+
+@app.get("/v1/progress/time/total", response_model=StudyTimeTotalResponse)
+def progress_time_total(child_name: str) -> dict:
+    child_id = get_or_create_child(child_name.strip())
+    total = get_total_study_time(child_id)
+    return {"total_seconds": total}
 
 
 @app.get("/v1/progress/recommended")

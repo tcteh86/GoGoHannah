@@ -41,6 +41,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         await widget.apiClient.fetchRecentExercises(widget.childName, 10);
     final date = _todayDate();
     StudyTimeSummary study;
+    StudyTimeTotalSummary total;
     try {
       study = await widget.apiClient.fetchStudyTime(
         childName: widget.childName,
@@ -49,7 +50,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
     } catch (_) {
       study = StudyTimeSummary(date: date, totalSeconds: 0);
     }
-    return _ResultsData(summary: summary, recent: recent, studyTime: study);
+    try {
+      total = await widget.apiClient.fetchStudyTimeTotal(
+        childName: widget.childName,
+      );
+    } catch (_) {
+      total = StudyTimeTotalSummary(totalSeconds: 0);
+    }
+    return _ResultsData(
+      summary: summary,
+      recent: recent,
+      studyTime: study,
+      totalTime: total,
+    );
   }
 
   void _refresh() {
@@ -82,6 +95,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           final summary = snapshot.data!.summary;
           final recent = snapshot.data!.recent;
           final studyTime = snapshot.data!.studyTime;
+          final totalTime = snapshot.data!.totalTime;
           final quizScore = summary.scoresByType['quiz']?.avgScore ?? 0;
           return ListView(
             padding: const EdgeInsets.all(20),
@@ -94,6 +108,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
               _MetricCard(
                 title: 'Study time (${studyTime.date})',
                 value: _formatDuration(studyTime.totalSeconds),
+              ),
+              _MetricCard(
+                title: 'All-time study time',
+                value: _formatDuration(totalTime.totalSeconds),
               ),
               _MetricCard(
                 title: 'Total Exercises',
@@ -162,11 +180,13 @@ class _ResultsData {
   final ProgressSummary summary;
   final List<RecentExercise> recent;
   final StudyTimeSummary studyTime;
+  final StudyTimeTotalSummary totalTime;
 
   _ResultsData({
     required this.summary,
     required this.recent,
     required this.studyTime,
+    required this.totalTime,
   });
 }
 

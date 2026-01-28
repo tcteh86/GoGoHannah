@@ -49,6 +49,9 @@ abstract class ApiClient {
     required String childName,
     required String date,
   });
+  Future<StudyTimeTotalSummary> fetchStudyTimeTotal({
+    required String childName,
+  });
   Future<RagDebugResult> fetchRagDebug({
     required String query,
     String? childName,

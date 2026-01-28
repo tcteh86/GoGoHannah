@@ -55,4 +55,15 @@ def get_study_time(child_id: int, date: date_type) -> int:
         return int(row[0]) if row else 0
 
 
+def get_total_study_time(child_id: int) -> int:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COALESCE(SUM(total_seconds), 0) FROM study_time WHERE child_id = ?",
+            (child_id,),
+        )
+        row = cursor.fetchone()
+        return int(row[0]) if row else 0
+
+
 init_study_time()

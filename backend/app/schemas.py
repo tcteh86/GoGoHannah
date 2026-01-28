@@ -83,6 +83,10 @@ class StudyTimeResponse(BaseModel):
     total_seconds: int
 
 
+class StudyTimeTotalResponse(BaseModel):
+    total_seconds: int
+
+
 class SaveExerciseRequest(BaseModel):
     child_name: str = Field(..., min_length=1, max_length=64)
     word: str = Field(..., min_length=1, max_length=32)

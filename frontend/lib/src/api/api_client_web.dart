@@ -211,6 +211,16 @@ class _WebApiClient implements ApiClient {
   }
 
   @override
+  Future<StudyTimeTotalSummary> fetchStudyTimeTotal({
+    required String childName,
+  }) async {
+    final data = await _getJson(
+      '/v1/progress/time/total?child_name=${Uri.encodeComponent(childName)}',
+    );
+    return StudyTimeTotalSummary.fromJson(data);
+  }
+
+  @override
   Future<RagDebugResult> fetchRagDebug({
     required String query,
     String? childName,
