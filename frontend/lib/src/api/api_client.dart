@@ -33,6 +33,7 @@ abstract class ApiClient {
     required String childName,
     required List<String> words,
     String? listName,
+    String mode,
   });
   Future<List<String>> suggestCustomVocab({
     required List<String> words,

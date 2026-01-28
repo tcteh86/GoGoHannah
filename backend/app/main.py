@@ -5,7 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .core.exercise import simple_comprehension_exercise, simple_exercise
 from .core.phonics import phonics_hint
-from .core.custom_vocab import get_custom_vocab, save_custom_vocab
+from .core.custom_vocab import (
+    get_custom_vocab,
+    replace_custom_vocab,
+    save_custom_vocab,
+)
 from .core.progress import (
     get_child_progress,
     get_or_create_child,
@@ -86,7 +90,11 @@ def vocab_custom_add(payload: CustomVocabAddRequest) -> dict:
             sanitized.append(sanitize_word(word))
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
-    saved = save_custom_vocab(child_id, sanitized, payload.list_name)
+    mode = (payload.mode or "append").lower()
+    if mode == "replace":
+        saved = replace_custom_vocab(child_id, sanitized, payload.list_name)
+    else:
+        saved = save_custom_vocab(child_id, sanitized, payload.list_name)
     return {"words": saved, "count": len(saved)}
 
 

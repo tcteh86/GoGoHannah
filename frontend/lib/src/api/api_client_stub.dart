@@ -62,6 +62,7 @@ class _UnsupportedApiClient implements ApiClient {
     required String childName,
     required List<String> words,
     String? listName,
+    String mode = 'append',
   }) async =>
       _unsupported();
 

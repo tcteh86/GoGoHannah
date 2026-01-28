@@ -44,6 +44,27 @@ def save_custom_vocab(
     return cleaned
 
 
+def replace_custom_vocab(
+    child_id: int,
+    words: Iterable[str],
+    list_name: Optional[str] = None,
+) -> list[str]:
+    cleaned = [word for word in words if word]
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM custom_vocab WHERE child_id = ?", (child_id,))
+        if cleaned:
+            cursor.executemany(
+                """
+                INSERT OR IGNORE INTO custom_vocab (child_id, word, list_name)
+                VALUES (?, ?, ?)
+            """,
+                [(child_id, word, list_name) for word in cleaned],
+            )
+        conn.commit()
+    return cleaned
+
+
 def get_custom_vocab(child_id: int) -> list[str]:
     with get_connection() as conn:
         cursor = conn.cursor()

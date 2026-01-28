@@ -26,6 +26,7 @@ class CustomVocabAddRequest(BaseModel):
     child_name: str = Field(..., min_length=1, max_length=64)
     words: list[str] = Field(..., min_items=1, max_items=200)
     list_name: Optional[str] = Field(None, max_length=64)
+    mode: str = Field("append", max_length=16)
 
 
 class CustomVocabSuggestRequest(BaseModel):

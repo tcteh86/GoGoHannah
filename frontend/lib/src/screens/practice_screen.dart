@@ -45,6 +45,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       TextEditingController();
   bool _addingCustom = false;
   String? _customError;
+  String _customAddMode = 'append';
   String? _selectedWord;
   VocabExercise? _exercise;
   String? _selectedChoice;
@@ -261,9 +262,37 @@ class _PracticeScreenState extends State<PracticeScreen> {
         setState(() => _addingCustom = false);
         return;
       }
+      if (_customAddMode == 'replace') {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Replace custom list?'),
+              content: const Text(
+                'This will overwrite your existing custom words.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Replace'),
+                ),
+              ],
+            );
+          },
+        );
+        if (confirmed != true) {
+          setState(() => _addingCustom = false);
+          return;
+        }
+      }
       final saved = await widget.apiClient.addCustomVocab(
         childName: widget.childName,
         words: resolved,
+        mode: _customAddMode,
       );
       setState(() {
         _vocabSource = VocabListSource.customList;
@@ -655,6 +684,23 @@ class _PracticeScreenState extends State<PracticeScreen> {
               hintText: 'Type words separated by commas or new lines',
               border: OutlineInputBorder(),
             ),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'append',
+                label: Text('Append'),
+              ),
+              ButtonSegment(
+                value: 'replace',
+                label: Text('Replace'),
+              ),
+            ],
+            selected: {_customAddMode},
+            onSelectionChanged: (selection) {
+              setState(() => _customAddMode = selection.first);
+            },
           ),
           const SizedBox(height: 8),
           FilledButton.icon(

@@ -119,11 +119,13 @@ class _IoApiClient implements ApiClient {
     required String childName,
     required List<String> words,
     String? listName,
+    String mode = 'append',
   }) async {
     final payload = {
       'child_name': childName,
       'words': words,
       'list_name': listName,
+      'mode': mode,
     };
     final data = await _postJson('/v1/vocab/custom/add', payload);
     final result = data['words'];
