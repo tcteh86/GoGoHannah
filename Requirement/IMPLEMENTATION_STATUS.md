@@ -1,6 +1,6 @@
 # Implementation Status (Living Document)
 
-Last updated: 22 Jan 2026
+Last updated: 29 Jan 2026
 
 This document captures what is implemented, what is pending, and known
 issues so a new agent can continue work if the session ends.
@@ -39,7 +39,9 @@ issues so a new agent can continue work if the session ends.
   - Playback button for recorded audio.
 - Comprehension:
   - Per-question save to backend.
-  - Optional image display when provided.
+  - Optional image display when provided (supports inline data URIs).
+  - Read-aloud word highlighting for web and mobile.
+  - Adjustable reading speed (0.25x - 1.5x).
 - Custom vocab:
   - CSV upload (header or single-column CSV).
   - Manual word entry (comma/newline separated).
@@ -60,6 +62,8 @@ issues so a new agent can continue work if the session ends.
 - Manual UI QA pass + screenshots for report.
 
 ## 5) Known Issues / Notes
+- Some mobile browsers do not emit web speech boundary events; a timing-based
+  fallback drives highlighting to stay in sync with read-aloud audio.
 - Render builds require web-safe imports only:
   - Use dart:web_audio for AudioContext/Analyser.
   - Avoid HtmlElementView unless ui_web registry is supported.
@@ -69,6 +73,11 @@ issues so a new agent can continue work if the session ends.
   - Accepts headered `word` column or a single-column list.
 
 ## 6) Recent Commits (for reference)
+- 2ed6012: Expand story read speed range and sync highlight timing.
+- 85fbbcc: Improve TTS rate mapping and web highlight fallback.
+- 6c6dae5: Add web fallback for story highlight.
+- d593491: Add mobile story read highlight support.
+- d1e924e: Fix results date format and story visuals.
 - 7034f5c: Update milestone report progress.
 - b22fb35: Add QA checklist and harden audio recording.
 - d8cf3db: Fix recording timeout and remove typed pronunciation.

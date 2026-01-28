@@ -74,6 +74,13 @@ Completed:
 - Progress insights:
   - Recent practice history endpoint + UI list.
   - Weak-word suggestions highlighted for review.
+- Read-aloud improvements:
+  - Word highlighting on web and mobile (TTS boundary + fallback timing).
+  - Adjustable reading speed control (0.25x - 1.5x).
+- Results polish:
+  - Compact date ranges for week/month on small screens.
+- Story visuals:
+  - Inline illustration handling (data URIs + network fallback).
 
 In progress:
 - RAG + embeddings backend scaffolding (approved plan).
@@ -124,3 +131,11 @@ Next:
 - RAG + embeddings implementation plan approved.
 - Added custom vocab upload + manual entry.
 - Added recent practice history and weak-word suggestions in UI.
+
+## 6) Update Log (Jan 29, 2026)
+- Added read-aloud word highlighting support on web and mobile, with a timing
+  fallback for browsers missing boundary events.
+- Expanded story read-aloud speed range to 0.25x - 1.5x and synced highlight
+  timing to reading speed.
+- Improved story illustration delivery by supporting inline data-URI images.
+- Shortened results date ranges for better mobile readability.
