@@ -611,6 +611,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
           style: isHighlighted
               ? const TextStyle(
                   backgroundColor: Color(0xFFFFF3B0),
+                  color: Color(0xFFD97706),
                   fontWeight: FontWeight.bold,
                 )
               : null,
@@ -1250,6 +1251,35 @@ class _ComprehensionCard extends StatelessWidget {
     required this.onStop,
   });
 
+  Widget _buildStoryImage() {
+    final imageUrl = exercise.imageUrl;
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (imageUrl.startsWith('data:image')) {
+      final data = UriData.parse(imageUrl).contentAsBytes();
+      return Image.memory(
+        data,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      );
+    }
+    return Image.network(
+      imageUrl,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            'Illustration unavailable.',
+            style: TextStyle(color: Colors.grey),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -1285,10 +1315,7 @@ class _ComprehensionCard extends StatelessWidget {
             if (exercise.imageUrl != null && exercise.imageUrl!.isNotEmpty) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  exercise.imageUrl!,
-                  fit: BoxFit.cover,
-                ),
+                child: _buildStoryImage(),
               ),
               const SizedBox(height: 8),
             ],
