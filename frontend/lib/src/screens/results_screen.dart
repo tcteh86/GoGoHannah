@@ -245,10 +245,20 @@ String _todayDate() {
 }
 
 String _formatDateRange(String start, String end) {
-  if (start == end) {
-    return start;
+  final formattedStart = _formatCompactDate(start);
+  final formattedEnd = _formatCompactDate(end);
+  if (formattedStart == formattedEnd) {
+    return formattedStart;
   }
-  return '$start – $end';
+  return '$formattedStart – $formattedEnd';
+}
+
+String _formatCompactDate(String rawDate) {
+  final parsed = DateTime.tryParse(rawDate);
+  if (parsed == null) {
+    return rawDate;
+  }
+  return '${parsed.month}/${parsed.day}';
 }
 
 class _MetricCard extends StatelessWidget {
