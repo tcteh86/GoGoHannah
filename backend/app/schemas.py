@@ -17,6 +17,11 @@ class VocabExerciseResponse(BaseModel):
     source: Optional[str] = None
 
 
+class CustomVocabResponse(BaseModel):
+    words: list[str]
+    count: int
+
+
 class ComprehensionExerciseRequest(BaseModel):
     level: str = Field("intermediate", min_length=3, max_length=16)
     theme: Optional[str] = Field(None, max_length=64)
@@ -36,6 +41,18 @@ class ComprehensionExerciseResponse(BaseModel):
     image_url: Optional[str] = None
     questions: list[ComprehensionQuestion]
     source: Optional[str] = None
+
+
+class RecentExercise(BaseModel):
+    word: str
+    exercise_type: str
+    score: int
+    correct: bool
+    created_at: str
+
+
+class RecentExercisesResponse(BaseModel):
+    exercises: list[RecentExercise]
 
 
 class SaveExerciseRequest(BaseModel):

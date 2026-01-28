@@ -5,9 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .core.exercise import simple_comprehension_exercise, simple_exercise
 from .core.phonics import phonics_hint
+from .core.custom_vocab import get_custom_vocab, save_custom_vocab
 from .core.progress import (
     get_child_progress,
     get_or_create_child,
+    get_recent_exercises,
     get_recommended_words,
     save_exercise,
 )
@@ -24,14 +26,16 @@ from .llm.client import (
 from .schemas import (
     ComprehensionExerciseRequest,
     ComprehensionExerciseResponse,
+    CustomVocabResponse,
     PronunciationAudioResponse,
     PronunciationScoreRequest,
     PronunciationScoreResponse,
+    RecentExercisesResponse,
     SaveExerciseRequest,
     VocabExerciseRequest,
     VocabExerciseResponse,
 )
-from .vocab.loader import load_default_vocab
+from .vocab.loader import load_default_vocab, load_vocab_from_csv
 
 app = FastAPI(title="GoGoHannah API", version="0.1.0")
 
@@ -60,6 +64,30 @@ def healthz() -> dict:
 @app.get("/v1/vocab/default")
 def vocab_default() -> dict:
     return {"words": load_default_vocab()}
+
+
+@app.get("/v1/vocab/custom", response_model=CustomVocabResponse)
+def vocab_custom(child_name: str) -> dict:
+    child_id = get_or_create_child(child_name.strip())
+    words = get_custom_vocab(child_id)
+    return {"words": words, "count": len(words)}
+
+
+@app.post("/v1/vocab/upload", response_model=CustomVocabResponse)
+async def vocab_upload(
+    child_name: str = Form(...),
+    file: UploadFile = File(...),
+    list_name: str | None = Form(None),
+) -> dict:
+    child_id = get_or_create_child(child_name.strip())
+    if file is None:
+        raise HTTPException(status_code=400, detail="CSV file is required.")
+    try:
+        words = load_vocab_from_csv(file.file)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    saved = save_custom_vocab(child_id, words, list_name)
+    return {"words": saved, "count": len(saved)}
 
 
 @app.post("/v1/vocab/exercise", response_model=VocabExerciseResponse)
@@ -184,6 +212,12 @@ def progress_save(payload: SaveExerciseRequest) -> dict:
 def progress_summary(child_name: str) -> dict:
     child_id = get_or_create_child(child_name.strip())
     return get_child_progress(child_id)
+
+
+@app.get("/v1/progress/recent", response_model=RecentExercisesResponse)
+def progress_recent(child_name: str, limit: int = 20) -> dict:
+    child_id = get_or_create_child(child_name.strip())
+    return {"exercises": get_recent_exercises(child_id, limit)}
 
 
 @app.get("/v1/progress/recommended")

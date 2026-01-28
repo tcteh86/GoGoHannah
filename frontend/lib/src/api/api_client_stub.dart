@@ -6,6 +6,7 @@ import '../models/vocab_exercise.dart';
 import '../models/comprehension_exercise.dart';
 import '../models/pronunciation_assessment.dart';
 import '../models/rag_debug_result.dart';
+import '../models/recent_exercise.dart';
 import 'api_client.dart';
 
 ApiClient getApiClient(String baseUrl) => _UnsupportedApiClient();
@@ -52,6 +53,25 @@ class _UnsupportedApiClient implements ApiClient {
 
   @override
   Future<void> saveExercise(SaveExercise payload) async => _unsupported();
+
+  @override
+  Future<List<String>> fetchCustomVocab(String childName) async => _unsupported();
+
+  @override
+  Future<List<String>> uploadCustomVocab({
+    required String childName,
+    required Uint8List bytes,
+    required String filename,
+    String? listName,
+  }) async =>
+      _unsupported();
+
+  @override
+  Future<List<RecentExercise>> fetchRecentExercises(
+    String childName,
+    int limit,
+  ) async =>
+      _unsupported();
 
   @override
   Future<RagDebugResult> fetchRagDebug({

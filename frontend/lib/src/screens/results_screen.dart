@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../models/progress_summary.dart';
+import '../models/recent_exercise.dart';
 import '../models/session_state.dart';
 import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
@@ -24,17 +25,25 @@ class ResultsScreen extends StatefulWidget {
 }
 
 class _ResultsScreenState extends State<ResultsScreen> {
-  late Future<ProgressSummary> _summaryFuture;
+  late Future<_ResultsData> _resultsFuture;
 
   @override
   void initState() {
     super.initState();
-    _summaryFuture = widget.apiClient.fetchProgressSummary(widget.childName);
+    _resultsFuture = _loadResults();
+  }
+
+  Future<_ResultsData> _loadResults() async {
+    final summary =
+        await widget.apiClient.fetchProgressSummary(widget.childName);
+    final recent =
+        await widget.apiClient.fetchRecentExercises(widget.childName, 10);
+    return _ResultsData(summary: summary, recent: recent);
   }
 
   void _refresh() {
     setState(() {
-      _summaryFuture = widget.apiClient.fetchProgressSummary(widget.childName);
+      _resultsFuture = _loadResults();
     });
   }
 
@@ -47,8 +56,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
           IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
         ],
       ),
-      body: FutureBuilder<ProgressSummary>(
-        future: _summaryFuture,
+      body: FutureBuilder<_ResultsData>(
+        future: _resultsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const LoadingView(message: 'Loading progress...');
@@ -59,7 +68,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
               onRetry: _refresh,
             );
           }
-          final summary = snapshot.data!;
+          final summary = snapshot.data!.summary;
+          final recent = snapshot.data!.recent;
           final quizScore = summary.scoresByType['quiz']?.avgScore ?? 0;
           return ListView(
             padding: const EdgeInsets.all(20),
@@ -95,17 +105,48 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       (word) => ListTile(
                         title: Text(word.word),
                         subtitle: Text(
-                          'Avg score: ${word.avgScore.toStringAsFixed(0)} • Attempts: ${word.attempts}',
+                          'Avg score: ${word.avgScore.toStringAsFixed(0)} • Attempts: ${word.attempts} • Recommended to practice',
                         ),
                       ),
                     )
                     .toList(),
+              const SizedBox(height: 16),
+              const Text(
+                'Recent Practice',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              if (recent.isEmpty)
+                const Text('No recent practice yet.')
+              else
+                ...recent.map(
+                  (item) {
+                    final status = item.correct ? 'Correct' : 'Needs work';
+                    return ListTile(
+                      title: Text(item.word),
+                      subtitle: Text(
+                        '${item.exerciseType} • Score ${item.score} • $status',
+                      ),
+                      trailing: Text(
+                        item.createdAt,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    );
+                  },
+                ),
             ],
           );
         },
       ),
     );
   }
+}
+
+class _ResultsData {
+  final ProgressSummary summary;
+  final List<RecentExercise> recent;
+
+  _ResultsData({required this.summary, required this.recent});
 }
 
 class _MetricCard extends StatelessWidget {

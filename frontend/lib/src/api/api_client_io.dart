@@ -8,6 +8,7 @@ import '../models/vocab_exercise.dart';
 import '../models/comprehension_exercise.dart';
 import '../models/pronunciation_assessment.dart';
 import '../models/rag_debug_result.dart';
+import '../models/recent_exercise.dart';
 import 'api_client.dart';
 
 ApiClient getApiClient(String baseUrl) => _IoApiClient(baseUrl);
@@ -99,6 +100,49 @@ class _IoApiClient implements ApiClient {
       return words.map((word) => word.toString()).toList();
     }
     throw ApiException('Invalid recommended response');
+  }
+
+  @override
+  Future<List<String>> fetchCustomVocab(String childName) async {
+    final data = await _getJson(
+      '/v1/vocab/custom?child_name=${Uri.encodeComponent(childName)}',
+    );
+    final words = data['words'];
+    if (words is List) {
+      return words.map((word) => word.toString()).toList();
+    }
+    throw ApiException('Invalid custom vocab response');
+  }
+
+  @override
+  Future<List<String>> uploadCustomVocab({
+    required String childName,
+    required Uint8List bytes,
+    required String filename,
+    String? listName,
+  }) async {
+    throw ApiException('CSV upload is only supported on web for now.');
+  }
+
+  @override
+  Future<List<RecentExercise>> fetchRecentExercises(
+    String childName,
+    int limit,
+  ) async {
+    final data = await _getJson(
+      '/v1/progress/recent?child_name=${Uri.encodeComponent(childName)}&limit=$limit',
+    );
+    final exercises = data['exercises'];
+    if (exercises is List) {
+      return exercises
+          .map((item) => item is Map<String, dynamic>
+              ? RecentExercise.fromJson(item)
+              : RecentExercise.fromJson(
+                  item.map((key, value) => MapEntry(key.toString(), value)),
+                ))
+          .toList();
+    }
+    throw ApiException('Invalid recent response');
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../api/api_client.dart';
 import '../models/comprehension_exercise.dart';
@@ -13,8 +14,11 @@ import '../widgets/audio_waveform_preview.dart';
 import '../utils/speech_helper.dart';
 import '../utils/audio_recorder.dart';
 import '../utils/audio_playback.dart';
+import '../utils/csv_picker.dart';
 
 enum PracticeMode { vocabulary, comprehension }
+
+enum VocabListSource { defaultList, customList, weakList }
 
 const bool _ragDebugEnabled =
     bool.fromEnvironment('GOGOHANNAH_DEBUG', defaultValue: false);
@@ -36,7 +40,10 @@ class PracticeScreen extends StatefulWidget {
 }
 
 class _PracticeScreenState extends State<PracticeScreen> {
-  late Future<List<String>> _vocabFuture;
+  late Future<List<String>> _wordListFuture;
+  VocabListSource _vocabSource = VocabListSource.defaultList;
+  bool _uploading = false;
+  String? _uploadError;
   String? _selectedWord;
   VocabExercise? _exercise;
   String? _selectedChoice;
@@ -80,7 +87,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _waveformNotifier.value = updated;
     };
     _audioRecorder.levelListenable.addListener(_waveformListener);
-    _vocabFuture = widget.apiClient.fetchDefaultVocab();
+    _wordListFuture = _fetchWordList();
   }
 
   @override
@@ -114,6 +121,78 @@ class _PracticeScreenState extends State<PracticeScreen> {
     } finally {
       if (mounted) {
         setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<List<String>> _fetchWordList() async {
+    switch (_vocabSource) {
+      case VocabListSource.customList:
+        return widget.apiClient.fetchCustomVocab(widget.childName);
+      case VocabListSource.weakList:
+        final summary =
+            await widget.apiClient.fetchProgressSummary(widget.childName);
+        return summary.weakWords.map((word) => word.word).toList();
+      case VocabListSource.defaultList:
+      default:
+        return widget.apiClient.fetchDefaultVocab();
+    }
+  }
+
+  void _refreshWordList() {
+    setState(() {
+      _wordListFuture = _fetchWordList();
+      _resetPracticeState();
+    });
+  }
+
+  void _resetPracticeState() {
+    _exercise = null;
+    _feedback = null;
+    _selectedChoice = null;
+    _recording = null;
+    _pronunciationScore = null;
+    _pronunciationTranscript = null;
+    _pronunciationFeedback = null;
+  }
+
+  Future<void> _pickAndUploadCsv() async {
+    if (!kIsWeb) {
+      return;
+    }
+    setState(() {
+      _uploadError = null;
+      _uploading = true;
+    });
+    try {
+      final file = await pickCsvFile();
+      if (file == null) {
+        setState(() => _uploading = false);
+        return;
+      }
+      final words = await widget.apiClient.uploadCustomVocab(
+        childName: widget.childName,
+        bytes: file.bytes,
+        filename: file.name,
+      );
+      setState(() {
+        _vocabSource = VocabListSource.customList;
+        _wordListFuture = Future.value(words);
+        _selectedWord = words.isNotEmpty ? words.first : null;
+        _resetPracticeState();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Uploaded ${words.length} words.')),
+        );
+      }
+    } catch (error) {
+      setState(() {
+        _uploadError = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _uploading = false);
       }
     }
   }
@@ -420,11 +499,83 @@ class _PracticeScreenState extends State<PracticeScreen> {
   }
 
   Widget _buildVocabularySection(List<String> words) {
-    _selectedWord ??= words.isNotEmpty ? words.first : null;
+    if (words.isEmpty) {
+      String message = 'No words available for this list yet.';
+      if (_vocabSource == VocabListSource.customList) {
+        message = 'No custom words yet. Upload a CSV to get started.';
+      } else if (_vocabSource == VocabListSource.weakList) {
+        message = 'No weak words yet. Keep practicing to unlock suggestions.';
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            message,
+            style: const TextStyle(fontSize: 16),
+          ),
+        ],
+      );
+    }
+    if (_selectedWord == null || !words.contains(_selectedWord)) {
+      _selectedWord = words.first;
+    }
     final word = _selectedWord ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text(
+          'Word list:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<VocabListSource>(
+          value: _vocabSource,
+          items: const [
+            DropdownMenuItem(
+              value: VocabListSource.defaultList,
+              child: Text('Default'),
+            ),
+            DropdownMenuItem(
+              value: VocabListSource.customList,
+              child: Text('Custom'),
+            ),
+            DropdownMenuItem(
+              value: VocabListSource.weakList,
+              child: Text('Weak words'),
+            ),
+          ],
+          onChanged: (value) {
+            if (value == null) {
+              return;
+            }
+            setState(() {
+              _vocabSource = value;
+            });
+            _refreshWordList();
+          },
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        if (kIsWeb) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _uploading ? null : _pickAndUploadCsv,
+            icon: const Icon(Icons.upload_file),
+            label: Text(_uploading ? 'Uploading...' : 'Upload CSV'),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'CSV must include a "word" column.',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+        ],
+        if (_uploadError != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            _uploadError!,
+            style: const TextStyle(color: Colors.red),
+          ),
+        ],
+        const SizedBox(height: 16),
         const Text(
           'Pick a word to practice:',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -442,13 +593,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
               .toList(),
           onChanged: (value) => setState(() {
             _selectedWord = value;
-            _exercise = null;
-            _feedback = null;
-            _selectedChoice = null;
-            _recording = null;
-            _pronunciationScore = null;
-            _pronunciationTranscript = null;
-            _pronunciationFeedback = null;
+            _resetPracticeState();
           }),
           decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
@@ -672,7 +817,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
         backgroundColor: const Color(0xFFF6F4FF),
       ),
       body: FutureBuilder<List<String>>(
-        future: _vocabFuture,
+        future: _wordListFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const LoadingView(message: 'Loading words...');
@@ -681,9 +826,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
             return ErrorView(
               message: 'Unable to load vocabulary list.',
               onRetry: () {
-                setState(() {
-                  _vocabFuture = widget.apiClient.fetchDefaultVocab();
-                });
+                _refreshWordList();
               },
             );
           }
