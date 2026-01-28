@@ -294,10 +294,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
         words: resolved,
         mode: _customAddMode,
       );
+      final refreshed =
+          await widget.apiClient.fetchCustomVocab(widget.childName);
       setState(() {
         _vocabSource = VocabListSource.customList;
-        _wordListFuture = Future.value(saved);
-        _selectedWord = saved.isNotEmpty ? saved.first : null;
+        _wordListFuture = Future.value(refreshed);
+        _selectedWord = refreshed.isNotEmpty ? refreshed.first : null;
         _customWordsController.clear();
         _resetPracticeState();
       });
