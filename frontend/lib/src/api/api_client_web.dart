@@ -130,36 +130,6 @@ class _WebApiClient implements ApiClient {
   }
 
   @override
-  Future<List<String>> uploadCustomVocab({
-    required String childName,
-    required Uint8List bytes,
-    required String filename,
-    String? listName,
-  }) async {
-    final formData = FormData();
-    formData.append('child_name', childName);
-    if (listName != null && listName.trim().isNotEmpty) {
-      formData.append('list_name', listName.trim());
-    }
-    final blob = Blob([bytes], 'text/csv');
-    formData.appendBlob('file', blob, filename);
-    final request = await HttpRequest.request(
-      '$_baseUrl/v1/vocab/upload',
-      method: 'POST',
-      sendData: formData,
-    );
-    if (request.status != null && request.status! >= 400) {
-      throw ApiException('Request failed (${request.status})');
-    }
-    final data = _decodeJson(request.responseText);
-    final words = data['words'];
-    if (words is List) {
-      return words.map((word) => word.toString()).toList();
-    }
-    throw ApiException('Invalid upload response');
-  }
-
-  @override
   Future<List<String>> addCustomVocab({
     required String childName,
     required List<String> words,
@@ -176,6 +146,19 @@ class _WebApiClient implements ApiClient {
       return result.map((word) => word.toString()).toList();
     }
     throw ApiException('Invalid custom vocab response');
+  }
+
+  @override
+  Future<List<String>> suggestCustomVocab({
+    required List<String> words,
+  }) async {
+    final payload = {'words': words};
+    final data = await _postJson('/v1/vocab/custom/suggest', payload);
+    final suggested = data['suggested'];
+    if (suggested is List) {
+      return suggested.map((word) => word.toString()).toList();
+    }
+    throw ApiException('Invalid suggestion response');
   }
 
   @override

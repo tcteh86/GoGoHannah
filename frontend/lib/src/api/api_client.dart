@@ -29,16 +29,13 @@ abstract class ApiClient {
   Future<ProgressSummary> fetchProgressSummary(String childName);
   Future<List<String>> fetchRecommendedWords(String childName, int limit);
   Future<List<String>> fetchCustomVocab(String childName);
-  Future<List<String>> uploadCustomVocab({
-    required String childName,
-    required Uint8List bytes,
-    required String filename,
-    String? listName,
-  });
   Future<List<String>> addCustomVocab({
     required String childName,
     required List<String> words,
     String? listName,
+  });
+  Future<List<String>> suggestCustomVocab({
+    required List<String> words,
   });
   Future<List<RecentExercise>> fetchRecentExercises(String childName, int limit);
   Future<RagDebugResult> fetchRagDebug({

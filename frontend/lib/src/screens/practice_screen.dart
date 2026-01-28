@@ -14,7 +14,6 @@ import '../widgets/audio_waveform_preview.dart';
 import '../utils/speech_helper.dart';
 import '../utils/audio_recorder.dart';
 import '../utils/audio_playback.dart';
-import '../utils/csv_picker.dart';
 
 enum PracticeMode { vocabulary, comprehension }
 
@@ -42,8 +41,6 @@ class PracticeScreen extends StatefulWidget {
 class _PracticeScreenState extends State<PracticeScreen> {
   late Future<List<String>> _wordListFuture;
   VocabListSource _vocabSource = VocabListSource.defaultList;
-  bool _uploading = false;
-  String? _uploadError;
   final TextEditingController _customWordsController =
       TextEditingController();
   bool _addingCustom = false;
@@ -161,47 +158,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _pronunciationFeedback = null;
   }
 
-  Future<void> _pickAndUploadCsv() async {
-    if (!kIsWeb) {
-      return;
-    }
-    setState(() {
-      _uploadError = null;
-      _uploading = true;
-    });
-    try {
-      final file = await pickCsvFile();
-      if (file == null) {
-        setState(() => _uploading = false);
-        return;
-      }
-      final words = await widget.apiClient.uploadCustomVocab(
-        childName: widget.childName,
-        bytes: file.bytes,
-        filename: file.name,
-      );
-      setState(() {
-        _vocabSource = VocabListSource.customList;
-        _wordListFuture = Future.value(words);
-        _selectedWord = words.isNotEmpty ? words.first : null;
-        _resetPracticeState();
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Uploaded ${words.length} words.')),
-        );
-      }
-    } catch (error) {
-      setState(() {
-        _uploadError = error.toString();
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _uploading = false);
-      }
-    }
-  }
-
   List<String> _parseCustomWords(String raw) {
     final tokens = raw
         .split(RegExp(r'[,\\n]'))
@@ -209,6 +165,79 @@ class _PracticeScreenState extends State<PracticeScreen> {
         .where((word) => word.isNotEmpty)
         .toList();
     return tokens;
+  }
+
+  Future<List<String>?> _resolveSuggestedWords(
+    List<String> original,
+  ) async {
+    try {
+      final suggested =
+          await widget.apiClient.suggestCustomVocab(words: original);
+      if (listEquals(original, suggested)) {
+        return original;
+      }
+      final useSuggested = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Confirm suggested words'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'We found possible typos. Review the suggested list:',
+                    ),
+                    const SizedBox(height: 12),
+                    ...original.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final originalWord = entry.value;
+                      final suggestedWord = suggested[index];
+                      final changed = originalWord != suggestedWord;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          changed
+                              ? '$originalWord → $suggestedWord'
+                              : originalWord,
+                          style: TextStyle(
+                            color: changed ? Colors.deepPurple : null,
+                            fontWeight:
+                                changed ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(null),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Keep Original'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Use Suggestions'),
+              ),
+            ],
+          );
+        },
+      );
+      if (useSuggested == null) {
+        return null;
+      }
+      return useSuggested ? suggested : original;
+    } catch (_) {
+      return original;
+    }
   }
 
   Future<void> _addCustomWords() async {
@@ -224,9 +253,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _addingCustom = true;
     });
     try {
+      final resolved = await _resolveSuggestedWords(words);
+      if (resolved == null) {
+        setState(() => _addingCustom = false);
+        return;
+      }
       final saved = await widget.apiClient.addCustomVocab(
         childName: widget.childName,
-        words: words,
+        words: resolved,
       );
       setState(() {
         _vocabSource = VocabListSource.customList;
@@ -609,53 +643,35 @@ class _PracticeScreenState extends State<PracticeScreen> {
           },
           decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
-        if (kIsWeb) ...[
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: _uploading ? null : _pickAndUploadCsv,
-            icon: const Icon(Icons.upload_file),
-            label: Text(_uploading ? 'Uploading...' : 'Upload CSV'),
-          ),
-          const SizedBox(height: 4),
+        if (_vocabSource == VocabListSource.customList) ...[
+          const SizedBox(height: 12),
           const Text(
-            'CSV can include a "word" header or be a single-column list.',
-            style: TextStyle(fontSize: 12, color: Colors.black54),
+            'Add custom words:',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
-        ],
-        const SizedBox(height: 12),
-        const Text(
-          'Add custom words:',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _customWordsController,
-          minLines: 2,
-          maxLines: 4,
-          decoration: const InputDecoration(
-            hintText: 'Type words separated by commas or new lines',
-            border: OutlineInputBorder(),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _customWordsController,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              hintText: 'Type words separated by commas or new lines',
+              border: OutlineInputBorder(),
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        FilledButton.icon(
-          onPressed: _addingCustom ? null : _addCustomWords,
-          icon: const Icon(Icons.playlist_add),
-          label: Text(_addingCustom ? 'Adding...' : 'Add Words'),
-        ),
-        if (_customError != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            _customError!,
-            style: const TextStyle(color: Colors.red),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            onPressed: _addingCustom ? null : _addCustomWords,
+            icon: const Icon(Icons.playlist_add),
+            label: Text(_addingCustom ? 'Adding...' : 'Add Words'),
           ),
-        ],
-        if (_uploadError != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            _uploadError!,
-            style: const TextStyle(color: Colors.red),
-          ),
+          if (_customError != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              _customError!,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ],
         ],
         const SizedBox(height: 16),
         const Text(

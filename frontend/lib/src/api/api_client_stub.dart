@@ -58,19 +58,16 @@ class _UnsupportedApiClient implements ApiClient {
   Future<List<String>> fetchCustomVocab(String childName) async => _unsupported();
 
   @override
-  Future<List<String>> uploadCustomVocab({
+  Future<List<String>> addCustomVocab({
     required String childName,
-    required Uint8List bytes,
-    required String filename,
+    required List<String> words,
     String? listName,
   }) async =>
       _unsupported();
 
   @override
-  Future<List<String>> addCustomVocab({
-    required String childName,
+  Future<List<String>> suggestCustomVocab({
     required List<String> words,
-    String? listName,
   }) async =>
       _unsupported();
 

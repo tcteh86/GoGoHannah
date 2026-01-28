@@ -41,6 +41,48 @@ class LLMUnavailable(Exception):
     pass
 
 
+def suggest_vocab_corrections(words: list[str]) -> list[str]:
+    """Suggest spelling corrections for a list of vocabulary words."""
+    if not words:
+        return []
+    joined = "\n".join(f"- {word}" for word in words)
+    prompt = f"""You are helping parents enter vocabulary words for children.
+Fix obvious spelling mistakes, but keep the same meaning.
+If a word already looks correct, keep it unchanged.
+Return JSON with:
+{{"suggested": ["word1", "word2", ...]}}
+List must be the same length and order as input.
+Only return words with letters, spaces, hyphens, or apostrophes.
+
+Input words:
+{joined}
+"""
+    try:
+        response = get_client().chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a careful spelling assistant for children vocabulary.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.2,
+            max_tokens=300,
+        )
+        result = json.loads(response.choices[0].message.content.strip())
+        suggested = result.get("suggested")
+        if not isinstance(suggested, list):
+            raise ValueError("Invalid suggestion format.")
+        cleaned = [str(word).strip() for word in suggested]
+        if len(cleaned) != len(words):
+            raise ValueError("Suggestion length mismatch.")
+        return cleaned
+    except Exception as exc:
+        raise LLMUnavailable(f"Failed to suggest corrections: {str(exc)}")
+
+
 def generate_vocab_exercise(word: str, context: list[str] | None = None) -> Dict[str, Any]:
     """Generate a vocab exercise for `word` using OpenAI."""
     try:

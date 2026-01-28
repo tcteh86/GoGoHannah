@@ -115,16 +115,6 @@ class _IoApiClient implements ApiClient {
   }
 
   @override
-  Future<List<String>> uploadCustomVocab({
-    required String childName,
-    required Uint8List bytes,
-    required String filename,
-    String? listName,
-  }) async {
-    throw ApiException('CSV upload is only supported on web for now.');
-  }
-
-  @override
   Future<List<String>> addCustomVocab({
     required String childName,
     required List<String> words,
@@ -141,6 +131,19 @@ class _IoApiClient implements ApiClient {
       return result.map((word) => word.toString()).toList();
     }
     throw ApiException('Invalid custom vocab response');
+  }
+
+  @override
+  Future<List<String>> suggestCustomVocab({
+    required List<String> words,
+  }) async {
+    final payload = {'words': words};
+    final data = await _postJson('/v1/vocab/custom/suggest', payload);
+    final suggested = data['suggested'];
+    if (suggested is List) {
+      return suggested.map((word) => word.toString()).toList();
+    }
+    throw ApiException('Invalid suggestion response');
   }
 
   @override

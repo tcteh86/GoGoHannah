@@ -28,6 +28,16 @@ class CustomVocabAddRequest(BaseModel):
     list_name: Optional[str] = Field(None, max_length=64)
 
 
+class CustomVocabSuggestRequest(BaseModel):
+    words: list[str] = Field(..., min_items=1, max_items=200)
+
+
+class CustomVocabSuggestResponse(BaseModel):
+    original: list[str]
+    suggested: list[str]
+    changed: bool
+
+
 class ComprehensionExerciseRequest(BaseModel):
     level: str = Field("intermediate", min_length=3, max_length=16)
     theme: Optional[str] = Field(None, max_length=64)

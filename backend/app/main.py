@@ -21,6 +21,7 @@ from .llm.client import (
     generate_comprehension_exercise,
     generate_story_image,
     generate_vocab_exercise,
+    suggest_vocab_corrections,
     transcribe_audio,
 )
 from .schemas import (
@@ -28,6 +29,8 @@ from .schemas import (
     ComprehensionExerciseResponse,
     CustomVocabAddRequest,
     CustomVocabResponse,
+    CustomVocabSuggestRequest,
+    CustomVocabSuggestResponse,
     PronunciationAudioResponse,
     PronunciationScoreRequest,
     PronunciationScoreResponse,
@@ -36,7 +39,7 @@ from .schemas import (
     VocabExerciseRequest,
     VocabExerciseResponse,
 )
-from .vocab.loader import load_default_vocab, load_vocab_from_csv
+from .vocab.loader import load_default_vocab
 
 app = FastAPI(title="GoGoHannah API", version="0.1.0")
 
@@ -74,23 +77,6 @@ def vocab_custom(child_name: str) -> dict:
     return {"words": words, "count": len(words)}
 
 
-@app.post("/v1/vocab/upload", response_model=CustomVocabResponse)
-async def vocab_upload(
-    child_name: str = Form(...),
-    file: UploadFile = File(...),
-    list_name: str | None = Form(None),
-) -> dict:
-    child_id = get_or_create_child(child_name.strip())
-    if file is None:
-        raise HTTPException(status_code=400, detail="CSV file is required.")
-    try:
-        words = load_vocab_from_csv(file.file)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    saved = save_custom_vocab(child_id, words, list_name)
-    return {"words": saved, "count": len(saved)}
-
-
 @app.post("/v1/vocab/custom/add", response_model=CustomVocabResponse)
 def vocab_custom_add(payload: CustomVocabAddRequest) -> dict:
     child_id = get_or_create_child(payload.child_name.strip())
@@ -102,6 +88,25 @@ def vocab_custom_add(payload: CustomVocabAddRequest) -> dict:
             raise HTTPException(status_code=400, detail=str(exc))
     saved = save_custom_vocab(child_id, sanitized, payload.list_name)
     return {"words": saved, "count": len(saved)}
+
+
+@app.post("/v1/vocab/custom/suggest", response_model=CustomVocabSuggestResponse)
+def vocab_custom_suggest(payload: CustomVocabSuggestRequest) -> dict:
+    words = [word.strip() for word in payload.words if word.strip()]
+    if not words:
+        return {"original": [], "suggested": [], "changed": False}
+    try:
+        suggested = suggest_vocab_corrections(words)
+    except LLMUnavailable:
+        suggested = words
+    if len(suggested) != len(words):
+        suggested = words
+    changed = any(orig != new for orig, new in zip(words, suggested))
+    return {
+        "original": words,
+        "suggested": suggested,
+        "changed": changed,
+    }
 
 
 @app.post("/v1/vocab/exercise", response_model=VocabExerciseResponse)
