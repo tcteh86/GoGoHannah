@@ -1306,9 +1306,9 @@ class _ComprehensionCard extends StatelessWidget {
             ),
             Slider(
               value: rate,
-              min: 0.6,
-              max: 1.4,
-              divisions: 4,
+              min: 0.25,
+              max: 1.5,
+              divisions: 5,
               label: '${rate.toStringAsFixed(1)}x',
               onChanged: onRateChanged,
             ),

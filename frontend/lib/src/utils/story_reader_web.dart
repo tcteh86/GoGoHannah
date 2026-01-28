@@ -12,6 +12,7 @@ class _WebStoryReader implements StoryReader {
   bool _isSpeaking = false;
   Timer? _fallbackTimer;
   bool _boundarySeen = false;
+  bool _fallbackActive = false;
   int _fallbackIndex = 0;
   List<_WordInfo> _fallbackWords = [];
 
@@ -31,6 +32,7 @@ class _WebStoryReader implements StoryReader {
     }
     stop();
     _boundarySeen = false;
+    _fallbackActive = false;
     final utterance = html.SpeechSynthesisUtterance(trimmed);
     utterance.lang = 'en-US';
     utterance.rate = rate;
@@ -45,6 +47,11 @@ class _WebStoryReader implements StoryReader {
       });
       utterance.onStart.listen((_) {
         if (!_boundarySeen) {
+          _startFallback(trimmed, rate, onBoundary);
+        }
+      });
+      Timer(const Duration(milliseconds: 250), () {
+        if (!_boundarySeen && _isSpeaking) {
           _startFallback(trimmed, rate, onBoundary);
         }
       });
@@ -77,6 +84,10 @@ class _WebStoryReader implements StoryReader {
     double rate,
     ValueChanged<int> onBoundary,
   ) {
+    if (_fallbackActive) {
+      return;
+    }
+    _fallbackActive = true;
     _fallbackWords = RegExp(r"[A-Za-z']+")
         .allMatches(text)
         .map((match) => _WordInfo(match.start, match.group(0)?.length ?? 0))
@@ -103,7 +114,7 @@ class _WebStoryReader implements StoryReader {
     }
     final currentLength = _fallbackWords[_fallbackIndex].length;
     final milliseconds =
-        ((160 + currentLength * 35) / rate.clamp(0.5, 2.0))
+        ((160 + currentLength * 35) / rate.clamp(0.25, 1.5))
             .round()
             .clamp(140, 700);
     _fallbackTimer = Timer(Duration(milliseconds: milliseconds), () {
@@ -119,6 +130,7 @@ class _WebStoryReader implements StoryReader {
   void _cancelFallback() {
     _fallbackTimer?.cancel();
     _fallbackTimer = null;
+    _fallbackActive = false;
     _fallbackWords = [];
     _fallbackIndex = 0;
   }

@@ -24,7 +24,9 @@ class _FlutterStoryReader implements StoryReader {
       return;
     }
     _tts.stop();
-    _tts.setSpeechRate(rate.clamp(0.1, 1.0));
+    final mappedRate = ((rate - 0.25) / (1.5 - 0.25))
+        .clamp(0.0, 1.0)
+        .toDouble();
     if (onBoundary != null) {
       _tts.setProgressHandler((_, startOffset, __, ___) {
         onBoundary(startOffset);
@@ -39,7 +41,10 @@ class _FlutterStoryReader implements StoryReader {
       onEnd?.call();
     });
     _isSpeaking = true;
-    _tts.speak(trimmed);
+    () async {
+      await _tts.setSpeechRate(mappedRate);
+      await _tts.speak(trimmed);
+    }();
   }
 
   @override
