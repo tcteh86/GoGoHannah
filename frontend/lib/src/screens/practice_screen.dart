@@ -14,6 +14,7 @@ import '../widgets/audio_waveform_preview.dart';
 import '../utils/speech_helper.dart';
 import '../utils/audio_recorder.dart';
 import '../utils/audio_playback.dart';
+import '../utils/story_reader.dart';
 
 enum PracticeMode { vocabulary, comprehension }
 
@@ -68,11 +69,17 @@ class _PracticeScreenState extends State<PracticeScreen> {
   bool _pronunciationLoading = false;
   String? _lastAutoPlayedWord;
   final SpeechHelper _speechHelper = createSpeechHelper();
+  final StoryReader _storyReader = createStoryReader();
   final AudioRecorder _audioRecorder = createAudioRecorder();
   final AudioPlayback _audioPlayback = createAudioPlayback();
   final ValueNotifier<List<double>> _waveformNotifier = ValueNotifier([]);
   late final VoidCallback _waveformListener;
   bool _ragDebugLoading = false;
+  double _storyRate = 1.0;
+  bool _storySpeaking = false;
+  int? _highlightedWordIndex;
+  String? _storyTextCache;
+  List<_StoryWord> _storyWords = [];
 
   @override
   void initState() {
@@ -96,6 +103,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   void dispose() {
     _audioRecorder.levelListenable.removeListener(_waveformListener);
     _waveformNotifier.dispose();
+    _storyReader.stop();
     _customWordsController.dispose();
     super.dispose();
   }
@@ -523,7 +531,101 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _speechHelper.speak(trimmed);
   }
 
+  void _startStoryReadAloud() {
+    final text = _comprehension?.storyText ?? '';
+    if (text.trim().isEmpty) {
+      return;
+    }
+    _prepareStoryWords(text);
+    setState(() {
+      _storySpeaking = true;
+      _highlightedWordIndex = null;
+    });
+    _storyReader.speak(
+      text,
+      rate: _storyRate,
+      onBoundary: _updateStoryHighlight,
+      onEnd: () {
+        if (mounted) {
+          setState(() {
+            _storySpeaking = false;
+            _highlightedWordIndex = null;
+          });
+        }
+      },
+    );
+  }
+
+  void _stopStoryReadAloud() {
+    if (_storySpeaking) {
+      _storyReader.stop();
+    }
+    if (mounted) {
+      setState(() {
+        _storySpeaking = false;
+        _highlightedWordIndex = null;
+      });
+    }
+  }
+
+  void _prepareStoryWords(String text) {
+    if (_storyTextCache == text && _storyWords.isNotEmpty) {
+      return;
+    }
+    _storyTextCache = text;
+    _storyWords = RegExp(r"[A-Za-z']+").allMatches(text).map((match) {
+      return _StoryWord(match.start, match.end);
+    }).toList();
+  }
+
+  void _updateStoryHighlight(int charIndex) {
+    if (_storyWords.isEmpty) {
+      return;
+    }
+    int? index;
+    for (var i = 0; i < _storyWords.length; i += 1) {
+      final word = _storyWords[i];
+      if (charIndex >= word.start && charIndex < word.end) {
+        index = i;
+        break;
+      }
+    }
+    if (index != null && index != _highlightedWordIndex) {
+      setState(() => _highlightedWordIndex = index);
+    }
+  }
+
+  List<TextSpan> _buildStorySpans(String text) {
+    _prepareStoryWords(text);
+    final spans = <TextSpan>[];
+    var lastIndex = 0;
+    for (var i = 0; i < _storyWords.length; i += 1) {
+      final word = _storyWords[i];
+      if (word.start > lastIndex) {
+        spans.add(TextSpan(text: text.substring(lastIndex, word.start)));
+      }
+      final isHighlighted = i == _highlightedWordIndex;
+      spans.add(
+        TextSpan(
+          text: text.substring(word.start, word.end),
+          style: isHighlighted
+              ? const TextStyle(
+                  backgroundColor: Color(0xFFFFF3B0),
+                  fontWeight: FontWeight.bold,
+                )
+              : null,
+        ),
+      );
+      lastIndex = word.end;
+    }
+    if (lastIndex < text.length) {
+      spans.add(TextSpan(text: text.substring(lastIndex)));
+    }
+    return spans;
+  }
+
   Future<void> _generateComprehension() async {
+    _stopStoryReadAloud();
     setState(() {
       _loadingComprehension = true;
       _comprehension = null;
@@ -615,6 +717,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
         setState(() {
           _mode = selection.first;
           _feedback = null;
+          if (_mode != PracticeMode.comprehension) {
+            _stopStoryReadAloud();
+          }
         });
       },
     );
@@ -898,7 +1003,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
         if (_comprehension != null)
           _ComprehensionCard(
             exercise: _comprehension!,
-            onListen: () => _speechHelper.speak(_comprehension!.storyText),
+            storySpans: _buildStorySpans(_comprehension!.storyText),
+            isSpeaking: _storySpeaking,
+            rate: _storyRate,
+            onRateChanged: (value) => setState(() => _storyRate = value),
+            onListen: _startStoryReadAloud,
+            onStop: _stopStoryReadAloud,
           ),
         if (_comprehension != null) ...[
           const SizedBox(height: 12),
@@ -1123,11 +1233,21 @@ class _AnswerChoices extends StatelessWidget {
 
 class _ComprehensionCard extends StatelessWidget {
   final ComprehensionExercise exercise;
-  final VoidCallback? onListen;
+  final List<TextSpan> storySpans;
+  final bool isSpeaking;
+  final double rate;
+  final ValueChanged<double> onRateChanged;
+  final VoidCallback onListen;
+  final VoidCallback onStop;
 
   const _ComprehensionCard({
     required this.exercise,
-    this.onListen,
+    required this.storySpans,
+    required this.isSpeaking,
+    required this.rate,
+    required this.onRateChanged,
+    required this.onListen,
+    required this.onStop,
   });
 
   @override
@@ -1143,14 +1263,25 @@ class _ComprehensionCard extends StatelessWidget {
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            if (onListen != null) ...[
-              FilledButton.icon(
-                onPressed: onListen,
-                icon: const Icon(Icons.volume_up),
-                label: const Text('Read Story Aloud'),
-              ),
-              const SizedBox(height: 8),
-            ],
+            Row(
+              children: [
+                FilledButton.icon(
+                  onPressed: isSpeaking ? onStop : onListen,
+                  icon: Icon(isSpeaking ? Icons.stop : Icons.volume_up),
+                  label: Text(isSpeaking ? 'Stop Reading' : 'Read Story Aloud'),
+                ),
+                const SizedBox(width: 12),
+                Text('${rate.toStringAsFixed(1)}x'),
+              ],
+            ),
+            Slider(
+              value: rate,
+              min: 0.6,
+              max: 1.4,
+              divisions: 4,
+              label: '${rate.toStringAsFixed(1)}x',
+              onChanged: onRateChanged,
+            ),
             if (exercise.imageUrl != null && exercise.imageUrl!.isNotEmpty) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -1161,7 +1292,12 @@ class _ComprehensionCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            Text(exercise.storyText),
+            RichText(
+              text: TextSpan(
+                style: DefaultTextStyle.of(context).style,
+                children: storySpans,
+              ),
+            ),
             if (exercise.source != null) ...[
               const SizedBox(height: 8),
               Text(
@@ -1174,4 +1310,11 @@ class _ComprehensionCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _StoryWord {
+  final int start;
+  final int end;
+
+  _StoryWord(this.start, this.end);
 }
