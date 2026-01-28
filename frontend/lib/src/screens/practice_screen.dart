@@ -159,12 +159,15 @@ class _PracticeScreenState extends State<PracticeScreen> {
   }
 
   List<String> _parseCustomWords(String raw) {
-    final tokens = raw
-        .split(RegExp(r'[,\n]+'))
+    final normalized = raw.replaceAll('\r', '\n');
+    final tokens = <String>[];
+    for (final chunk in normalized.split(',')) {
+      tokens.addAll(chunk.split('\n'));
+    }
+    return tokens
         .map((word) => word.trim())
         .where((word) => word.isNotEmpty)
         .toList();
-    return tokens;
   }
 
   Future<List<String>?> _resolveSuggestedWords(
