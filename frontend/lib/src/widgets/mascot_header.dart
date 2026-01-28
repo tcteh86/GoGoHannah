@@ -61,6 +61,11 @@ class MascotHeader extends StatelessWidget {
                       Text(
                         'Streak: ${sessionState.streakCount} day${sessionState.streakCount == 1 ? '' : 's'}',
                       ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Study time: ${sessionState.elapsedLabel}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       if (sessionState.dailyGoalReached) ...[
                         const SizedBox(height: 6),
                         const Text(

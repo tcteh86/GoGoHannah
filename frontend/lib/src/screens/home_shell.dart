@@ -24,6 +24,7 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void dispose() {
     _nameController.dispose();
+    _sessionState?.dispose();
     super.dispose();
   }
 
@@ -34,6 +35,7 @@ class _HomeShellState extends State<HomeShell> {
     }
     setState(() {
       if (_childName != name || _sessionState == null) {
+        _sessionState?.dispose();
         _sessionState = SessionState();
       }
       _childName = name;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 class SessionState extends ChangeNotifier {
@@ -8,8 +10,24 @@ class SessionState extends ChangeNotifier {
   String mascotMessage = "Let's learn something fun today!";
   String mascotEmoji = '🦉';
   bool lastCorrect = false;
+  final Stopwatch _stopwatch = Stopwatch();
+  Timer? _elapsedTimer;
+  int _elapsedSeconds = 0;
 
-  SessionState({this.dailyGoal = 3});
+  SessionState({this.dailyGoal = 3}) {
+    _stopwatch.start();
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final next = _stopwatch.elapsed.inSeconds;
+      if (next != _elapsedSeconds) {
+        _elapsedSeconds = next;
+        notifyListeners();
+      }
+    });
+  }
+
+  int get elapsedSeconds => _elapsedSeconds;
+
+  String get elapsedLabel => _formatElapsed(_elapsedSeconds);
 
   void recordAnswer({required bool correct}) {
     lastCorrect = correct;
@@ -39,5 +57,23 @@ class SessionState extends ChangeNotifier {
     mascotEmoji = '🦉';
     mascotMessage = "Let's learn something fun today!";
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _elapsedTimer?.cancel();
+    _stopwatch.stop();
+    super.dispose();
+  }
+
+  String _formatElapsed(int seconds) {
+    final minutes = seconds ~/ 60;
+    final hours = minutes ~/ 60;
+    final remainingMinutes = minutes % 60;
+    final remainingSeconds = seconds % 60;
+    if (hours > 0) {
+      return '${hours.toString()}:${remainingMinutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+    }
+    return '${remainingMinutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 }
