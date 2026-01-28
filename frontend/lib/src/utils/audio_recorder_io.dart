@@ -3,16 +3,16 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
-import 'package:record/record.dart';
+import 'package:record/record.dart' as rec;
 
 import 'audio_recorder.dart';
 
 AudioRecorder getAudioRecorder() => _RecordAudioRecorder();
 
 class _RecordAudioRecorder implements AudioRecorder {
-  final Record _record = Record();
+  final rec.AudioRecorder _record = rec.AudioRecorder();
   final ValueNotifier<double> _levelNotifier = ValueNotifier(0);
-  StreamSubscription<Amplitude>? _amplitudeSubscription;
+  StreamSubscription<rec.Amplitude>? _amplitudeSubscription;
   bool _isRecording = false;
 
   @override
@@ -30,7 +30,7 @@ class _RecordAudioRecorder implements AudioRecorder {
     if (!allowed) {
       throw UnsupportedError('Microphone permission needed.');
     }
-    const config = RecordConfig();
+    const config = rec.RecordConfig();
     await _record.start(config);
     _isRecording = true;
     _startAmplitudeMonitor();

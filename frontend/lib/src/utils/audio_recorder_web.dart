@@ -3,15 +3,15 @@ import 'dart:html' as html;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
-import 'package:record/record.dart';
+import 'package:record/record.dart' as rec;
 
 import 'audio_recorder.dart';
 
 AudioRecorder getAudioRecorder() => _WebAudioRecorder();
 
 class _WebAudioRecorder implements AudioRecorder {
-  final Record _record = Record();
-  StreamSubscription<Amplitude>? _amplitudeSubscription;
+  final rec.AudioRecorder _record = rec.AudioRecorder();
+  StreamSubscription<rec.Amplitude>? _amplitudeSubscription;
   final ValueNotifier<double> _levelNotifier = ValueNotifier(0);
   bool _isRecording = false;
   String _mimeType = 'audio/webm';
@@ -31,7 +31,7 @@ class _WebAudioRecorder implements AudioRecorder {
     if (!allowed) {
       throw UnsupportedError('Microphone permission needed.');
     }
-    const config = RecordConfig(encoder: AudioEncoder.opus);
+    const config = rec.RecordConfig(encoder: rec.AudioEncoder.opus);
     _mimeType = _mimeTypeForEncoder(config.encoder);
     await _record.start(config);
     _isRecording = true;
@@ -116,7 +116,7 @@ class _WebAudioRecorder implements AudioRecorder {
     return (currentDb - minDb) / (maxDb - minDb);
   }
 
-  String _mimeTypeForEncoder(AudioEncoder encoder) {
+  String _mimeTypeForEncoder(rec.AudioEncoder encoder) {
     switch (encoder) {
       case AudioEncoder.wav:
         return 'audio/wav';
