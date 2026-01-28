@@ -1294,7 +1294,9 @@ class _ComprehensionCard extends StatelessWidget {
             ],
             RichText(
               text: TextSpan(
-                style: DefaultTextStyle.of(context).style,
+                style: DefaultTextStyle.of(context)
+                    .style
+                    .copyWith(fontSize: 18),
                 children: storySpans,
               ),
             ),
