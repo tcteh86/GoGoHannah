@@ -33,7 +33,8 @@ class _WebAudioRecorder implements AudioRecorder {
     }
     const config = rec.RecordConfig(encoder: rec.AudioEncoder.opus);
     _mimeType = _mimeTypeForEncoder(config.encoder);
-    await _record.start(config);
+    final filename = _suggestedFilename(_mimeType);
+    await _record.start(config, path: filename);
     _isRecording = true;
     _startAmplitudeMonitor();
   }
@@ -117,19 +118,41 @@ class _WebAudioRecorder implements AudioRecorder {
   }
 
   String _mimeTypeForEncoder(rec.AudioEncoder encoder) {
-    switch (encoder) {
-      case AudioEncoder.wav:
-        return 'audio/wav';
-      case AudioEncoder.flac:
-        return 'audio/flac';
-      case AudioEncoder.aacLc:
-      case AudioEncoder.aacEld:
-      case AudioEncoder.aacHe:
-        return 'audio/mp4';
-      case AudioEncoder.opus:
-        return 'audio/webm';
+    if (encoder == rec.AudioEncoder.wav) {
+      return 'audio/wav';
+    }
+    if (encoder == rec.AudioEncoder.flac) {
+      return 'audio/flac';
+    }
+    if (encoder == rec.AudioEncoder.aacLc ||
+        encoder == rec.AudioEncoder.aacEld ||
+        encoder == rec.AudioEncoder.aacHe) {
+      return 'audio/mp4';
+    }
+    if (encoder == rec.AudioEncoder.opus) {
+      return 'audio/webm';
+    }
+    return 'audio/webm';
+  }
+
+  String _suggestedFilename(String mimeType) {
+    final extension = _extensionForMime(mimeType);
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return 'recording_$timestamp.$extension';
+  }
+
+  String _extensionForMime(String mimeType) {
+    switch (mimeType) {
+      case 'audio/wav':
+        return 'wav';
+      case 'audio/flac':
+        return 'flac';
+      case 'audio/mp4':
+        return 'm4a';
+      case 'audio/ogg':
+        return 'ogg';
       default:
-        return 'audio/webm';
+        return 'webm';
     }
   }
 }

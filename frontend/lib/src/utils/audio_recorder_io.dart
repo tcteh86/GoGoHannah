@@ -30,8 +30,9 @@ class _RecordAudioRecorder implements AudioRecorder {
     if (!allowed) {
       throw UnsupportedError('Microphone permission needed.');
     }
-    const config = rec.RecordConfig();
-    await _record.start(config);
+    const config = rec.RecordConfig(encoder: rec.AudioEncoder.wav);
+    final filename = _suggestedFilename('audio/wav');
+    await _record.start(config, path: filename);
     _isRecording = true;
     _startAmplitudeMonitor();
   }
@@ -100,5 +101,27 @@ class _RecordAudioRecorder implements AudioRecorder {
       return 'audio/ogg';
     }
     return 'audio/aac';
+  }
+
+  String _suggestedFilename(String mimeType) {
+    final extension = _extensionForMime(mimeType);
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final dir = Directory.systemTemp;
+    return '${dir.path}/recording_$timestamp.$extension';
+  }
+
+  String _extensionForMime(String mimeType) {
+    switch (mimeType) {
+      case 'audio/wav':
+        return 'wav';
+      case 'audio/flac':
+        return 'flac';
+      case 'audio/mp4':
+        return 'm4a';
+      case 'audio/ogg':
+        return 'ogg';
+      default:
+        return 'aac';
+    }
   }
 }
