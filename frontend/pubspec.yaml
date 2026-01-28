@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   record: ^5.1.0
+  flutter_tts: ^4.0.2
 
 dev_dependencies:
   flutter_test:
