@@ -26,6 +26,7 @@ from .llm.client import (
 from .schemas import (
     ComprehensionExerciseRequest,
     ComprehensionExerciseResponse,
+    CustomVocabAddRequest,
     CustomVocabResponse,
     PronunciationAudioResponse,
     PronunciationScoreRequest,
@@ -87,6 +88,19 @@ async def vocab_upload(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     saved = save_custom_vocab(child_id, words, list_name)
+    return {"words": saved, "count": len(saved)}
+
+
+@app.post("/v1/vocab/custom/add", response_model=CustomVocabResponse)
+def vocab_custom_add(payload: CustomVocabAddRequest) -> dict:
+    child_id = get_or_create_child(payload.child_name.strip())
+    sanitized = []
+    for word in payload.words:
+        try:
+            sanitized.append(sanitize_word(word))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+    saved = save_custom_vocab(child_id, sanitized, payload.list_name)
     return {"words": saved, "count": len(saved)}
 
 

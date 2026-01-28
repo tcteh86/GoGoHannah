@@ -15,9 +15,15 @@ def load_default_vocab() -> list[str]:
 
 
 def load_vocab_from_csv(uploaded_file) -> list[str]:
-    """Load vocabulary list from an uploaded CSV with a required 'word' column."""
+    """Load vocabulary list from an uploaded CSV.
+
+    Accepts either a 'word' header column or a single-column headerless CSV.
+    """
     df = pd.read_csv(uploaded_file)
-    if "word" not in df.columns:
-        raise ValueError("CSV must have a 'word' column.")
-    words = df["word"].dropna().astype(str).str.strip().tolist()
+    if "word" in df.columns:
+        words = df["word"].dropna().astype(str).str.strip().tolist()
+    elif len(df.columns) >= 1:
+        words = df.iloc[:, 0].dropna().astype(str).str.strip().tolist()
+    else:
+        raise ValueError("CSV must include at least one column of words.")
     return [sanitize_word(word) for word in words]

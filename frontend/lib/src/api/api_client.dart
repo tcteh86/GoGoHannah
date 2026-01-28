@@ -35,6 +35,11 @@ abstract class ApiClient {
     required String filename,
     String? listName,
   });
+  Future<List<String>> addCustomVocab({
+    required String childName,
+    required List<String> words,
+    String? listName,
+  });
   Future<List<RecentExercise>> fetchRecentExercises(String childName, int limit);
   Future<RagDebugResult> fetchRagDebug({
     required String query,

@@ -44,6 +44,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
   VocabListSource _vocabSource = VocabListSource.defaultList;
   bool _uploading = false;
   String? _uploadError;
+  final TextEditingController _customWordsController =
+      TextEditingController();
+  bool _addingCustom = false;
+  String? _customError;
   String? _selectedWord;
   VocabExercise? _exercise;
   String? _selectedChoice;
@@ -94,6 +98,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   void dispose() {
     _audioRecorder.levelListenable.removeListener(_waveformListener);
     _waveformNotifier.dispose();
+    _customWordsController.dispose();
     super.dispose();
   }
 
@@ -193,6 +198,55 @@ class _PracticeScreenState extends State<PracticeScreen> {
     } finally {
       if (mounted) {
         setState(() => _uploading = false);
+      }
+    }
+  }
+
+  List<String> _parseCustomWords(String raw) {
+    final tokens = raw
+        .split(RegExp(r'[,\\n]'))
+        .map((word) => word.trim())
+        .where((word) => word.isNotEmpty)
+        .toList();
+    return tokens;
+  }
+
+  Future<void> _addCustomWords() async {
+    final words = _parseCustomWords(_customWordsController.text);
+    if (words.isEmpty) {
+      setState(() {
+        _customError = 'Enter at least one word.';
+      });
+      return;
+    }
+    setState(() {
+      _customError = null;
+      _addingCustom = true;
+    });
+    try {
+      final saved = await widget.apiClient.addCustomVocab(
+        childName: widget.childName,
+        words: words,
+      );
+      setState(() {
+        _vocabSource = VocabListSource.customList;
+        _wordListFuture = Future.value(saved);
+        _selectedWord = saved.isNotEmpty ? saved.first : null;
+        _customWordsController.clear();
+        _resetPracticeState();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Added ${saved.length} words.')),
+        );
+      }
+    } catch (error) {
+      setState(() {
+        _customError = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _addingCustom = false);
       }
     }
   }
@@ -564,8 +618,36 @@ class _PracticeScreenState extends State<PracticeScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'CSV must include a "word" column.',
+            'CSV can include a "word" header or be a single-column list.',
             style: TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+        ],
+        const SizedBox(height: 12),
+        const Text(
+          'Add custom words:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _customWordsController,
+          minLines: 2,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            hintText: 'Type words separated by commas or new lines',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: _addingCustom ? null : _addCustomWords,
+          icon: const Icon(Icons.playlist_add),
+          label: Text(_addingCustom ? 'Adding...' : 'Add Words'),
+        ),
+        if (_customError != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            _customError!,
+            style: const TextStyle(color: Colors.red),
           ),
         ],
         if (_uploadError != null) ...[

@@ -67,6 +67,14 @@ class _UnsupportedApiClient implements ApiClient {
       _unsupported();
 
   @override
+  Future<List<String>> addCustomVocab({
+    required String childName,
+    required List<String> words,
+    String? listName,
+  }) async =>
+      _unsupported();
+
+  @override
   Future<List<RecentExercise>> fetchRecentExercises(
     String childName,
     int limit,

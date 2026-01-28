@@ -160,6 +160,25 @@ class _WebApiClient implements ApiClient {
   }
 
   @override
+  Future<List<String>> addCustomVocab({
+    required String childName,
+    required List<String> words,
+    String? listName,
+  }) async {
+    final payload = {
+      'child_name': childName,
+      'words': words,
+      'list_name': listName,
+    };
+    final data = await _postJson('/v1/vocab/custom/add', payload);
+    final result = data['words'];
+    if (result is List) {
+      return result.map((word) => word.toString()).toList();
+    }
+    throw ApiException('Invalid custom vocab response');
+  }
+
+  @override
   Future<List<RecentExercise>> fetchRecentExercises(
     String childName,
     int limit,
