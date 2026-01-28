@@ -102,6 +102,13 @@ class _UnsupportedApiClient implements ApiClient {
       _unsupported();
 
   @override
+  Future<StudyTimeSummaryOverview> fetchStudyTimeSummary({
+    required String childName,
+    String? date,
+  }) async =>
+      _unsupported();
+
+  @override
   Future<RagDebugResult> fetchRagDebug({
     required String query,
     String? childName,

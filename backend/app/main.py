@@ -18,7 +18,14 @@ from .core.progress import (
     get_recommended_words,
     save_exercise,
 )
-from .core.study_time import add_study_time, get_study_time, get_total_study_time
+from .core.study_time import (
+    add_study_time,
+    get_study_time,
+    get_study_time_range,
+    get_total_study_time,
+    month_range,
+    week_range,
+)
 from .core.rag import debug_enabled, rag_enabled, retrieve_context, store_document
 from .core.safety import sanitize_word
 from .core.scoring import calculate_pronunciation_score
@@ -43,6 +50,7 @@ from .schemas import (
     RecentExercisesResponse,
     StudyTimeAddRequest,
     StudyTimeResponse,
+    StudyTimeSummaryResponse,
     StudyTimeTotalResponse,
     SaveExerciseRequest,
     VocabExerciseRequest,
@@ -279,6 +287,36 @@ def progress_time_total(child_name: str) -> dict:
     child_id = get_or_create_child(child_name.strip())
     total = get_total_study_time(child_id)
     return {"total_seconds": total}
+
+
+@app.get("/v1/progress/time/summary", response_model=StudyTimeSummaryResponse)
+def progress_time_summary(child_name: str, date_str: str | None = None) -> dict:
+    if date_str:
+        try:
+            study_date = date.fromisoformat(date_str)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format.")
+    else:
+        study_date = date.today()
+        date_str = study_date.isoformat()
+    child_id = get_or_create_child(child_name.strip())
+    week_start, week_end = week_range(study_date)
+    month_start, month_end = month_range(study_date)
+    week_total = get_study_time_range(child_id, week_start, week_end)
+    month_total = get_study_time_range(child_id, month_start, month_end)
+    return {
+        "date": date_str,
+        "week": {
+            "start_date": week_start.isoformat(),
+            "end_date": week_end.isoformat(),
+            "total_seconds": week_total,
+        },
+        "month": {
+            "start_date": month_start.isoformat(),
+            "end_date": month_end.isoformat(),
+            "total_seconds": month_total,
+        },
+    }
 
 
 @app.get("/v1/progress/recommended")

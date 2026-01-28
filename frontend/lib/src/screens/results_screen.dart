@@ -42,6 +42,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     final date = _todayDate();
     StudyTimeSummary study;
     StudyTimeTotalSummary total;
+    StudyTimeSummaryOverview summaryOverview;
     try {
       study = await widget.apiClient.fetchStudyTime(
         childName: widget.childName,
@@ -57,11 +58,32 @@ class _ResultsScreenState extends State<ResultsScreen> {
     } catch (_) {
       total = StudyTimeTotalSummary(totalSeconds: 0);
     }
+    try {
+      summaryOverview = await widget.apiClient.fetchStudyTimeSummary(
+        childName: widget.childName,
+        date: date,
+      );
+    } catch (_) {
+      summaryOverview = StudyTimeSummaryOverview(
+        date: date,
+        week: StudyTimePeriodSummary(
+          startDate: date,
+          endDate: date,
+          totalSeconds: 0,
+        ),
+        month: StudyTimePeriodSummary(
+          startDate: date,
+          endDate: date,
+          totalSeconds: 0,
+        ),
+      );
+    }
     return _ResultsData(
       summary: summary,
       recent: recent,
       studyTime: study,
       totalTime: total,
+      periodSummary: summaryOverview,
     );
   }
 
@@ -96,6 +118,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           final recent = snapshot.data!.recent;
           final studyTime = snapshot.data!.studyTime;
           final totalTime = snapshot.data!.totalTime;
+          final periodSummary = snapshot.data!.periodSummary;
           final quizScore = summary.scoresByType['quiz']?.avgScore ?? 0;
           return ListView(
             padding: const EdgeInsets.all(20),
@@ -112,6 +135,16 @@ class _ResultsScreenState extends State<ResultsScreen> {
               _MetricCard(
                 title: 'All-time study time',
                 value: _formatDuration(totalTime.totalSeconds),
+              ),
+              _MetricCard(
+                title:
+                    'This week (${_formatDateRange(periodSummary.week.startDate, periodSummary.week.endDate)})',
+                value: _formatDuration(periodSummary.week.totalSeconds),
+              ),
+              _MetricCard(
+                title:
+                    'This month (${_formatDateRange(periodSummary.month.startDate, periodSummary.month.endDate)})',
+                value: _formatDuration(periodSummary.month.totalSeconds),
               ),
               _MetricCard(
                 title: 'Total Exercises',
@@ -181,12 +214,14 @@ class _ResultsData {
   final List<RecentExercise> recent;
   final StudyTimeSummary studyTime;
   final StudyTimeTotalSummary totalTime;
+  final StudyTimeSummaryOverview periodSummary;
 
   _ResultsData({
     required this.summary,
     required this.recent,
     required this.studyTime,
     required this.totalTime,
+    required this.periodSummary,
   });
 }
 
@@ -207,6 +242,13 @@ String _todayDate() {
   final month = now.month.toString().padLeft(2, '0');
   final day = now.day.toString().padLeft(2, '0');
   return '$year-$month-$day';
+}
+
+String _formatDateRange(String start, String end) {
+  if (start == end) {
+    return start;
+  }
+  return '$start – $end';
 }
 
 class _MetricCard extends StatelessWidget {

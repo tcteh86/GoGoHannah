@@ -206,6 +206,18 @@ class _IoApiClient implements ApiClient {
   }
 
   @override
+  Future<StudyTimeSummaryOverview> fetchStudyTimeSummary({
+    required String childName,
+    String? date,
+  }) async {
+    final dateParam = date == null ? '' : '&date_str=${Uri.encodeComponent(date)}';
+    final data = await _getJson(
+      '/v1/progress/time/summary?child_name=${Uri.encodeComponent(childName)}$dateParam',
+    );
+    return StudyTimeSummaryOverview.fromJson(data);
+  }
+
+  @override
   Future<RagDebugResult> fetchRagDebug({
     required String query,
     String? childName,

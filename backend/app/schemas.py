@@ -87,6 +87,18 @@ class StudyTimeTotalResponse(BaseModel):
     total_seconds: int
 
 
+class StudyTimePeriodSummary(BaseModel):
+    start_date: str
+    end_date: str
+    total_seconds: int
+
+
+class StudyTimeSummaryResponse(BaseModel):
+    date: str
+    week: StudyTimePeriodSummary
+    month: StudyTimePeriodSummary
+
+
 class SaveExerciseRequest(BaseModel):
     child_name: str = Field(..., min_length=1, max_length=64)
     word: str = Field(..., min_length=1, max_length=32)
