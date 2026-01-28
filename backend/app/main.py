@@ -1,4 +1,6 @@
+import base64
 import os
+import urllib.request
 from datetime import date
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -188,6 +190,9 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
     if payload.include_image:
         try:
             image_url = generate_story_image(result["image_description"])
+            inline_image = _inline_image_data(image_url)
+            if inline_image:
+                image_url = inline_image
         except LLMUnavailable:
             image_url = None
 
@@ -212,6 +217,17 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
     )
 
     return response
+
+
+def _inline_image_data(url: str) -> str | None:
+    try:
+        with urllib.request.urlopen(url) as response:
+            content_type = response.headers.get("Content-Type", "image/png")
+            data = response.read()
+        encoded = base64.b64encode(data).decode("utf-8")
+        return f"data:{content_type};base64,{encoded}"
+    except Exception:
+        return None
 
 @app.get("/v1/debug/rag")
 def rag_debug(query: str, child_name: str | None = None, limit: int = 5) -> dict:
