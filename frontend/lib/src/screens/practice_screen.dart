@@ -160,7 +160,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
   List<String> _parseCustomWords(String raw) {
     final tokens = raw
-        .split(RegExp(r'[,\\n]'))
+        .split(RegExp(r'[,\n]+'))
         .map((word) => word.trim())
         .where((word) => word.isNotEmpty)
         .toList();
