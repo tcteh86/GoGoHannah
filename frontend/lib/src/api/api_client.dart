@@ -10,6 +10,7 @@ import '../models/comprehension_exercise.dart';
 import '../models/pronunciation_assessment.dart';
 import '../models/rag_debug_result.dart';
 import '../models/recent_exercise.dart';
+import '../models/study_time_summary.dart';
 
 abstract class ApiClient {
   Future<List<String>> fetchDefaultVocab();
@@ -39,6 +40,15 @@ abstract class ApiClient {
     required List<String> words,
   });
   Future<List<RecentExercise>> fetchRecentExercises(String childName, int limit);
+  Future<void> addStudyTime({
+    required String childName,
+    required String date,
+    required int seconds,
+  });
+  Future<StudyTimeSummary> fetchStudyTime({
+    required String childName,
+    required String date,
+  });
   Future<RagDebugResult> fetchRagDebug({
     required String query,
     String? childName,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
@@ -20,10 +22,14 @@ class _HomeShellState extends State<HomeShell> {
   String _childName = '';
   final TextEditingController _nameController = TextEditingController();
   SessionState? _sessionState;
+  Timer? _studyTimer;
+  int _lastReportedSeconds = 0;
 
   @override
   void dispose() {
     _nameController.dispose();
+    _studyTimer?.cancel();
+    _reportStudyTime();
     _sessionState?.dispose();
     super.dispose();
   }
@@ -33,13 +39,55 @@ class _HomeShellState extends State<HomeShell> {
     if (name.isEmpty) {
       return;
     }
+    if (_childName.isNotEmpty && _childName != name) {
+      _reportStudyTime();
+    }
     setState(() {
       if (_childName != name || _sessionState == null) {
         _sessionState?.dispose();
         _sessionState = SessionState();
+        _lastReportedSeconds = 0;
       }
       _childName = name;
     });
+    _startStudyTimer();
+  }
+
+  void _startStudyTimer() {
+    _studyTimer?.cancel();
+    _studyTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _reportStudyTime();
+    });
+  }
+
+  Future<void> _reportStudyTime() async {
+    final sessionState = _sessionState;
+    if (sessionState == null || _childName.isEmpty) {
+      return;
+    }
+    final elapsed = sessionState.elapsedSeconds;
+    final delta = elapsed - _lastReportedSeconds;
+    if (delta <= 0) {
+      return;
+    }
+    _lastReportedSeconds = elapsed;
+    try {
+      await widget.apiClient.addStudyTime(
+        childName: _childName,
+        date: _todayDate(),
+        seconds: delta,
+      );
+    } catch (_) {
+      // Ignore reporting failures; will retry on next tick.
+    }
+  }
+
+  String _todayDate() {
+    final now = DateTime.now();
+    final year = now.year.toString().padLeft(4, '0');
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
   }
 
   @override

@@ -72,6 +72,17 @@ class RecentExercisesResponse(BaseModel):
     exercises: list[RecentExercise]
 
 
+class StudyTimeAddRequest(BaseModel):
+    child_name: str = Field(..., min_length=1, max_length=64)
+    date: str = Field(..., max_length=10)
+    seconds: int = Field(..., ge=1, le=3600)
+
+
+class StudyTimeResponse(BaseModel):
+    date: str
+    total_seconds: int
+
+
 class SaveExerciseRequest(BaseModel):
     child_name: str = Field(..., min_length=1, max_length=64)
     word: str = Field(..., min_length=1, max_length=32)

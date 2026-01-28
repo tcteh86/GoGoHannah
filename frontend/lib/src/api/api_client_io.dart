@@ -9,6 +9,7 @@ import '../models/comprehension_exercise.dart';
 import '../models/pronunciation_assessment.dart';
 import '../models/rag_debug_result.dart';
 import '../models/recent_exercise.dart';
+import '../models/study_time_summary.dart';
 import 'api_client.dart';
 
 ApiClient getApiClient(String baseUrl) => _IoApiClient(baseUrl);
@@ -167,6 +168,31 @@ class _IoApiClient implements ApiClient {
           .toList();
     }
     throw ApiException('Invalid recent response');
+  }
+
+  @override
+  Future<void> addStudyTime({
+    required String childName,
+    required String date,
+    required int seconds,
+  }) async {
+    final payload = {
+      'child_name': childName,
+      'date': date,
+      'seconds': seconds,
+    };
+    await _postJson('/v1/progress/time', payload);
+  }
+
+  @override
+  Future<StudyTimeSummary> fetchStudyTime({
+    required String childName,
+    required String date,
+  }) async {
+    final data = await _getJson(
+      '/v1/progress/time?child_name=${Uri.encodeComponent(childName)}&date=${Uri.encodeComponent(date)}',
+    );
+    return StudyTimeSummary.fromJson(data);
   }
 
   @override

@@ -1,4 +1,5 @@
 import os
+from datetime import date
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +18,7 @@ from .core.progress import (
     get_recommended_words,
     save_exercise,
 )
+from .core.study_time import add_study_time, get_study_time
 from .core.rag import debug_enabled, rag_enabled, retrieve_context, store_document
 from .core.safety import sanitize_word
 from .core.scoring import calculate_pronunciation_score
@@ -39,6 +41,8 @@ from .schemas import (
     PronunciationScoreRequest,
     PronunciationScoreResponse,
     RecentExercisesResponse,
+    StudyTimeAddRequest,
+    StudyTimeResponse,
     SaveExerciseRequest,
     VocabExerciseRequest,
     VocabExerciseResponse,
@@ -245,6 +249,28 @@ def progress_summary(child_name: str) -> dict:
 def progress_recent(child_name: str, limit: int = 20) -> dict:
     child_id = get_or_create_child(child_name.strip())
     return {"exercises": get_recent_exercises(child_id, limit)}
+
+
+@app.post("/v1/progress/time", response_model=StudyTimeResponse)
+def progress_time_add(payload: StudyTimeAddRequest) -> dict:
+    try:
+        study_date = date.fromisoformat(payload.date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format.")
+    child_id = get_or_create_child(payload.child_name.strip())
+    total = add_study_time(child_id, study_date, payload.seconds)
+    return {"date": payload.date, "total_seconds": total}
+
+
+@app.get("/v1/progress/time", response_model=StudyTimeResponse)
+def progress_time_get(child_name: str, date_str: str) -> dict:
+    try:
+        study_date = date.fromisoformat(date_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format.")
+    child_id = get_or_create_child(child_name.strip())
+    total = get_study_time(child_id, study_date)
+    return {"date": date_str, "total_seconds": total}
 
 
 @app.get("/v1/progress/recommended")

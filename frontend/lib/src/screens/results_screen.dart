@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../models/progress_summary.dart';
 import '../models/recent_exercise.dart';
 import '../models/session_state.dart';
+import '../models/study_time_summary.dart';
 import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
 import '../widgets/mascot_header.dart';
@@ -38,7 +39,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
         await widget.apiClient.fetchProgressSummary(widget.childName);
     final recent =
         await widget.apiClient.fetchRecentExercises(widget.childName, 10);
-    return _ResultsData(summary: summary, recent: recent);
+    final date = _todayDate();
+    StudyTimeSummary study;
+    try {
+      study = await widget.apiClient.fetchStudyTime(
+        childName: widget.childName,
+        date: date,
+      );
+    } catch (_) {
+      study = StudyTimeSummary(date: date, totalSeconds: 0);
+    }
+    return _ResultsData(summary: summary, recent: recent, studyTime: study);
   }
 
   void _refresh() {
@@ -70,6 +81,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           }
           final summary = snapshot.data!.summary;
           final recent = snapshot.data!.recent;
+          final studyTime = snapshot.data!.studyTime;
           final quizScore = summary.scoresByType['quiz']?.avgScore ?? 0;
           return ListView(
             padding: const EdgeInsets.all(20),
@@ -79,6 +91,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 sessionState: widget.sessionState,
               ),
               const SizedBox(height: 16),
+              _MetricCard(
+                title: 'Study time (${studyTime.date})',
+                value: _formatDuration(studyTime.totalSeconds),
+              ),
               _MetricCard(
                 title: 'Total Exercises',
                 value: summary.totalExercises.toString(),
@@ -145,8 +161,32 @@ class _ResultsScreenState extends State<ResultsScreen> {
 class _ResultsData {
   final ProgressSummary summary;
   final List<RecentExercise> recent;
+  final StudyTimeSummary studyTime;
 
-  _ResultsData({required this.summary, required this.recent});
+  _ResultsData({
+    required this.summary,
+    required this.recent,
+    required this.studyTime,
+  });
+}
+
+String _formatDuration(int totalSeconds) {
+  final minutes = totalSeconds ~/ 60;
+  final hours = minutes ~/ 60;
+  final remainingMinutes = minutes % 60;
+  final remainingSeconds = totalSeconds % 60;
+  if (hours > 0) {
+    return '${hours}h ${remainingMinutes}m';
+  }
+  return '${remainingMinutes}m ${remainingSeconds}s';
+}
+
+String _todayDate() {
+  final now = DateTime.now();
+  final year = now.year.toString().padLeft(4, '0');
+  final month = now.month.toString().padLeft(2, '0');
+  final day = now.day.toString().padLeft(2, '0');
+  return '$year-$month-$day';
 }
 
 class _MetricCard extends StatelessWidget {
