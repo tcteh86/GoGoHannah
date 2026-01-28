@@ -587,24 +587,18 @@ class _PracticeScreenState extends State<PracticeScreen> {
   }
 
   Widget _buildVocabularySection(List<String> words) {
+    String? emptyMessage;
     if (words.isEmpty) {
-      String message = 'No words available for this list yet.';
       if (_vocabSource == VocabListSource.customList) {
-        message = 'No custom words yet. Upload a CSV to get started.';
+        emptyMessage =
+            'No custom words yet. Add a few below to get started.';
       } else if (_vocabSource == VocabListSource.weakList) {
-        message = 'No weak words yet. Keep practicing to unlock suggestions.';
+        emptyMessage =
+            'No weak words yet. Keep practicing to unlock suggestions.';
+      } else {
+        emptyMessage = 'No words available for this list yet.';
       }
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            message,
-            style: const TextStyle(fontSize: 16),
-          ),
-        ],
-      );
-    }
-    if (_selectedWord == null || !words.contains(_selectedWord)) {
+    } else if (_selectedWord == null || !words.contains(_selectedWord)) {
       _selectedWord = words.first;
     }
     final word = _selectedWord ?? '';
@@ -673,124 +667,134 @@ class _PracticeScreenState extends State<PracticeScreen> {
             ),
           ],
         ],
-        const SizedBox(height: 16),
-        const Text(
-          'Pick a word to practice:',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: _selectedWord,
-          items: words
-              .map(
-                (word) => DropdownMenuItem(
-                  value: word,
-                  child: Text(word),
-                ),
-              )
-              .toList(),
-          onChanged: (value) => setState(() {
-            _selectedWord = value;
-            _resetPracticeState();
-          }),
-          decoration: const InputDecoration(border: OutlineInputBorder()),
-        ),
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: _loading ? null : _generateExercise,
-          icon: const Icon(Icons.auto_awesome),
-          label: const Text('Generate Exercise'),
-        ),
-        const SizedBox(height: 20),
-        if (_loading) const LoadingView(message: 'Creating exercise...'),
-        if (_exercise != null) ...[
-          _ExerciseCard(
-            exercise: _exercise!,
-            word: word,
-            onListen: () => _speechHelper.speak(word),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Choose the answer:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          _AnswerChoices(
-            exercise: _exercise!,
-            selectedChoice: _selectedChoice,
-            onChanged: (value) => setState(() => _selectedChoice = value),
-          ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: _selectedChoice == null ? null : _checkAnswer,
-            child: const Text('Check Answer'),
-          ),
-        ],
-        if (_feedback != null) ...[
+        if (emptyMessage != null) ...[
           const SizedBox(height: 12),
           Text(
-            _feedback!,
+            emptyMessage,
             style: const TextStyle(fontSize: 16),
           ),
         ],
-        const SizedBox(height: 16),
-        const Text(
-          'Pronunciation practice:',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        FilledButton.icon(
-          onPressed: _pronunciationLoading ? null : _toggleRecording,
-          icon: Icon(_audioRecorder.isRecording ? Icons.stop : Icons.mic),
-          label: Text(_audioRecorder.isRecording ? 'Stop Recording' : 'Record'),
-        ),
-        if (_audioRecorder.isRecording) ...[
-          const SizedBox(height: 6),
-          const Text('Recording... tap stop when you are done.'),
-          const SizedBox(height: 8),
-          AudioLevelIndicator(levelListenable: _audioRecorder.levelListenable),
-        ],
-        if (_pronunciationLoading)
-          const Padding(
-            padding: EdgeInsets.only(top: 8),
-            child: LoadingView(message: 'Scoring pronunciation...'),
-          ),
-        if (_recording != null) ...[
-          const SizedBox(height: 8),
+        if (words.isNotEmpty) ...[
+          const SizedBox(height: 16),
           const Text(
-            'Recorded audio:',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            'Pick a word to practice:',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 6),
-          ValueListenableBuilder<List<double>>(
-            valueListenable: _waveformNotifier,
-            builder: (context, levels, _) {
-              if (levels.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: AudioWaveformPreview(levels: levels),
-              );
-            },
-          ),
-          FilledButton.icon(
-            onPressed: () => _audioPlayback.playUrl(_recording!.url),
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Play Back'),
-          ),
-        ],
-        if (_pronunciationTranscript != null) ...[
           const SizedBox(height: 8),
-          Text('You said: $_pronunciationTranscript'),
-        ],
-        if (_pronunciationScore != null) ...[
-          const SizedBox(height: 4),
-          Text('Score: $_pronunciationScore / 100'),
-        ],
-        if (_pronunciationFeedback != null) ...[
-          const SizedBox(height: 4),
-          Text(_pronunciationFeedback!),
+          DropdownButtonFormField<String>(
+            value: _selectedWord,
+            items: words
+                .map(
+                  (word) => DropdownMenuItem(
+                    value: word,
+                    child: Text(word),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() {
+              _selectedWord = value;
+              _resetPracticeState();
+            }),
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _loading ? null : _generateExercise,
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('Generate Exercise'),
+          ),
+          const SizedBox(height: 20),
+          if (_loading) const LoadingView(message: 'Creating exercise...'),
+          if (_exercise != null) ...[
+            _ExerciseCard(
+              exercise: _exercise!,
+              word: word,
+              onListen: () => _speechHelper.speak(word),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Choose the answer:',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            _AnswerChoices(
+              exercise: _exercise!,
+              selectedChoice: _selectedChoice,
+              onChanged: (value) => setState(() => _selectedChoice = value),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: _selectedChoice == null ? null : _checkAnswer,
+              child: const Text('Check Answer'),
+            ),
+          ],
+          if (_feedback != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _feedback!,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ],
+          const SizedBox(height: 16),
+          const Text(
+            'Pronunciation practice:',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            onPressed: _pronunciationLoading ? null : _toggleRecording,
+            icon: Icon(_audioRecorder.isRecording ? Icons.stop : Icons.mic),
+            label:
+                Text(_audioRecorder.isRecording ? 'Stop Recording' : 'Record'),
+          ),
+          if (_audioRecorder.isRecording) ...[
+            const SizedBox(height: 6),
+            const Text('Recording... tap stop when you are done.'),
+            const SizedBox(height: 8),
+            AudioLevelIndicator(levelListenable: _audioRecorder.levelListenable),
+          ],
+          if (_pronunciationLoading)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: LoadingView(message: 'Scoring pronunciation...'),
+            ),
+          if (_recording != null) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Recorded audio:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            ValueListenableBuilder<List<double>>(
+              valueListenable: _waveformNotifier,
+              builder: (context, levels, _) {
+                if (levels.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: AudioWaveformPreview(levels: levels),
+                );
+              },
+            ),
+            FilledButton.icon(
+              onPressed: () => _audioPlayback.playUrl(_recording!.url),
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Play Back'),
+            ),
+          ],
+          if (_pronunciationTranscript != null) ...[
+            const SizedBox(height: 8),
+            Text('You said: $_pronunciationTranscript'),
+          ],
+          if (_pronunciationScore != null) ...[
+            const SizedBox(height: 4),
+            Text('Score: $_pronunciationScore / 100'),
+          ],
+          if (_pronunciationFeedback != null) ...[
+            const SizedBox(height: 4),
+            Text(_pronunciationFeedback!),
+          ],
         ],
       ],
     );
