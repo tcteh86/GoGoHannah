@@ -67,6 +67,13 @@ Completed:
   - Backend file upload dependency added for audio assessment.
   - Web audio recorder build fix for MediaRecorder events.
   - Recording timeout guard and UX hint for stopping recording.
+- Custom vocabulary support:
+  - CSV upload for parent-provided word lists (header or single-column).
+  - Manual word entry for quick additions.
+  - Custom vocab storage per child.
+- Progress insights:
+  - Recent practice history endpoint + UI list.
+  - Weak-word suggestions highlighted for review.
 
 In progress:
 - RAG + embeddings backend scaffolding (approved plan).
@@ -83,6 +90,8 @@ Done:
 - Flutter web UI for practice, results, and quick check.
 - Pronunciation analysis flow (audio + transcription).
 - Comprehension story flow (story + questions + illustration).
+- Custom vocab upload + manual entry flow.
+- Recent practice history view + weak-word highlighting.
 
 Next:
 - RAG + embeddings for smarter explanations.
@@ -113,3 +122,5 @@ Next:
 - Hardened web audio recording (timeouts, empty capture handling).
 - Added live audio level indicator and waveform preview for recordings.
 - RAG + embeddings implementation plan approved.
+- Added custom vocab upload + manual entry.
+- Added recent practice history and weak-word suggestions in UI.

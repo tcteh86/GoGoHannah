@@ -11,19 +11,21 @@ issues so a new agent can continue work if the session ends.
 - FastAPI service with health and vocab endpoints.
 - Vocab exercise generation (LLM + fallback) with phonics hints.
 - Progress save + summary + recommended words.
+- Recent practice endpoint (recent exercises history).
 - Comprehension story generation with level selection.
 - Optional illustration generation hook.
 - Pronunciation scoring:
   - Text similarity scoring endpoint.
   - Audio upload endpoint (Whisper transcription + scoring).
 - SQLite persistence for children + exercises.
+- Custom vocab storage + upload endpoints (CSV + manual list).
 - RAG scaffolding (documents + embeddings tables, retrieval utilities, prompt
   context injection) gated by `GOGOHANNAH_RAG_ENABLED`.
 
 ## 2) Implemented (Frontend)
 - Flutter web UI:
   - Practice screen with vocab + comprehension modes.
-  - Results screen with summary + weak words list.
+  - Results screen with summary + weak words list + recent practice.
   - Quick Check screen with recommended-word quiz.
 - Engagement loop:
   - Mascot header with animated reactions.
@@ -38,6 +40,10 @@ issues so a new agent can continue work if the session ends.
 - Comprehension:
   - Per-question save to backend.
   - Optional image display when provided.
+- Custom vocab:
+  - CSV upload (header or single-column CSV).
+  - Manual word entry (comma/newline separated).
+  - Word list selector (Default/Custom/Weak words).
 
 ## 3) QA Artifacts
 - QA checklist: Requirement/QA_CHECKLIST.md
@@ -59,6 +65,8 @@ issues so a new agent can continue work if the session ends.
   - Avoid HtmlElementView unless ui_web registry is supported.
 - Audio recording:
   - If no audio captured, show friendly error and retry.
+- CSV format:
+  - Accepts headered `word` column or a single-column list.
 
 ## 6) Recent Commits (for reference)
 - 7034f5c: Update milestone report progress.
