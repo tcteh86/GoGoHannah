@@ -1,6 +1,6 @@
 # Implementation Status (Living Document)
 
-Last updated: 29 Jan 2026
+Last updated: 30 Jan 2026
 
 This document captures what is implemented, what is pending, and known
 issues so a new agent can continue work if the session ends.
@@ -18,7 +18,7 @@ issues so a new agent can continue work if the session ends.
   - Text similarity scoring endpoint.
   - Audio upload endpoint (Whisper transcription + scoring).
 - SQLite persistence for children + exercises.
-- Custom vocab storage + upload endpoints (CSV + manual list).
+- Custom vocab storage + manual list endpoints.
 - RAG scaffolding (documents + embeddings tables, retrieval utilities, prompt
   context injection) gated by `GOGOHANNAH_RAG_ENABLED`.
 
@@ -43,7 +43,6 @@ issues so a new agent can continue work if the session ends.
   - Read-aloud word highlighting for web and mobile.
   - Adjustable reading speed (0.25x - 1.5x).
 - Custom vocab:
-  - CSV upload (header or single-column CSV).
   - Manual word entry (comma/newline separated).
   - Word list selector (Default/Custom/Weak words).
 
@@ -69,10 +68,9 @@ issues so a new agent can continue work if the session ends.
   - Avoid HtmlElementView unless ui_web registry is supported.
 - Audio recording:
   - If no audio captured, show friendly error and retry.
-- CSV format:
-  - Accepts headered `word` column or a single-column list.
 
 ## 6) Recent Commits (for reference)
+- Latest: Refresh documentation, remove architecture diagram doc, align roadmap.
 - 2ed6012: Expand story read speed range and sync highlight timing.
 - 85fbbcc: Improve TTS rate mapping and web highlight fallback.
 - 6c6dae5: Add web fallback for story highlight.
