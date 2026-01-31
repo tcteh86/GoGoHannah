@@ -141,10 +141,28 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
 
     context = retrieve_context(f"vocabulary word {word}")
     try:
-        result = generate_vocab_exercise(word, context=context)
+        result = generate_vocab_exercise(
+            word,
+            context=context,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
+        result = simple_exercise(
+            word,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
+            context=context,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
         source = "llm"
     except LLMUnavailable:
-        result = simple_exercise(word)
+        result = simple_exercise(
+            word,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
         source = "fallback"
 
     response = {

@@ -1,7 +1,7 @@
 import re
 
-# Conservative whitelist: letters, spaces, hyphen, apostrophe (child vocab)
-_ALLOWED = re.compile(r"^[A-Za-z\s\-']{1,32}$")
+# Conservative whitelist: letters, spaces, hyphen, apostrophe, basic CJK
+_ALLOWED = re.compile(r"^[A-Za-z\u4e00-\u9fff\s\-']{1,32}$")
 
 
 def sanitize_word(word: str) -> str:
@@ -12,5 +12,11 @@ def sanitize_word(word: str) -> str:
     """
     w = (word or "").strip()
     if not _ALLOWED.match(w):
-        raise ValueError("Invalid word. Use only letters/spaces/-/'. Max 32 chars.")
+        raise ValueError(
+            "Invalid word. Use only letters, Chinese characters, spaces, - or '. "
+            "Max 32 chars."
+        )
+            "Invalid word. Use only letters, Chinese characters, spaces, - or '. "
+            "Max 32 chars."
+        )
     return w

@@ -1,10 +1,14 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Literal
 
 from pydantic import BaseModel, Field
 
 
 class VocabExerciseRequest(BaseModel):
     word: str = Field(..., min_length=1, max_length=32)
+    learning_direction: Optional[Literal["en_to_zh", "zh_to_en", "both"]] = None
+    output_style: Optional[Literal["immersion", "bilingual"]] = None
+    learning_direction: Optional[Literal["en_to_zh", "zh_to_en", "both"]] = None
+    output_style: Optional[Literal["immersion", "bilingual"]] = None
 
 
 class VocabExerciseResponse(BaseModel):

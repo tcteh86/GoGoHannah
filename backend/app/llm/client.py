@@ -7,7 +7,7 @@ from typing import Any, Dict
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from .prompts import SYSTEM_PROMPT, build_task_prompt
+from .prompts import build_system_prompt, build_task_prompt
 
 load_dotenv()
 
@@ -83,13 +83,35 @@ Input words:
         raise LLMUnavailable(f"Failed to suggest corrections: {str(exc)}")
 
 
-def generate_vocab_exercise(word: str, context: list[str] | None = None) -> Dict[str, Any]:
+def generate_vocab_exercise(
+    word: str,
+    context: list[str] | None = None,
+    learning_direction: str | None = None,
+    output_style: str | None = None,
+) -> Dict[str, Any]:
+                {
+                    "role": "system",
+                    "content": build_system_prompt(
+                        learning_direction=learning_direction,
+                        output_style=output_style,
+                    ),
+                },
+    context: list[str] | None = None,
+    learning_direction: str | None = None,
+    output_style: str | None = None,
+) -> Dict[str, Any]:
     """Generate a vocab exercise for `word` using OpenAI."""
     try:
         response = get_client().chat.completions.create(
             model=MODEL_NAME,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "system",
+                    "content": build_system_prompt(
+                        learning_direction=learning_direction,
+                        output_style=output_style,
+                    ),
+                },
                 {"role": "user", "content": build_task_prompt(word, context=context)},
             ],
             response_format={"type": "json_object"},

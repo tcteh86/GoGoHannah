@@ -38,8 +38,30 @@ class _IoApiClient implements ApiClient {
   }
 
   @override
-  Future<VocabExercise> generateVocabExercise(String word) async {
-    final data = await _postJson('/v1/vocab/exercise', {'word': word});
+  Future<VocabExercise> generateVocabExercise(
+    String word, {
+    String? learningDirection,
+    String? outputStyle,
+  }) async {
+    final payload = {'word': word};
+    if (learningDirection != null) {
+      payload['learning_direction'] = learningDirection;
+    }
+    if (outputStyle != null) {
+      payload['output_style'] = outputStyle;
+    }
+    final data = await _postJson('/v1/vocab/exercise', payload);
+    String? learningDirection,
+    String? outputStyle,
+  }) async {
+    final payload = {'word': word};
+    if (learningDirection != null) {
+      payload['learning_direction'] = learningDirection;
+    }
+    if (outputStyle != null) {
+      payload['output_style'] = outputStyle;
+    }
+    final data = await _postJson('/v1/vocab/exercise', payload);
     return VocabExercise.fromJson(data);
   }
 

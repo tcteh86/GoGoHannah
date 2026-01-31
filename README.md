@@ -10,6 +10,23 @@ the learning experience engaging while showcasing GenAI techniques.
 - Default primary-level vocabulary list
 - Optional vocabulary via custom word list entry
 - Practice output: AI-generated definition + example sentence + multiple-choice quiz
+- Bilingual vocab practice (English ↔ Chinese) with immersion/bilingual output styles
+### Bilingual vocab options
+The vocab exercise endpoint supports optional bilingual configuration:
+
+```
+POST /v1/vocab/exercise
+{
+  "word": "tree",
+  "learning_direction": "en_to_zh", // en_to_zh | zh_to_en | both
+  "output_style": "bilingual"       // immersion | bilingual
+}
+```
+
+- `learning_direction` sets the target language direction.
+- `output_style` controls full immersion (target only) vs bilingual scaffolding.
+
+- Bilingual vocab practice (English ↔ Chinese) with immersion/bilingual output styles
 - Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
 - Progress tracking with personalized recommendations and detailed analytics
 - Practiced words wheel visualization with performance indicators
@@ -40,6 +57,21 @@ Run the API:
 ```bash
 uvicorn backend.app.main:app --reload
 ```
+
+### Bilingual vocab options
+The vocab exercise endpoint supports optional bilingual configuration:
+
+```
+POST /v1/vocab/exercise
+{
+  "word": "tree",
+  "learning_direction": "en_to_zh", // en_to_zh | zh_to_en | both
+  "output_style": "bilingual"       // immersion | bilingual
+}
+```
+
+- `learning_direction` sets the target language direction.
+- `output_style` controls full immersion (target only) vs bilingual scaffolding.
 
 ### 2) Frontend setup (Flutter)
 From `frontend/`:

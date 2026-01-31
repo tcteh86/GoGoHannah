@@ -25,7 +25,15 @@ class _UnsupportedApiClient implements ApiClient {
       _unsupported();
 
   @override
-  Future<VocabExercise> generateVocabExercise(String word) async =>
+  Future<VocabExercise> generateVocabExercise(
+    String word, {
+    String? learningDirection,
+    String? outputStyle,
+  }) async =>
+    String word, {
+    String? learningDirection,
+    String? outputStyle,
+  }) async =>
       _unsupported();
 
   @override
