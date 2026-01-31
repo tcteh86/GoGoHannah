@@ -11,6 +11,8 @@ issues so a new agent can continue work if the session ends.
 - FastAPI service with health and vocab endpoints.
 - Vocab exercise generation (LLM + fallback) with phonics hints.
 - Bilingual vocab options for English ↔ Chinese (learning direction + output style).
+- Optional vocab generation parameters to request bilingual exercises.
+- Bilingual vocab options for English ↔ Chinese (learning direction + output style).
 - Progress save + summary + recommended words.
 - Study time tracking endpoints (daily, total, weekly/monthly summaries).
 - Recent practice endpoint (recent exercises history).

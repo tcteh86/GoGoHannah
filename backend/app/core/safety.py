@@ -16,4 +16,7 @@ def sanitize_word(word: str) -> str:
             "Invalid word. Use only letters, Chinese characters, spaces, - or '. "
             "Max 32 chars."
         )
+            "Invalid word. Use only letters, Chinese characters, spaces, - or '. "
+            "Max 32 chars."
+        )
     return w

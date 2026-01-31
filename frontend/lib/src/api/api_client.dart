@@ -19,6 +19,10 @@ abstract class ApiClient {
     String? learningDirection,
     String? outputStyle,
   });
+    String word, {
+    String? learningDirection,
+    String? outputStyle,
+  });
   Future<ComprehensionExercise> generateComprehensionExercise({
     required String level,
     String? theme,

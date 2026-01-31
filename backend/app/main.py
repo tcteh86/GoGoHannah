@@ -147,6 +147,15 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
             learning_direction=payload.learning_direction,
             output_style=payload.output_style,
         )
+        result = simple_exercise(
+            word,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
+            context=context,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
         source = "llm"
     except LLMUnavailable:
         result = simple_exercise(
