@@ -14,7 +14,11 @@ import '../models/study_time_summary.dart';
 
 abstract class ApiClient {
   Future<List<String>> fetchDefaultVocab();
-  Future<VocabExercise> generateVocabExercise(String word);
+  Future<VocabExercise> generateVocabExercise(
+    String word, {
+    String? learningDirection,
+    String? outputStyle,
+  });
   Future<ComprehensionExercise> generateComprehensionExercise({
     required String level,
     String? theme,
