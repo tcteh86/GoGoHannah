@@ -8,7 +8,7 @@ the learning experience engaging while showcasing GenAI techniques.
 
 ## Features (MVP)
 - Default primary-level vocabulary list
-- Optional vocabulary via CSV upload (must contain a `word` column)
+- Optional vocabulary via custom word list entry
 - Practice output: AI-generated definition + example sentence + multiple-choice quiz
 - Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
 - Progress tracking with personalized recommendations and detailed analytics
@@ -46,22 +46,12 @@ From `frontend/`:
 - `flutter create . --platforms=web,android`
 - `flutter run -d chrome --dart-define API_BASE_URL=http://localhost:8000`
 
-## CSV Format
-Your CSV must contain a column named `word`.
-
-```csv
-word
-happy
-brave
-gentle
-```
-
 ## Roadmap
 - ✅ Backend API scaffold with OpenAI integration (vocab exercises)
 - ✅ Progress tracking endpoints
-- ⏳ Flutter web UI (practice, results, quick check)
-- ⏳ Pronunciation (audio + transcription)
-- ⏳ Comprehension stories + illustration
+- ✅ Flutter web UI (practice, results, quick check)
+- ✅ Pronunciation (audio + transcription)
+- ✅ Comprehension stories + illustration
 - ⏳ RAG + embeddings + multi-agent workflow
 
 ## Notes on GenAI Safety (future)

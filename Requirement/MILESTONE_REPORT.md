@@ -21,8 +21,8 @@ comprehension using GenAI, but must remain child-safe and fun.
 ### 2.1 AI Services / Models (chosen)
 OpenAI is selected for early integration speed and unified coverage:
 - Text generation: `gpt-4o-mini` for definitions, examples, quizzes.
-- Audio transcription: `whisper-1` for pronunciation analysis (next phase).
-- Image generation: `dall-e-3` for story illustrations (next phase).
+- Audio transcription: `whisper-1` for pronunciation analysis.
+- Image generation: `dall-e-3` for story illustrations.
 - Embeddings (planned) for RAG and personalized recommendations.
 
 Justification:
@@ -34,6 +34,7 @@ Justification:
 Current:
 - FastAPI backend in `backend/` with OpenAI integration.
 - SQLite persistence for progress tracking.
+- Flutter web UI for practice, results, and quick check.
 
 Planned:
 - Flutter web frontend hosted on Firebase.
@@ -68,12 +69,14 @@ Completed:
   - Web audio recorder build fix for MediaRecorder events.
   - Recording timeout guard and UX hint for stopping recording.
 - Custom vocabulary support:
-  - CSV upload for parent-provided word lists (header or single-column).
   - Manual word entry for quick additions.
   - Custom vocab storage per child.
+  - LLM typo correction suggestions with confirm/keep-original choices.
 - Progress insights:
   - Recent practice history endpoint + UI list.
   - Weak-word suggestions highlighted for review.
+- Study time tracking:
+  - Daily, total, weekly/monthly summaries shown in results.
 - Read-aloud improvements:
   - Word highlighting on web and mobile (TTS boundary + fallback timing).
   - Adjustable reading speed control (0.25x - 1.5x).
@@ -83,7 +86,7 @@ Completed:
   - Inline illustration handling (data URIs + network fallback).
 
 In progress:
-- RAG + embeddings backend scaffolding (approved plan).
+- RAG + embeddings enablement and QA (approved plan).
 
 Planned:
 - RAG + embeddings for smarter explanations.
@@ -94,10 +97,12 @@ Planned:
 Done:
 - Vocab exercise API with LLM fallback.
 - Progress save + summary endpoints.
+- Study time tracking endpoints + results summaries.
 - Flutter web UI for practice, results, and quick check.
 - Pronunciation analysis flow (audio + transcription).
 - Comprehension story flow (story + questions + illustration).
 - Custom vocab upload + manual entry flow.
+- Custom vocab typo correction suggestions.
 - Recent practice history view + weak-word highlighting.
 
 Next:
@@ -139,3 +144,6 @@ Next:
   timing to reading speed.
 - Improved story illustration delivery by supporting inline data-URI images.
 - Shortened results date ranges for better mobile readability.
+
+## 7) Update Log (Jan 30, 2026)
+- Refreshed documentation to align roadmap and milestone status with the current branch state.
