@@ -10,6 +10,7 @@ issues so a new agent can continue work if the session ends.
 ## 1) Implemented (Backend)
 - FastAPI service with health and vocab endpoints.
 - Vocab exercise generation (LLM + fallback) with phonics hints.
+- Bilingual vocab options for English ↔ Chinese (learning direction + output style).
 - Progress save + summary + recommended words.
 - Study time tracking endpoints (daily, total, weekly/monthly summaries).
 - Recent practice endpoint (recent exercises history).
@@ -49,6 +50,7 @@ issues so a new agent can continue work if the session ends.
   - Manual word entry (comma/newline separated).
   - Word list selector (Default/Custom/Weak words).
   - Typo suggestions with confirm/accept flow for corrections.
+- Optional vocab generation parameters to request bilingual exercises.
 
 ## 3) QA Artifacts
 - QA checklist: Requirement/QA_CHECKLIST.md

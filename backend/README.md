@@ -28,6 +28,20 @@ Optional:
 - `POST /v1/pronunciation/score`
 - `POST /v1/pronunciation/assess`
 
+### Vocab exercise request options
+`POST /v1/vocab/exercise` accepts optional bilingual configuration:
+
+```
+{
+  "word": "tree",
+  "learning_direction": "en_to_zh", // en_to_zh | zh_to_en | both
+  "output_style": "immersion"       // immersion | bilingual
+}
+```
+
+- `learning_direction` controls the target language.
+- `output_style` toggles full immersion vs bilingual scaffolding.
+
 ## Deploy (Render)
 1) Create a new Web Service connected to the repo.
 2) Build command:

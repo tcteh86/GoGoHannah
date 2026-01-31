@@ -13,21 +13,13 @@ import '../models/recent_exercise.dart';
 import '../models/study_time_summary.dart';
 
 abstract class ApiClient {
+  // Vocabulary
   Future<List<String>> fetchDefaultVocab();
-  Future<VocabExercise> generateVocabExercise(String word);
-  Future<ComprehensionExercise> generateComprehensionExercise({
-    required String level,
-    String? theme,
-    bool includeImage = false,
+  Future<VocabExercise> generateVocabExercise(
+    String word, {
+    String? learningDirection,
+    String? outputStyle,
   });
-  Future<int> scorePronunciation(String word, String userText);
-  Future<PronunciationAssessment> assessPronunciationAudio({
-    required String word,
-    required Uint8List audioBytes,
-    required String mimeType,
-  });
-  Future<void> saveExercise(SaveExercise payload);
-  Future<ProgressSummary> fetchProgressSummary(String childName);
   Future<List<String>> fetchRecommendedWords(String childName, int limit);
   Future<List<String>> fetchCustomVocab(String childName);
   Future<List<String>> addCustomVocab({
@@ -39,6 +31,25 @@ abstract class ApiClient {
   Future<List<String>> suggestCustomVocab({
     required List<String> words,
   });
+
+  // Comprehension
+  Future<ComprehensionExercise> generateComprehensionExercise({
+    required String level,
+    String? theme,
+    bool includeImage = false,
+  });
+
+  // Pronunciation
+  Future<int> scorePronunciation(String word, String userText);
+  Future<PronunciationAssessment> assessPronunciationAudio({
+    required String word,
+    required Uint8List audioBytes,
+    required String mimeType,
+  });
+
+  // Progress
+  Future<void> saveExercise(SaveExercise payload);
+  Future<ProgressSummary> fetchProgressSummary(String childName);
   Future<List<RecentExercise>> fetchRecentExercises(String childName, int limit);
   Future<void> addStudyTime({
     required String childName,
@@ -56,6 +67,8 @@ abstract class ApiClient {
     required String childName,
     String? date,
   });
+
+  // Debug
   Future<RagDebugResult> fetchRagDebug({
     required String query,
     String? childName,
