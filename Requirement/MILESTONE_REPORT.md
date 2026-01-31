@@ -71,9 +71,12 @@ Completed:
 - Custom vocabulary support:
   - Manual word entry for quick additions.
   - Custom vocab storage per child.
+  - LLM typo correction suggestions with confirm/keep-original choices.
 - Progress insights:
   - Recent practice history endpoint + UI list.
   - Weak-word suggestions highlighted for review.
+- Study time tracking:
+  - Daily, total, weekly/monthly summaries shown in results.
 - Read-aloud improvements:
   - Word highlighting on web and mobile (TTS boundary + fallback timing).
   - Adjustable reading speed control (0.25x - 1.5x).
@@ -94,10 +97,12 @@ Planned:
 Done:
 - Vocab exercise API with LLM fallback.
 - Progress save + summary endpoints.
+- Study time tracking endpoints + results summaries.
 - Flutter web UI for practice, results, and quick check.
 - Pronunciation analysis flow (audio + transcription).
 - Comprehension story flow (story + questions + illustration).
 - Custom vocab upload + manual entry flow.
+- Custom vocab typo correction suggestions.
 - Recent practice history view + weak-word highlighting.
 
 Next:

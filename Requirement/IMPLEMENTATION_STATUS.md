@@ -11,6 +11,7 @@ issues so a new agent can continue work if the session ends.
 - FastAPI service with health and vocab endpoints.
 - Vocab exercise generation (LLM + fallback) with phonics hints.
 - Progress save + summary + recommended words.
+- Study time tracking endpoints (daily, total, weekly/monthly summaries).
 - Recent practice endpoint (recent exercises history).
 - Comprehension story generation with level selection.
 - Optional illustration generation hook.
@@ -19,13 +20,15 @@ issues so a new agent can continue work if the session ends.
   - Audio upload endpoint (Whisper transcription + scoring).
 - SQLite persistence for children + exercises.
 - Custom vocab storage + manual list endpoints.
+- Custom vocab typo suggestions endpoint (LLM spelling corrections).
 - RAG scaffolding (documents + embeddings tables, retrieval utilities, prompt
   context injection) gated by `GOGOHANNAH_RAG_ENABLED`.
 
 ## 2) Implemented (Frontend)
 - Flutter web UI:
   - Practice screen with vocab + comprehension modes.
-  - Results screen with summary + weak words list + recent practice.
+- Results screen with summary + weak words list + recent practice.
+- Results screen with study time summaries (daily, total, weekly/monthly).
   - Quick Check screen with recommended-word quiz.
 - Engagement loop:
   - Mascot header with animated reactions.
@@ -45,6 +48,7 @@ issues so a new agent can continue work if the session ends.
 - Custom vocab:
   - Manual word entry (comma/newline separated).
   - Word list selector (Default/Custom/Weak words).
+  - Typo suggestions with confirm/accept flow for corrections.
 
 ## 3) QA Artifacts
 - QA checklist: Requirement/QA_CHECKLIST.md
