@@ -30,10 +30,6 @@ class _UnsupportedApiClient implements ApiClient {
     String? learningDirection,
     String? outputStyle,
   }) async =>
-    String word, {
-    String? learningDirection,
-    String? outputStyle,
-  }) async =>
       _unsupported();
 
   @override

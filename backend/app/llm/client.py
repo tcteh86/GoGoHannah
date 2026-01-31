@@ -89,17 +89,6 @@ def generate_vocab_exercise(
     learning_direction: str | None = None,
     output_style: str | None = None,
 ) -> Dict[str, Any]:
-                {
-                    "role": "system",
-                    "content": build_system_prompt(
-                        learning_direction=learning_direction,
-                        output_style=output_style,
-                    ),
-                },
-    context: list[str] | None = None,
-    learning_direction: str | None = None,
-    output_style: str | None = None,
-) -> Dict[str, Any]:
     """Generate a vocab exercise for `word` using OpenAI."""
     try:
         response = get_client().chat.completions.create(

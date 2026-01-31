@@ -74,9 +74,6 @@ Completed:
   - LLM typo correction suggestions with confirm/keep-original choices.
 - Bilingual vocab exercise options:
   - Learning direction (English ↔ Chinese) and immersion/bilingual output style.
-- Bilingual vocab configuration for English ↔ Chinese practice.
-- Bilingual vocab exercise options:
-  - Learning direction (English ↔ Chinese) and immersion/bilingual output style.
 - Progress insights:
   - Recent practice history endpoint + UI list.
   - Weak-word suggestions highlighted for review.

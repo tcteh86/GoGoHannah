@@ -50,17 +50,6 @@ class _WebApiClient implements ApiClient {
       payload['output_style'] = outputStyle;
     }
     final data = await _postJson('/v1/vocab/exercise', payload);
-    String? learningDirection,
-    String? outputStyle,
-  }) async {
-    final payload = {'word': word};
-    if (learningDirection != null) {
-      payload['learning_direction'] = learningDirection;
-    }
-    if (outputStyle != null) {
-      payload['output_style'] = outputStyle;
-    }
-    final data = await _postJson('/v1/vocab/exercise', payload);
     return VocabExercise.fromJson(data);
   }
 
