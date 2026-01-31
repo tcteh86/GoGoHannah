@@ -37,6 +37,8 @@ abstract class ApiClient {
     required String level,
     String? theme,
     bool includeImage = false,
+    String? learningDirection,
+    String? outputStyle,
   });
 
   // Pronunciation

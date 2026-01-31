@@ -197,10 +197,16 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
             theme=payload.theme,
             level=payload.level,
             context=context,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
         )
         source = "llm"
     except LLMUnavailable:
-        result = simple_comprehension_exercise(level=payload.level)
+        result = simple_comprehension_exercise(
+            level=payload.level,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
         source = "fallback"
 
     image_url = None

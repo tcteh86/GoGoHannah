@@ -58,12 +58,20 @@ class _WebApiClient implements ApiClient {
     required String level,
     String? theme,
     bool includeImage = false,
+    String? learningDirection,
+    String? outputStyle,
   }) async {
     final payload = {
       'level': level,
       'theme': theme,
       'include_image': includeImage,
     };
+    if (learningDirection != null) {
+      payload['learning_direction'] = learningDirection;
+    }
+    if (outputStyle != null) {
+      payload['output_style'] = outputStyle;
+    }
     final data = await _postJson('/v1/comprehension/exercise', payload);
     return ComprehensionExercise.fromJson(data);
   }

@@ -28,6 +28,7 @@ issues so a new agent can continue work if the session ends.
 ## 2) Implemented (Frontend)
 - Flutter web UI:
   - Practice screen with vocab + comprehension modes.
+  - Vocab + story language selectors (learning direction and output style).
 - Results screen with summary + weak words list + recent practice.
 - Results screen with study time summaries (daily, total, weekly/monthly).
   - Quick Check screen with recommended-word quiz.

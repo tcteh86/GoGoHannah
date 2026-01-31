@@ -28,12 +28,18 @@ Optional:
 - `POST /v1/pronunciation/score`
 - `POST /v1/pronunciation/assess`
 
-### Vocab exercise request options
-`POST /v1/vocab/exercise` accepts optional bilingual configuration:
+### Vocab + story exercise request options
+`POST /v1/vocab/exercise` and `POST /v1/comprehension/exercise` accept optional bilingual configuration:
 
 ```
 {
   "word": "tree",
+  "learning_direction": "en_to_zh", // en_to_zh | zh_to_en | both
+  "output_style": "immersion"       // immersion | bilingual
+}
+
+{
+  "level": "beginner",
   "learning_direction": "en_to_zh", // en_to_zh | zh_to_en | both
   "output_style": "immersion"       // immersion | bilingual
 }

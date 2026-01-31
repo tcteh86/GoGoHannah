@@ -7,7 +7,7 @@ from typing import Any, Dict
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from .prompts import build_system_prompt, build_task_prompt
+from .prompts import build_system_prompt, build_story_system_prompt, build_task_prompt
 
 load_dotenv()
 
@@ -138,6 +138,8 @@ def generate_comprehension_exercise(
     theme: str = None,
     level: str = "intermediate",
     context: list[str] | None = None,
+    learning_direction: str | None = None,
+    output_style: str | None = None,
 ) -> Dict[str, Any]:
     """Generate a comprehension exercise with a short story and questions."""
     level_configs = {
@@ -201,7 +203,10 @@ Return JSON with:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a creative children's book author. Generate engaging, educational storybooks with vivid descriptions.",
+                    "content": build_story_system_prompt(
+                        learning_direction=learning_direction,
+                        output_style=output_style,
+                    ),
                 },
                 {"role": "user", "content": prompt},
             ],

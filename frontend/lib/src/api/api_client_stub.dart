@@ -37,6 +37,8 @@ class _UnsupportedApiClient implements ApiClient {
     required String level,
     String? theme,
     bool includeImage = false,
+    String? learningDirection,
+    String? outputStyle,
   }) async =>
       _unsupported();
 
