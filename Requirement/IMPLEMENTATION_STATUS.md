@@ -10,6 +10,7 @@ issues so a new agent can continue work if the session ends.
 ## 1) Implemented (Backend)
 - FastAPI service with health and vocab endpoints.
 - Vocab exercise generation (LLM + fallback) with phonics hints.
+- Bilingual vocab options for English ↔ Chinese (learning direction + output style).
 - Progress save + summary + recommended words.
 - Study time tracking endpoints (daily, total, weekly/monthly summaries).
 - Recent practice endpoint (recent exercises history).
@@ -27,6 +28,7 @@ issues so a new agent can continue work if the session ends.
 ## 2) Implemented (Frontend)
 - Flutter web UI:
   - Practice screen with vocab + comprehension modes.
+  - Vocab + story language selectors (learning direction and output style).
 - Results screen with summary + weak words list + recent practice.
 - Results screen with study time summaries (daily, total, weekly/monthly).
   - Quick Check screen with recommended-word quiz.
@@ -49,6 +51,7 @@ issues so a new agent can continue work if the session ends.
   - Manual word entry (comma/newline separated).
   - Word list selector (Default/Custom/Weak words).
   - Typo suggestions with confirm/accept flow for corrections.
+- Optional vocab generation parameters to request bilingual exercises.
 
 ## 3) QA Artifacts
 - QA checklist: Requirement/QA_CHECKLIST.md

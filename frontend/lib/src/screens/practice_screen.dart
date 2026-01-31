@@ -20,6 +20,10 @@ enum PracticeMode { vocabulary, comprehension }
 
 enum VocabListSource { defaultList, customList, weakList }
 
+enum LearningDirection { enToZh, zhToEn, both }
+
+enum OutputStyle { immersion, bilingual }
+
 const bool _ragDebugEnabled =
     bool.fromEnvironment('GOGOHANNAH_DEBUG', defaultValue: false);
 
@@ -59,6 +63,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
   bool _loadingComprehension = false;
   String _storyLevel = 'beginner';
   bool _includeImage = false;
+  LearningDirection _learningDirection = LearningDirection.enToZh;
+  OutputStyle _outputStyle = OutputStyle.bilingual;
   final Map<int, String> _compChoices = {};
   final Map<int, bool> _compAnswered = {};
 
@@ -120,7 +126,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _feedback = null;
     });
     try {
-      final exercise = await widget.apiClient.generateVocabExercise(word);
+      final exercise = await widget.apiClient.generateVocabExercise(
+        word,
+        learningDirection: _learningDirectionValue,
+        outputStyle: _outputStyleValue,
+      );
       setState(() {
         _exercise = exercise;
       });
@@ -165,6 +175,16 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _pronunciationScore = null;
     _pronunciationTranscript = null;
     _pronunciationFeedback = null;
+  }
+
+  void _resetComprehensionState() {
+    _comprehension = null;
+    _comprehensionError = null;
+    _compChoices.clear();
+    _compAnswered.clear();
+    _highlightedWordIndex = null;
+    _storyWords = [];
+    _storyTextCache = '';
   }
 
   List<String> _parseCustomWords(String raw) {
@@ -573,7 +593,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
       return;
     }
     _storyTextCache = text;
-    _storyWords = RegExp(r"[A-Za-z']+").allMatches(text).map((match) {
+    _storyWords = RegExp(r"[A-Za-z']+|[\u4e00-\u9fff]")
+        .allMatches(text)
+        .map((match) {
       return _StoryWord(match.start, match.end);
     }).toList();
   }
@@ -638,6 +660,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
       final exercise = await widget.apiClient.generateComprehensionExercise(
         level: _storyLevel,
         includeImage: _includeImage,
+        learningDirection: _learningDirectionValue,
+        outputStyle: _outputStyleValue,
       );
       setState(() {
         _comprehension = exercise;
@@ -681,7 +705,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
   String _comprehensionSaveLabel(ComprehensionQuestion question, int index) {
     final cleaned = question.question.replaceAll(
-      RegExp(r"[^A-Za-z\s\-']"),
+      RegExp(r"[^A-Za-z\u4e00-\u9fff\s\-']"),
       '',
     );
     final normalized = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
@@ -745,6 +769,15 @@ class _PracticeScreenState extends State<PracticeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text(
+          'Learning settings:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        _buildLearningDirectionSelector(),
+        const SizedBox(height: 8),
+        _buildOutputStyleSelector(),
+        const SizedBox(height: 16),
         const Text(
           'Word list:',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -962,6 +995,15 @@ class _PracticeScreenState extends State<PracticeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
+          'Learning settings:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        _buildLearningDirectionSelector(),
+        const SizedBox(height: 8),
+        _buildOutputStyleSelector(),
+        const SizedBox(height: 16),
+        const Text(
           'Choose a story level:',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
@@ -1071,6 +1113,78 @@ class _PracticeScreenState extends State<PracticeScreen> {
         ],
       ],
     );
+  }
+
+  Widget _buildLearningDirectionSelector() {
+    return SegmentedButton<LearningDirection>(
+      segments: const [
+        ButtonSegment(
+          value: LearningDirection.enToZh,
+          label: Text('English → Chinese'),
+        ),
+        ButtonSegment(
+          value: LearningDirection.zhToEn,
+          label: Text('Chinese → English'),
+        ),
+        ButtonSegment(
+          value: LearningDirection.both,
+          label: Text('Both'),
+        ),
+      ],
+      selected: {_learningDirection},
+      onSelectionChanged: (selection) {
+        _stopStoryReadAloud();
+        setState(() {
+          _learningDirection = selection.first;
+          _resetPracticeState();
+          _resetComprehensionState();
+        });
+      },
+    );
+  }
+
+  Widget _buildOutputStyleSelector() {
+    return SegmentedButton<OutputStyle>(
+      segments: const [
+        ButtonSegment(
+          value: OutputStyle.immersion,
+          label: Text('Immersion'),
+        ),
+        ButtonSegment(
+          value: OutputStyle.bilingual,
+          label: Text('Bilingual'),
+        ),
+      ],
+      selected: {_outputStyle},
+      onSelectionChanged: (selection) {
+        _stopStoryReadAloud();
+        setState(() {
+          _outputStyle = selection.first;
+          _resetPracticeState();
+          _resetComprehensionState();
+        });
+      },
+    );
+  }
+
+  String get _learningDirectionValue {
+    switch (_learningDirection) {
+      case LearningDirection.enToZh:
+        return 'en_to_zh';
+      case LearningDirection.zhToEn:
+        return 'zh_to_en';
+      case LearningDirection.both:
+        return 'both';
+    }
+  }
+
+  String get _outputStyleValue {
+    switch (_outputStyle) {
+      case OutputStyle.immersion:
+        return 'immersion';
+      case OutputStyle.bilingual:
+        return 'bilingual';
+    }
   }
 
   @override
