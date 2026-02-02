@@ -12,7 +12,8 @@ class _WebSpeechHelper implements SpeechHelper {
       return;
     }
     final utterance = html.SpeechSynthesisUtterance(trimmed);
-    utterance.lang = 'en-US';
+    utterance.lang =
+        RegExp(r'[\u4e00-\u9fff]').hasMatch(trimmed) ? 'zh-CN' : 'en-US';
     html.window.speechSynthesis?.cancel();
     html.window.speechSynthesis?.speak(utterance);
   }

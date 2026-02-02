@@ -29,7 +29,7 @@ Optional:
 - `POST /v1/pronunciation/assess`
 
 ### Vocab + story exercise request options
-`POST /v1/vocab/exercise` and `POST /v1/comprehension/exercise` accept optional bilingual configuration:
+`POST /v1/vocab/exercise` and `POST /v1/comprehension/exercise` accept optional bilingual configuration. The current UI targets English → Chinese and lets users pick immersion vs bilingual output.
 
 ```
 {

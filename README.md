@@ -43,7 +43,8 @@ uvicorn backend.app.main:app --reload
 ```
 
 ### Bilingual vocab + story options
-The vocab and story exercise endpoints support optional bilingual configuration:
+The vocab and story exercise endpoints support optional bilingual configuration.
+The current UI defaults to English → Chinese with selectable output style.
 
 ```
 POST /v1/vocab/exercise

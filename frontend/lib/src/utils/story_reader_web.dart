@@ -34,7 +34,8 @@ class _WebStoryReader implements StoryReader {
     _boundarySeen = false;
     _fallbackActive = false;
     final utterance = html.SpeechSynthesisUtterance(trimmed);
-    utterance.lang = 'en-US';
+    utterance.lang =
+        RegExp(r'[\u4e00-\u9fff]').hasMatch(trimmed) ? 'zh-CN' : 'en-US';
     utterance.rate = rate;
     if (onBoundary != null) {
       utterance.onBoundary.listen((event) {
@@ -88,7 +89,7 @@ class _WebStoryReader implements StoryReader {
       return;
     }
     _fallbackActive = true;
-    _fallbackWords = RegExp(r"[A-Za-z']+")
+    _fallbackWords = RegExp(r"[A-Za-z']+|[\u4e00-\u9fff]")
         .allMatches(text)
         .map((match) => _WordInfo(match.start, match.group(0)?.length ?? 0))
         .toList();
