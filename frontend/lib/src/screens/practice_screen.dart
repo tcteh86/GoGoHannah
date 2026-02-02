@@ -20,8 +20,11 @@ enum PracticeMode { vocabulary, comprehension }
 
 enum VocabListSource { defaultList, customList, weakList }
 
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
+=======
 enum LearningDirection { enToZh, zhToEn, both }
 
+>>>>>>> main
 enum OutputStyle { immersion, bilingual }
 
 const bool _ragDebugEnabled =
@@ -63,7 +66,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
   bool _loadingComprehension = false;
   String _storyLevel = 'beginner';
   bool _includeImage = false;
-  LearningDirection _learningDirection = LearningDirection.enToZh;
   OutputStyle _outputStyle = OutputStyle.bilingual;
   final Map<int, String> _compChoices = {};
   final Map<int, bool> _compAnswered = {};
@@ -770,12 +772,19 @@ class _PracticeScreenState extends State<PracticeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
+          'Output style (English → Chinese):',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+=======
           'Learning settings:',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         _buildLearningDirectionSelector(),
         const SizedBox(height: 8),
+>>>>>>> main
         _buildOutputStyleSelector(),
         const SizedBox(height: 16),
         const Text(
@@ -899,7 +908,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
             _ExerciseCard(
               exercise: _exercise!,
               word: word,
-              onListen: () => _speechHelper.speak(word),
+              onListenWord: () => _speechHelper.speak(word),
+              onListenDefinition: () =>
+                  _speechHelper.speak(_exercise!.definition),
+              onListenExample: () =>
+                  _speechHelper.speak(_exercise!.exampleSentence),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -995,12 +1008,19 @@ class _PracticeScreenState extends State<PracticeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
+          'Output style (English → Chinese):',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+=======
           'Learning settings:',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         _buildLearningDirectionSelector(),
         const SizedBox(height: 8),
+>>>>>>> main
         _buildOutputStyleSelector(),
         const SizedBox(height: 16),
         const Text(
@@ -1115,6 +1135,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
+=======
   Widget _buildLearningDirectionSelector() {
     return SegmentedButton<LearningDirection>(
       segments: const [
@@ -1143,6 +1165,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
+>>>>>>> main
   Widget _buildOutputStyleSelector() {
     return SegmentedButton<OutputStyle>(
       segments: const [
@@ -1167,6 +1190,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
+  String get _learningDirectionValue => 'en_to_zh';
+=======
   String get _learningDirectionValue {
     switch (_learningDirection) {
       case LearningDirection.enToZh:
@@ -1177,6 +1203,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
         return 'both';
     }
   }
+>>>>>>> main
 
   String get _outputStyleValue {
     switch (_outputStyle) {
@@ -1246,12 +1273,16 @@ class _PracticeScreenState extends State<PracticeScreen> {
 class _ExerciseCard extends StatelessWidget {
   final VocabExercise exercise;
   final String word;
-  final VoidCallback onListen;
+  final VoidCallback onListenWord;
+  final VoidCallback onListenDefinition;
+  final VoidCallback onListenExample;
 
   const _ExerciseCard({
     required this.exercise,
     required this.word,
-    required this.onListen,
+    required this.onListenWord,
+    required this.onListenDefinition,
+    required this.onListenExample,
   });
 
   @override
@@ -1275,7 +1306,7 @@ class _ExerciseCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: onListen,
+                  onPressed: onListenWord,
                   icon: const Icon(Icons.volume_up),
                   tooltip: 'Listen to the word',
                 ),
@@ -1288,14 +1319,36 @@ class _ExerciseCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            Text(
-              'Definition: ${exercise.definition}',
-              style: const TextStyle(fontSize: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Definition: ${exercise.definition}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+                IconButton(
+                  onPressed: onListenDefinition,
+                  icon: const Icon(Icons.volume_up),
+                  tooltip: 'Listen to the definition',
+                ),
+              ],
             ),
             const SizedBox(height: 8),
-            Text(
-              'Example: ${exercise.exampleSentence}',
-              style: const TextStyle(fontSize: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Example: ${exercise.exampleSentence}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+                IconButton(
+                  onPressed: onListenExample,
+                  icon: const Icon(Icons.volume_up),
+                  tooltip: 'Listen to the example',
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(
