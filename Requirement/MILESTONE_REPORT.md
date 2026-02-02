@@ -75,7 +75,11 @@ Completed:
 - Bilingual vocab exercise options:
   - Learning direction (English ↔ Chinese) and immersion/bilingual output style.
 - Bilingual story exercise options:
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
   - English → Chinese with immersion/bilingual output style.
+=======
+  - Learning direction (English ↔ Chinese) and immersion/bilingual output style.
+>>>>>>> main
 - Progress insights:
   - Recent practice history endpoint + UI list.
   - Weak-word suggestions highlighted for review.
@@ -101,7 +105,11 @@ Planned:
 Done:
 - Vocab exercise API with LLM fallback.
 - Bilingual vocab configuration for English ↔ Chinese practice.
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
 - Bilingual story configuration for English → Chinese practice.
+=======
+- Bilingual story configuration for English ↔ Chinese practice.
+>>>>>>> main
 - Progress save + summary endpoints.
 - Study time tracking endpoints + results summaries.
 - Flutter web UI for practice, results, and quick check.
@@ -125,6 +133,9 @@ Next:
 
 ---
 
+
+## 8) Update Log (Jan 31, 2026)
+- Added bilingual vocab configuration (learning direction + immersion/bilingual output style).
 ## 4) Next Steps (before 29 Jan)
 1) QA the engagement + GenAI flows end-to-end.
 2) Capture demo screenshots for milestone report.
@@ -155,5 +166,10 @@ Next:
 - Refreshed documentation to align roadmap and milestone status with the current branch state.
 
 ## 8) Update Log (Jan 31, 2026)
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
 - Added bilingual vocab configuration (English → Chinese, immersion/bilingual output style).
 - Added bilingual story configuration (English → Chinese, immersion/bilingual output style).
+=======
+- Added bilingual vocab configuration (learning direction + immersion/bilingual output style).
+- Added bilingual story configuration (learning direction + immersion/bilingual output style).
+>>>>>>> main

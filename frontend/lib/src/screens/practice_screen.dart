@@ -20,6 +20,11 @@ enum PracticeMode { vocabulary, comprehension }
 
 enum VocabListSource { defaultList, customList, weakList }
 
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
+=======
+enum LearningDirection { enToZh, zhToEn, both }
+
+>>>>>>> main
 enum OutputStyle { immersion, bilingual }
 
 const bool _ragDebugEnabled =
@@ -767,10 +772,19 @@ class _PracticeScreenState extends State<PracticeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
           'Output style (English → Chinese):',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
+=======
+          'Learning settings:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        _buildLearningDirectionSelector(),
+        const SizedBox(height: 8),
+>>>>>>> main
         _buildOutputStyleSelector(),
         const SizedBox(height: 16),
         const Text(
@@ -994,10 +1008,19 @@ class _PracticeScreenState extends State<PracticeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
           'Output style (English → Chinese):',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
+=======
+          'Learning settings:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        _buildLearningDirectionSelector(),
+        const SizedBox(height: 8),
+>>>>>>> main
         _buildOutputStyleSelector(),
         const SizedBox(height: 16),
         const Text(
@@ -1112,6 +1135,37 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
+=======
+  Widget _buildLearningDirectionSelector() {
+    return SegmentedButton<LearningDirection>(
+      segments: const [
+        ButtonSegment(
+          value: LearningDirection.enToZh,
+          label: Text('English → Chinese'),
+        ),
+        ButtonSegment(
+          value: LearningDirection.zhToEn,
+          label: Text('Chinese → English'),
+        ),
+        ButtonSegment(
+          value: LearningDirection.both,
+          label: Text('Both'),
+        ),
+      ],
+      selected: {_learningDirection},
+      onSelectionChanged: (selection) {
+        _stopStoryReadAloud();
+        setState(() {
+          _learningDirection = selection.first;
+          _resetPracticeState();
+          _resetComprehensionState();
+        });
+      },
+    );
+  }
+
+>>>>>>> main
   Widget _buildOutputStyleSelector() {
     return SegmentedButton<OutputStyle>(
       segments: const [
@@ -1136,7 +1190,20 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
+<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
   String get _learningDirectionValue => 'en_to_zh';
+=======
+  String get _learningDirectionValue {
+    switch (_learningDirection) {
+      case LearningDirection.enToZh:
+        return 'en_to_zh';
+      case LearningDirection.zhToEn:
+        return 'zh_to_en';
+      case LearningDirection.both:
+        return 'both';
+    }
+  }
+>>>>>>> main
 
   String get _outputStyleValue {
     switch (_outputStyle) {
