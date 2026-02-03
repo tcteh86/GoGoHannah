@@ -79,6 +79,28 @@ app.add_middleware(
 )
 
 
+def _generate_vocab_result(
+    word: str,
+    payload: VocabExerciseRequest,
+    context: list[str] | None,
+) -> tuple[dict, str]:
+    try:
+        result = generate_vocab_exercise(
+            word,
+            context=context,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
+        return result, "llm"
+    except LLMUnavailable:
+        result = simple_exercise(
+            word,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
+        return result, "fallback"
+
+
 @app.get("/healthz")
 def healthz() -> dict:
     return {"status": "ok"}
@@ -140,12 +162,7 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
         raise HTTPException(status_code=400, detail=str(exc))
 
     context = retrieve_context(f"vocabulary word {word}")
-    try:
-        result = generate_vocab_exercise(word, context=context)
-        source = "llm"
-    except LLMUnavailable:
-        result = simple_exercise(word)
-        source = "fallback"
+    result, source = _generate_vocab_result(word, payload, context)
 
     response = {
         "definition": result["definition"],
@@ -180,10 +197,16 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
             theme=payload.theme,
             level=payload.level,
             context=context,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
         )
         source = "llm"
     except LLMUnavailable:
-        result = simple_comprehension_exercise(level=payload.level)
+        result = simple_comprehension_exercise(
+            level=payload.level,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
         source = "fallback"
 
     image_url = None
