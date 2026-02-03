@@ -556,6 +556,21 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _speechHelper.speak(trimmed);
   }
 
+  _DefinitionLines _definitionLines(String text) {
+    final lines = text
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    if (lines.isEmpty) {
+      return const _DefinitionLines(null, null);
+    }
+    if (lines.length == 1) {
+      return _DefinitionLines(lines.first, null);
+    }
+    return _DefinitionLines(lines.first, lines[1]);
+  }
+
   void _startStoryReadAloud() {
     final exercise = _comprehension;
     if (exercise == null) {
@@ -989,14 +1004,25 @@ class _PracticeScreenState extends State<PracticeScreen> {
           const SizedBox(height: 20),
           if (_loading) const LoadingView(message: 'Creating exercise...'),
           if (_exercise != null) ...[
-            _ExerciseCard(
-              exercise: _exercise!,
-              word: word,
-              onListenWord: () => _speechHelper.speak(word),
-              onListenDefinition: () =>
-                  _speechHelper.speak(_exercise!.definition),
-              onListenExample: () =>
-                  _speechHelper.speak(_exercise!.exampleSentence),
+            Builder(
+              builder: (context) {
+                final definitionLines =
+                    _definitionLines(_exercise!.definition);
+                return _ExerciseCard(
+                  exercise: _exercise!,
+                  word: word,
+                  definitionLines: definitionLines,
+                  onListenWord: () => _speechHelper.speak(word),
+                  onListenDefinitionEnglish: () => _speechHelper.speak(
+                    definitionLines.english ?? _exercise!.definition,
+                  ),
+                  onListenDefinitionChinese: () => _speechHelper.speak(
+                    definitionLines.chinese ?? _exercise!.definition,
+                  ),
+                  onListenExample: () =>
+                      _speechHelper.speak(_exercise!.exampleSentence),
+                );
+              },
             ),
             const SizedBox(height: 16),
             const Text(
@@ -1291,15 +1317,19 @@ class _PracticeScreenState extends State<PracticeScreen> {
 class _ExerciseCard extends StatelessWidget {
   final VocabExercise exercise;
   final String word;
+  final _DefinitionLines definitionLines;
   final VoidCallback onListenWord;
-  final VoidCallback onListenDefinition;
+  final VoidCallback onListenDefinitionEnglish;
+  final VoidCallback onListenDefinitionChinese;
   final VoidCallback onListenExample;
 
   const _ExerciseCard({
     required this.exercise,
     required this.word,
+    required this.definitionLines,
     required this.onListenWord,
-    required this.onListenDefinition,
+    required this.onListenDefinitionEnglish,
+    required this.onListenDefinitionChinese,
     required this.onListenExample,
   });
 
@@ -1341,17 +1371,35 @@ class _ExerciseCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Definition: ${exercise.definition}',
+                    'Definition (English): ${definitionLines.english ?? exercise.definition}',
                     style: const TextStyle(fontSize: 16),
                   ),
                 ),
                 IconButton(
-                  onPressed: onListenDefinition,
+                  onPressed: onListenDefinitionEnglish,
                   icon: const Icon(Icons.volume_up),
-                  tooltip: 'Listen to the definition',
+                  tooltip: 'Listen to the English definition',
                 ),
               ],
             ),
+            if (definitionLines.chinese != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Definition (Chinese): ${definitionLines.chinese}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: onListenDefinitionChinese,
+                    icon: const Icon(Icons.volume_up),
+                    tooltip: 'Listen to the Chinese definition',
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 8),
             Row(
               children: [
@@ -1494,14 +1542,15 @@ class _ComprehensionCard extends StatelessWidget {
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
               children: [
                 FilledButton.icon(
                   onPressed: isSpeaking ? onStop : onListen,
                   icon: Icon(isSpeaking ? Icons.stop : Icons.volume_up),
                   label: Text(isSpeaking ? 'Stop Reading' : 'Read Story Aloud'),
                 ),
-                const SizedBox(width: 12),
                 if (readMode == ReadMode.lineByLine)
                   FilledButton(
                     onPressed: isSpeaking ? null : onNextLine,
@@ -1510,7 +1559,9 @@ class _ComprehensionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
               children: [
                 SegmentedButton<ReadMode>(
                   segments: const [
@@ -1527,39 +1578,43 @@ class _ComprehensionCard extends StatelessWidget {
                   onSelectionChanged: (selection) =>
                       onReadModeChanged(selection.first),
                 ),
-                const SizedBox(width: 12),
-                SegmentedButton<ReadLanguage>(
-                  segments: const [
-                    ButtonSegment(
-                      value: ReadLanguage.english,
-                      label: Text('English'),
-                    ),
-                    ButtonSegment(
-                      value: ReadLanguage.chinese,
-                      label: Text('Chinese'),
-                    ),
-                  ],
-                  selected: {readLanguage},
-                  onSelectionChanged: (selection) =>
-                      onReadLanguageChanged(selection.first),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('English'),
+                  selected: readLanguage == ReadLanguage.english,
+                  onSelected: (_) =>
+                      onReadLanguageChanged(ReadLanguage.english),
+                ),
+                ChoiceChip(
+                  label: const Text('Chinese'),
+                  selected: readLanguage == ReadLanguage.chinese,
+                  onSelected: (_) =>
+                      onReadLanguageChanged(ReadLanguage.chinese),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 FilledButton.icon(
                   onPressed: isSpeaking && !isPaused ? onPause : null,
                   icon: const Icon(Icons.pause),
                   label: const Text('Pause'),
                 ),
-                const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: isSpeaking && isPaused ? onResume : null,
                   icon: const Icon(Icons.play_arrow),
                   label: const Text('Resume'),
                 ),
-                const SizedBox(width: 12),
                 Text('${rate.toStringAsFixed(1)}x'),
               ],
             ),
@@ -1607,6 +1662,13 @@ class _StoryLine {
   final bool isChinese;
 
   _StoryLine(this.text, this.start, this.end, this.isChinese);
+}
+
+class _DefinitionLines {
+  final String? english;
+  final String? chinese;
+
+  const _DefinitionLines(this.english, this.chinese);
 }
 
 class _StorySegment {
