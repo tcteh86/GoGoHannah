@@ -28,11 +28,8 @@ issues so a new agent can continue work if the session ends.
 ## 2) Implemented (Frontend)
 - Flutter web UI:
   - Practice screen with vocab + comprehension modes.
-<<<<<<< codex/add-bilingual-support-for-english-and-chinese-y6tmvf
   - Vocab + story output style selector (English → Chinese direction).
-=======
-  - Vocab + story language selectors (learning direction and output style).
->>>>>>> main
+
 - Results screen with summary + weak words list + recent practice.
 - Results screen with study time summaries (daily, total, weekly/monthly).
   - Quick Check screen with recommended-word quiz.

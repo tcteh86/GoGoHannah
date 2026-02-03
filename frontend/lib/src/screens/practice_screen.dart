@@ -134,7 +134,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _maybeAutoPlayWord(word);
     } catch (error) {
       setState(() {
-        _feedback = 'Unable to load exercise. Try again.';
+        _feedback = 'Unable to load exercise. ${error.toString()}';
       });
     } finally {
       if (mounted) {
@@ -665,7 +665,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       });
     } catch (error) {
       setState(() {
-        _comprehensionError = 'Unable to load a story. Try again.';
+        _comprehensionError = 'Unable to load a story. ${error.toString()}';
       });
     } finally {
       if (mounted) {
