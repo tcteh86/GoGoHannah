@@ -101,7 +101,6 @@ Planned:
 Done:
 - Vocab exercise API with LLM fallback.
 - Bilingual vocab configuration for English ↔ Chinese practice.
-
 - Progress save + summary endpoints.
 - Study time tracking endpoints + results summaries.
 - Flutter web UI for practice, results, and quick check.
