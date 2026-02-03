@@ -10,6 +10,7 @@ StoryReader getStoryReader() => _WebStoryReader();
 class _WebStoryReader implements StoryReader {
   html.SpeechSynthesisUtterance? _utterance;
   bool _isSpeaking = false;
+  bool _isPaused = false;
   Timer? _fallbackTimer;
   bool _boundarySeen = false;
   bool _fallbackActive = false;
@@ -34,7 +35,8 @@ class _WebStoryReader implements StoryReader {
     _boundarySeen = false;
     _fallbackActive = false;
     final utterance = html.SpeechSynthesisUtterance(trimmed);
-    utterance.lang = 'en-US';
+    utterance.lang =
+        RegExp(r'[\u4e00-\u9fff]').hasMatch(trimmed) ? 'zh-CN' : 'en-US';
     utterance.rate = rate;
     if (onBoundary != null) {
       utterance.onBoundary.listen((event) {
@@ -68,13 +70,33 @@ class _WebStoryReader implements StoryReader {
     });
     _utterance = utterance;
     _isSpeaking = true;
+    _isPaused = false;
     html.window.speechSynthesis?.speak(utterance);
+  }
+
+  @override
+  void pause() {
+    if (!_isSpeaking || _isPaused) {
+      return;
+    }
+    html.window.speechSynthesis?.pause();
+    _isPaused = true;
+  }
+
+  @override
+  void resume() {
+    if (!_isPaused) {
+      return;
+    }
+    html.window.speechSynthesis?.resume();
+    _isPaused = false;
   }
 
   @override
   void stop() {
     html.window.speechSynthesis?.cancel();
     _isSpeaking = false;
+    _isPaused = false;
     _utterance = null;
     _cancelFallback();
   }
@@ -88,7 +110,7 @@ class _WebStoryReader implements StoryReader {
       return;
     }
     _fallbackActive = true;
-    _fallbackWords = RegExp(r"[A-Za-z']+")
+    _fallbackWords = RegExp(r"[A-Za-z']+|[\u4e00-\u9fff]")
         .allMatches(text)
         .map((match) => _WordInfo(match.start, match.group(0)?.length ?? 0))
         .toList();
@@ -114,7 +136,7 @@ class _WebStoryReader implements StoryReader {
     }
     final currentLength = _fallbackWords[_fallbackIndex].length;
     final milliseconds =
-        ((160 + currentLength * 35) / rate.clamp(0.25, 1.5))
+        ((160 + currentLength * 35) / rate.clamp(0.1, 1.0))
             .round()
             .clamp(140, 700);
     _fallbackTimer = Timer(Duration(milliseconds: milliseconds), () {

@@ -8,10 +8,12 @@ abstract class StoryReader {
   bool get isSpeaking;
   void speak(
     String text, {
-    double rate = 1.0,
-    ValueChanged<int>? onBoundary,
-    VoidCallback? onEnd,
-  });
+      double rate = 1.0,
+      ValueChanged<int>? onBoundary,
+      VoidCallback? onEnd,
+    });
+  void pause();
+  void resume();
   void stop();
 }
 

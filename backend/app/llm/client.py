@@ -7,7 +7,7 @@ from typing import Any, Dict
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from .prompts import SYSTEM_PROMPT, build_task_prompt
+from .prompts import build_system_prompt, build_story_system_prompt, build_task_prompt
 
 load_dotenv()
 
@@ -83,13 +83,24 @@ Input words:
         raise LLMUnavailable(f"Failed to suggest corrections: {str(exc)}")
 
 
-def generate_vocab_exercise(word: str, context: list[str] | None = None) -> Dict[str, Any]:
+def generate_vocab_exercise(
+    word: str,
+    context: list[str] | None = None,
+    learning_direction: str | None = None,
+    output_style: str | None = None,
+) -> Dict[str, Any]:
     """Generate a vocab exercise for `word` using OpenAI."""
     try:
         response = get_client().chat.completions.create(
             model=MODEL_NAME,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "system",
+                    "content": build_system_prompt(
+                        learning_direction=learning_direction,
+                        output_style=output_style,
+                    ),
+                },
                 {"role": "user", "content": build_task_prompt(word, context=context)},
             ],
             response_format={"type": "json_object"},
@@ -127,6 +138,8 @@ def generate_comprehension_exercise(
     theme: str = None,
     level: str = "intermediate",
     context: list[str] | None = None,
+    learning_direction: str | None = None,
+    output_style: str | None = None,
 ) -> Dict[str, Any]:
     """Generate a comprehension exercise with a short story and questions."""
     level_configs = {
@@ -158,6 +171,13 @@ def generate_comprehension_exercise(
                 f"{context_lines}\n"
             )
 
+        line_by_line = ""
+        if learning_direction == "en_to_zh" and level == "beginner":
+            line_by_line = (
+                "\n- Use short sentences. For each sentence, put the English line first and the Chinese line next on a new line.\n"
+                "- Keep each line concise and easy to read.\n"
+            )
+
         prompt = f"""Generate a short, engaging children's storybook suitable for ages 5-9, followed by 3 multiple-choice comprehension questions.
 
 Requirements:
@@ -166,6 +186,7 @@ Requirements:
 - Questions: {config['question_complexity']}
 - Each question has 3 choices (A, B, C)
 - Provide a detailed image description for an illustration of the main scene
+{line_by_line}
 {context_block}
 
 {"Focus on theme: " + theme if theme else "Choose an appropriate theme like animals, family, school, adventure, or friendship."}
@@ -190,7 +211,10 @@ Return JSON with:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a creative children's book author. Generate engaging, educational storybooks with vivid descriptions.",
+                    "content": build_story_system_prompt(
+                        learning_direction=learning_direction,
+                        output_style=output_style,
+                    ),
                 },
                 {"role": "user", "content": prompt},
             ],

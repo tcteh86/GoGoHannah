@@ -8,6 +8,7 @@ StoryReader getStoryReader() => _FlutterStoryReader();
 class _FlutterStoryReader implements StoryReader {
   final FlutterTts _tts = FlutterTts();
   bool _isSpeaking = false;
+  bool _isPaused = false;
 
   @override
   bool get isSpeaking => _isSpeaking;
@@ -24,7 +25,7 @@ class _FlutterStoryReader implements StoryReader {
       return;
     }
     _tts.stop();
-    final mappedRate = ((rate - 0.25) / (1.5 - 0.25))
+    final mappedRate = ((rate - 0.1) / (1.0 - 0.1))
         .clamp(0.0, 1.0)
         .toDouble();
     if (onBoundary != null) {
@@ -51,5 +52,24 @@ class _FlutterStoryReader implements StoryReader {
   void stop() {
     _tts.stop();
     _isSpeaking = false;
+    _isPaused = false;
+  }
+
+  @override
+  void pause() {
+    if (!_isSpeaking || _isPaused) {
+      return;
+    }
+    _tts.pause();
+    _isPaused = true;
+  }
+
+  @override
+  void resume() {
+    if (!_isPaused) {
+      return;
+    }
+    _tts.resume();
+    _isPaused = false;
   }
 }
