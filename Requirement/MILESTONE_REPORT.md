@@ -125,6 +125,9 @@ Next:
 
 ---
 
+
+## 8) Update Log (Jan 31, 2026)
+- Added bilingual vocab configuration (learning direction + immersion/bilingual output style).
 ## 4) Next Steps (before 29 Jan)
 1) QA the engagement + GenAI flows end-to-end.
 2) Capture demo screenshots for milestone report.
