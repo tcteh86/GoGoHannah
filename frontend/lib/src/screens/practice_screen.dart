@@ -20,6 +20,8 @@ enum PracticeMode { vocabulary, comprehension }
 
 enum VocabListSource { defaultList, customList, weakList }
 
+enum OutputStyle { immersion, bilingual }
+
 const bool _ragDebugEnabled =
     bool.fromEnvironment('GOGOHANNAH_DEBUG', defaultValue: false);
 
@@ -59,6 +61,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   bool _loadingComprehension = false;
   String _storyLevel = 'beginner';
   bool _includeImage = false;
+  OutputStyle _outputStyle = OutputStyle.bilingual;
   final Map<int, String> _compChoices = {};
   final Map<int, bool> _compAnswered = {};
 
@@ -120,14 +123,18 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _feedback = null;
     });
     try {
-      final exercise = await widget.apiClient.generateVocabExercise(word);
+      final exercise = await widget.apiClient.generateVocabExercise(
+        word,
+        learningDirection: _learningDirectionValue,
+        outputStyle: _outputStyleValue,
+      );
       setState(() {
         _exercise = exercise;
       });
       _maybeAutoPlayWord(word);
     } catch (error) {
       setState(() {
-        _feedback = 'Unable to load exercise. Try again.';
+        _feedback = 'Unable to load exercise. ${error.toString()}';
       });
     } finally {
       if (mounted) {
@@ -165,6 +172,16 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _pronunciationScore = null;
     _pronunciationTranscript = null;
     _pronunciationFeedback = null;
+  }
+
+  void _resetComprehensionState() {
+    _comprehension = null;
+    _comprehensionError = null;
+    _compChoices.clear();
+    _compAnswered.clear();
+    _highlightedWordIndex = null;
+    _storyWords = [];
+    _storyTextCache = '';
   }
 
   List<String> _parseCustomWords(String raw) {
@@ -573,7 +590,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
       return;
     }
     _storyTextCache = text;
-    _storyWords = RegExp(r"[A-Za-z']+").allMatches(text).map((match) {
+    _storyWords = RegExp(r"[A-Za-z']+|[\u4e00-\u9fff]")
+        .allMatches(text)
+        .map((match) {
       return _StoryWord(match.start, match.end);
     }).toList();
   }
@@ -638,13 +657,15 @@ class _PracticeScreenState extends State<PracticeScreen> {
       final exercise = await widget.apiClient.generateComprehensionExercise(
         level: _storyLevel,
         includeImage: _includeImage,
+        learningDirection: _learningDirectionValue,
+        outputStyle: _outputStyleValue,
       );
       setState(() {
         _comprehension = exercise;
       });
     } catch (error) {
       setState(() {
-        _comprehensionError = 'Unable to load a story. Try again.';
+        _comprehensionError = 'Unable to load a story. ${error.toString()}';
       });
     } finally {
       if (mounted) {
@@ -681,7 +702,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
   String _comprehensionSaveLabel(ComprehensionQuestion question, int index) {
     final cleaned = question.question.replaceAll(
-      RegExp(r"[^A-Za-z\s\-']"),
+      RegExp(r"[^A-Za-z\u4e00-\u9fff\s\-']"),
       '',
     );
     final normalized = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
@@ -745,6 +766,13 @@ class _PracticeScreenState extends State<PracticeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text(
+          'Output style (English → Chinese):',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        _buildOutputStyleSelector(),
+        const SizedBox(height: 16),
         const Text(
           'Word list:',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -866,7 +894,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
             _ExerciseCard(
               exercise: _exercise!,
               word: word,
-              onListen: () => _speechHelper.speak(word),
+              onListenWord: () => _speechHelper.speak(word),
+              onListenDefinition: () =>
+                  _speechHelper.speak(_exercise!.definition),
+              onListenExample: () =>
+                  _speechHelper.speak(_exercise!.exampleSentence),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -961,6 +993,13 @@ class _PracticeScreenState extends State<PracticeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text(
+          'Output style (English → Chinese):',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        _buildOutputStyleSelector(),
+        const SizedBox(height: 16),
         const Text(
           'Choose a story level:',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -1073,6 +1112,41 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
+  Widget _buildOutputStyleSelector() {
+    return SegmentedButton<OutputStyle>(
+      segments: const [
+        ButtonSegment(
+          value: OutputStyle.immersion,
+          label: Text('Immersion'),
+        ),
+        ButtonSegment(
+          value: OutputStyle.bilingual,
+          label: Text('Bilingual'),
+        ),
+      ],
+      selected: {_outputStyle},
+      onSelectionChanged: (selection) {
+        _stopStoryReadAloud();
+        setState(() {
+          _outputStyle = selection.first;
+          _resetPracticeState();
+          _resetComprehensionState();
+        });
+      },
+    );
+  }
+
+  String get _learningDirectionValue => 'en_to_zh';
+
+  String get _outputStyleValue {
+    switch (_outputStyle) {
+      case OutputStyle.immersion:
+        return 'immersion';
+      case OutputStyle.bilingual:
+        return 'bilingual';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1132,12 +1206,16 @@ class _PracticeScreenState extends State<PracticeScreen> {
 class _ExerciseCard extends StatelessWidget {
   final VocabExercise exercise;
   final String word;
-  final VoidCallback onListen;
+  final VoidCallback onListenWord;
+  final VoidCallback onListenDefinition;
+  final VoidCallback onListenExample;
 
   const _ExerciseCard({
     required this.exercise,
     required this.word,
-    required this.onListen,
+    required this.onListenWord,
+    required this.onListenDefinition,
+    required this.onListenExample,
   });
 
   @override
@@ -1161,7 +1239,7 @@ class _ExerciseCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: onListen,
+                  onPressed: onListenWord,
                   icon: const Icon(Icons.volume_up),
                   tooltip: 'Listen to the word',
                 ),
@@ -1174,14 +1252,36 @@ class _ExerciseCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            Text(
-              'Definition: ${exercise.definition}',
-              style: const TextStyle(fontSize: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Definition: ${exercise.definition}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+                IconButton(
+                  onPressed: onListenDefinition,
+                  icon: const Icon(Icons.volume_up),
+                  tooltip: 'Listen to the definition',
+                ),
+              ],
             ),
             const SizedBox(height: 8),
-            Text(
-              'Example: ${exercise.exampleSentence}',
-              style: const TextStyle(fontSize: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Example: ${exercise.exampleSentence}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+                IconButton(
+                  onPressed: onListenExample,
+                  icon: const Icon(Icons.volume_up),
+                  tooltip: 'Listen to the example',
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(
