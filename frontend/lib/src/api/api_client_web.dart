@@ -37,8 +37,19 @@ class _WebApiClient implements ApiClient {
   }
 
   @override
-  Future<VocabExercise> generateVocabExercise(String word) async {
-    final data = await _postJson('/v1/vocab/exercise', {'word': word});
+  Future<VocabExercise> generateVocabExercise(
+    String word, {
+    String? learningDirection,
+    String? outputStyle,
+  }) async {
+    final payload = {'word': word};
+    if (learningDirection != null) {
+      payload['learning_direction'] = learningDirection;
+    }
+    if (outputStyle != null) {
+      payload['output_style'] = outputStyle;
+    }
+    final data = await _postJson('/v1/vocab/exercise', payload);
     return VocabExercise.fromJson(data);
   }
 
@@ -47,12 +58,20 @@ class _WebApiClient implements ApiClient {
     required String level,
     String? theme,
     bool includeImage = false,
+    String? learningDirection,
+    String? outputStyle,
   }) async {
     final payload = {
       'level': level,
       'theme': theme,
       'include_image': includeImage,
     };
+    if (learningDirection != null) {
+      payload['learning_direction'] = learningDirection;
+    }
+    if (outputStyle != null) {
+      payload['output_style'] = outputStyle;
+    }
     final data = await _postJson('/v1/comprehension/exercise', payload);
     return ComprehensionExercise.fromJson(data);
   }
@@ -254,7 +273,7 @@ class _WebApiClient implements ApiClient {
       requestHeaders: {'Content-Type': 'application/json'},
     );
     if (request.status != null && request.status! >= 400) {
-      throw ApiException('Request failed (${request.status})');
+      throw ApiException(_formatError(request.status, request.responseText));
     }
     return _decodeJson(request.responseText);
   }
@@ -267,7 +286,7 @@ class _WebApiClient implements ApiClient {
       requestHeaders: {'Content-Type': 'application/json'},
     );
     if (request.status != null && request.status! >= 400) {
-      throw ApiException('Request failed (${request.status})');
+      throw ApiException(_formatError(request.status, request.responseText));
     }
     return _decodeJson(request.responseText);
   }
@@ -281,6 +300,25 @@ class _WebApiClient implements ApiClient {
       return decoded;
     }
     throw ApiException('Unexpected response format');
+  }
+
+  String _formatError(int? status, String? responseText) {
+    final code = status == null ? 'unknown' : status.toString();
+    if (responseText == null || responseText.isEmpty) {
+      return 'Request failed ($code)';
+    }
+    try {
+      final decoded = jsonDecode(responseText);
+      if (decoded is Map<String, dynamic>) {
+        final detail = decoded['detail'];
+        if (detail != null) {
+          return 'Request failed ($code): ${detail.toString()}';
+        }
+      }
+    } catch (_) {
+      // Fall back to raw response text.
+    }
+    return 'Request failed ($code): $responseText';
   }
 
   String _normalizeMimeType(String mimeType) {

@@ -17,5 +17,11 @@ class _UnsupportedStoryReader implements StoryReader {
   }
 
   @override
+  void pause() {}
+
+  @override
+  void resume() {}
+
+  @override
   void stop() {}
 }
