@@ -101,7 +101,7 @@ Planned:
 Done:
 - Vocab exercise API with LLM fallback.
 - Bilingual vocab configuration for English ↔ Chinese practice.
-- Bilingual story configuration for English → Chinese practice.
+
 - Progress save + summary endpoints.
 - Study time tracking endpoints + results summaries.
 - Flutter web UI for practice, results, and quick check.
@@ -125,6 +125,9 @@ Next:
 
 ---
 
+
+## 8) Update Log (Jan 31, 2026)
+- Added bilingual vocab configuration (learning direction + immersion/bilingual output style).
 ## 4) Next Steps (before 29 Jan)
 1) QA the engagement + GenAI flows end-to-end.
 2) Capture demo screenshots for milestone report.
@@ -156,4 +159,3 @@ Next:
 
 ## 8) Update Log (Jan 31, 2026)
 - Added bilingual vocab configuration (English → Chinese, immersion/bilingual output style).
-- Added bilingual story configuration (English → Chinese, immersion/bilingual output style).
