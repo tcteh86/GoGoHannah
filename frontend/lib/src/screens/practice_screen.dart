@@ -20,7 +20,9 @@ enum PracticeMode { vocabulary, comprehension }
 
 enum VocabListSource { defaultList, customList, weakList }
 
-enum OutputStyle { immersion, bilingual }
+enum ReadMode { continuous, lineByLine }
+
+enum ReadLanguage { english, chinese }
 
 const bool _ragDebugEnabled =
     bool.fromEnvironment('GOGOHANNAH_DEBUG', defaultValue: false);
@@ -61,7 +63,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
   bool _loadingComprehension = false;
   String _storyLevel = 'beginner';
   bool _includeImage = false;
-  OutputStyle _outputStyle = OutputStyle.bilingual;
+  final String _outputStyleValue = 'bilingual';
+  ReadMode _readMode = ReadMode.continuous;
+  ReadLanguage _readLanguage = ReadLanguage.english;
+  bool _storyPaused = false;
+  int _storyLineIndex = 0;
   final Map<int, String> _compChoices = {};
   final Map<int, bool> _compAnswered = {};
 
@@ -80,9 +86,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
   bool _ragDebugLoading = false;
   double _storyRate = 1.0;
   bool _storySpeaking = false;
-  int? _highlightedWordIndex;
-  String? _storyTextCache;
-  List<_StoryWord> _storyWords = [];
+  _StoryHighlightRange? _highlightedRange;
+  List<_StoryLine> _storyLines = [];
+  List<_StorySegment> _storySegments = [];
 
   @override
   void initState() {
@@ -179,9 +185,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _comprehensionError = null;
     _compChoices.clear();
     _compAnswered.clear();
-    _highlightedWordIndex = null;
-    _storyWords = [];
-    _storyTextCache = '';
+    _highlightedRange = null;
+    _storyLines = [];
+    _storySegments = [];
+    _storyPaused = false;
+    _storyLineIndex = 0;
   }
 
   List<String> _parseCustomWords(String raw) {
@@ -549,28 +557,58 @@ class _PracticeScreenState extends State<PracticeScreen> {
   }
 
   void _startStoryReadAloud() {
-    final text = _comprehension?.storyText ?? '';
-    if (text.trim().isEmpty) {
+    final exercise = _comprehension;
+    if (exercise == null) {
       return;
     }
-    _prepareStoryWords(text);
+    final text = exercise.storyText.trim();
+    if (text.isEmpty) {
+      return;
+    }
+    _stopStoryReadAloud();
+    _prepareStoryLines(text);
+    if (_readMode == ReadMode.lineByLine) {
+      _readNextLine();
+      return;
+    }
+    final spokenText = _buildSpokenText();
+    if (spokenText.isEmpty) {
+      return;
+    }
     setState(() {
       _storySpeaking = true;
-      _highlightedWordIndex = null;
+      _storyPaused = false;
     });
     _storyReader.speak(
-      text,
+      spokenText,
       rate: _storyRate,
       onBoundary: _updateStoryHighlight,
       onEnd: () {
         if (mounted) {
           setState(() {
             _storySpeaking = false;
-            _highlightedWordIndex = null;
+            _storyPaused = false;
+            _highlightedRange = null;
           });
         }
       },
     );
+  }
+
+  void _pauseStoryReadAloud() {
+    if (!_storySpeaking || _storyPaused) {
+      return;
+    }
+    _storyReader.pause();
+    setState(() => _storyPaused = true);
+  }
+
+  void _resumeStoryReadAloud() {
+    if (!_storyPaused) {
+      return;
+    }
+    _storyReader.resume();
+    setState(() => _storyPaused = false);
   }
 
   void _stopStoryReadAloud() {
@@ -580,66 +618,128 @@ class _PracticeScreenState extends State<PracticeScreen> {
     if (mounted) {
       setState(() {
         _storySpeaking = false;
-        _highlightedWordIndex = null;
+        _storyPaused = false;
+        _highlightedRange = null;
       });
     }
   }
 
-  void _prepareStoryWords(String text) {
-    if (_storyTextCache == text && _storyWords.isNotEmpty) {
+  void _readNextLine() {
+    if (_storyLines.isEmpty) {
       return;
     }
-    _storyTextCache = text;
-    _storyWords = RegExp(r"[A-Za-z']+|[\u4e00-\u9fff]")
-        .allMatches(text)
-        .map((match) {
-      return _StoryWord(match.start, match.end);
-    }).toList();
+    final lines = _selectedStoryLines();
+    if (lines.isEmpty) {
+      return;
+    }
+    if (_storyLineIndex >= lines.length) {
+      _storyLineIndex = 0;
+    }
+    final line = lines[_storyLineIndex];
+    _storyLineIndex += 1;
+    setState(() {
+      _storySpeaking = true;
+      _storyPaused = false;
+      _highlightedRange = _StoryHighlightRange(line.start, line.end);
+    });
+    _storyReader.speak(
+      line.text,
+      rate: _storyRate,
+      onEnd: () {
+        if (mounted) {
+          setState(() {
+            _storySpeaking = false;
+            _storyPaused = false;
+          });
+        }
+      },
+    );
+  }
+
+  void _prepareStoryLines(String text) {
+    final lines = text.split('\n');
+    var cursor = 0;
+    final parsed = <_StoryLine>[];
+    for (var i = 0; i < lines.length; i += 1) {
+      final line = lines[i];
+      final start = cursor;
+      final end = cursor + line.length;
+      final isChinese = RegExp(r'[\u4e00-\u9fff]').hasMatch(line);
+      parsed.add(_StoryLine(line, start, end, isChinese));
+      cursor = end + 1;
+    }
+    _storyLines = parsed;
+    _storySegments = _buildStorySegments();
+  }
+
+  List<_StoryLine> _selectedStoryLines() {
+    final wantChinese = _readLanguage == ReadLanguage.chinese;
+    return _storyLines
+        .where((line) =>
+            line.isChinese == wantChinese && line.text.trim().isNotEmpty)
+        .toList();
+  }
+
+  List<_StorySegment> _buildStorySegments() {
+    final selected = _selectedStoryLines();
+    if (selected.isEmpty) {
+      return [];
+    }
+    final segments = <_StorySegment>[];
+    var cursor = 0;
+    for (final line in selected) {
+      final spokenStart = cursor;
+      final spokenEnd = cursor + line.text.length;
+      segments.add(_StorySegment(spokenStart, spokenEnd, line.start, line.end));
+      cursor = spokenEnd + 1;
+    }
+    return segments;
+  }
+
+  String _buildSpokenText() {
+    final selected = _selectedStoryLines();
+    if (selected.isEmpty) {
+      return '';
+    }
+    return selected.map((line) => line.text).join('\n');
   }
 
   void _updateStoryHighlight(int charIndex) {
-    if (_storyWords.isEmpty) {
+    if (_storySegments.isEmpty) {
       return;
     }
-    int? index;
-    for (var i = 0; i < _storyWords.length; i += 1) {
-      final word = _storyWords[i];
-      if (charIndex >= word.start && charIndex < word.end) {
-        index = i;
+    for (final segment in _storySegments) {
+      if (charIndex >= segment.spokenStart && charIndex < segment.spokenEnd) {
+        setState(() {
+          _highlightedRange =
+              _StoryHighlightRange(segment.fullStart, segment.fullEnd);
+        });
         break;
       }
-    }
-    if (index != null && index != _highlightedWordIndex) {
-      setState(() => _highlightedWordIndex = index);
     }
   }
 
   List<TextSpan> _buildStorySpans(String text) {
-    _prepareStoryWords(text);
-    final spans = <TextSpan>[];
-    var lastIndex = 0;
-    for (var i = 0; i < _storyWords.length; i += 1) {
-      final word = _storyWords[i];
-      if (word.start > lastIndex) {
-        spans.add(TextSpan(text: text.substring(lastIndex, word.start)));
-      }
-      final isHighlighted = i == _highlightedWordIndex;
-      spans.add(
-        TextSpan(
-          text: text.substring(word.start, word.end),
-          style: isHighlighted
-              ? const TextStyle(
-                  backgroundColor: Color(0xFFFFF3B0),
-                  color: Color(0xFFD97706),
-                  fontWeight: FontWeight.bold,
-                )
-              : null,
-        ),
-      );
-      lastIndex = word.end;
+    final range = _highlightedRange;
+    if (range == null) {
+      return [TextSpan(text: text)];
     }
-    if (lastIndex < text.length) {
-      spans.add(TextSpan(text: text.substring(lastIndex)));
+    final spans = <TextSpan>[];
+    if (range.start > 0) {
+      spans.add(TextSpan(text: text.substring(0, range.start)));
+    }
+    spans.add(
+      TextSpan(
+        text: text.substring(range.start, range.end),
+        style: const TextStyle(
+          backgroundColor: Color(0xFFFFF3B0),
+          color: Color(0xFFD97706),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+    if (range.end < text.length) {
+      spans.add(TextSpan(text: text.substring(range.end)));
     }
     return spans;
   }
@@ -767,11 +867,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Output style (English → Chinese):',
+          'Mode: Bilingual (English + Chinese)',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 8),
-        _buildOutputStyleSelector(),
         const SizedBox(height: 16),
         const Text(
           'Word list:',
@@ -994,11 +1092,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Output style (English → Chinese):',
+          'Mode: Bilingual (English + Chinese)',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 8),
-        _buildOutputStyleSelector(),
         const SizedBox(height: 16),
         const Text(
           'Choose a story level:',
@@ -1045,9 +1141,31 @@ class _PracticeScreenState extends State<PracticeScreen> {
             exercise: _comprehension!,
             storySpans: _buildStorySpans(_comprehension!.storyText),
             isSpeaking: _storySpeaking,
+            isPaused: _storyPaused,
             rate: _storyRate,
             onRateChanged: (value) => setState(() => _storyRate = value),
+            readMode: _readMode,
+            readLanguage: _readLanguage,
+            onReadModeChanged: (value) {
+              _stopStoryReadAloud();
+              setState(() {
+                _readMode = value;
+                _storyLineIndex = 0;
+                _highlightedRange = null;
+              });
+            },
+            onReadLanguageChanged: (value) {
+              _stopStoryReadAloud();
+              setState(() {
+                _readLanguage = value;
+                _storyLineIndex = 0;
+                _highlightedRange = null;
+              });
+            },
             onListen: _startStoryReadAloud,
+            onPause: _pauseStoryReadAloud,
+            onResume: _resumeStoryReadAloud,
+            onNextLine: _readNextLine,
             onStop: _stopStoryReadAloud,
           ),
         if (_comprehension != null) ...[
@@ -1112,40 +1230,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
-  Widget _buildOutputStyleSelector() {
-    return SegmentedButton<OutputStyle>(
-      segments: const [
-        ButtonSegment(
-          value: OutputStyle.immersion,
-          label: Text('Immersion'),
-        ),
-        ButtonSegment(
-          value: OutputStyle.bilingual,
-          label: Text('Bilingual'),
-        ),
-      ],
-      selected: {_outputStyle},
-      onSelectionChanged: (selection) {
-        _stopStoryReadAloud();
-        setState(() {
-          _outputStyle = selection.first;
-          _resetPracticeState();
-          _resetComprehensionState();
-        });
-      },
-    );
-  }
-
   String get _learningDirectionValue => 'en_to_zh';
-
-  String get _outputStyleValue {
-    switch (_outputStyle) {
-      case OutputStyle.immersion:
-        return 'immersion';
-      case OutputStyle.bilingual:
-        return 'bilingual';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1336,18 +1421,34 @@ class _ComprehensionCard extends StatelessWidget {
   final ComprehensionExercise exercise;
   final List<TextSpan> storySpans;
   final bool isSpeaking;
+  final bool isPaused;
   final double rate;
   final ValueChanged<double> onRateChanged;
+  final ReadMode readMode;
+  final ReadLanguage readLanguage;
+  final ValueChanged<ReadMode> onReadModeChanged;
+  final ValueChanged<ReadLanguage> onReadLanguageChanged;
   final VoidCallback onListen;
+  final VoidCallback onPause;
+  final VoidCallback onResume;
+  final VoidCallback onNextLine;
   final VoidCallback onStop;
 
   const _ComprehensionCard({
     required this.exercise,
     required this.storySpans,
     required this.isSpeaking,
+    required this.isPaused,
     required this.rate,
     required this.onRateChanged,
+    required this.readMode,
+    required this.readLanguage,
+    required this.onReadModeChanged,
+    required this.onReadLanguageChanged,
     required this.onListen,
+    required this.onPause,
+    required this.onResume,
+    required this.onNextLine,
     required this.onStop,
   });
 
@@ -1401,14 +1502,72 @@ class _ComprehensionCard extends StatelessWidget {
                   label: Text(isSpeaking ? 'Stop Reading' : 'Read Story Aloud'),
                 ),
                 const SizedBox(width: 12),
+                if (readMode == ReadMode.lineByLine)
+                  FilledButton(
+                    onPressed: isSpeaking ? null : onNextLine,
+                    child: const Text('Read Next Line'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                SegmentedButton<ReadMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ReadMode.continuous,
+                      label: Text('Continuous'),
+                    ),
+                    ButtonSegment(
+                      value: ReadMode.lineByLine,
+                      label: Text('Line by line'),
+                    ),
+                  ],
+                  selected: {readMode},
+                  onSelectionChanged: (selection) =>
+                      onReadModeChanged(selection.first),
+                ),
+                const SizedBox(width: 12),
+                SegmentedButton<ReadLanguage>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ReadLanguage.english,
+                      label: Text('English'),
+                    ),
+                    ButtonSegment(
+                      value: ReadLanguage.chinese,
+                      label: Text('Chinese'),
+                    ),
+                  ],
+                  selected: {readLanguage},
+                  onSelectionChanged: (selection) =>
+                      onReadLanguageChanged(selection.first),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                FilledButton.icon(
+                  onPressed: isSpeaking && !isPaused ? onPause : null,
+                  icon: const Icon(Icons.pause),
+                  label: const Text('Pause'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: isSpeaking && isPaused ? onResume : null,
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text('Resume'),
+                ),
+                const SizedBox(width: 12),
                 Text('${rate.toStringAsFixed(1)}x'),
               ],
             ),
             Slider(
               value: rate,
-              min: 0.25,
-              max: 1.5,
-              divisions: 5,
+              min: 0.1,
+              max: 1.0,
+              divisions: 9,
               label: '${rate.toStringAsFixed(1)}x',
               onChanged: onRateChanged,
             ),
@@ -1441,9 +1600,27 @@ class _ComprehensionCard extends StatelessWidget {
   }
 }
 
-class _StoryWord {
+class _StoryLine {
+  final String text;
+  final int start;
+  final int end;
+  final bool isChinese;
+
+  _StoryLine(this.text, this.start, this.end, this.isChinese);
+}
+
+class _StorySegment {
+  final int spokenStart;
+  final int spokenEnd;
+  final int fullStart;
+  final int fullEnd;
+
+  _StorySegment(this.spokenStart, this.spokenEnd, this.fullStart, this.fullEnd);
+}
+
+class _StoryHighlightRange {
   final int start;
   final int end;
 
-  _StoryWord(this.start, this.end);
+  _StoryHighlightRange(this.start, this.end);
 }

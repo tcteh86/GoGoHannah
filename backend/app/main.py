@@ -101,6 +101,20 @@ def _generate_vocab_result(
         return result, "fallback"
 
 
+def _strip_language_labels(text: str) -> str:
+    if not text:
+        return text
+    cleaned = []
+    for line in str(text).splitlines():
+        trimmed = line.strip()
+        for prefix in ("English:", "Chinese:", "English：", "Chinese："):
+            if trimmed.lower().startswith(prefix.lower()):
+                trimmed = trimmed[len(prefix) :].strip()
+                break
+        cleaned.append(trimmed)
+    return "\n".join(cleaned)
+
+
 @app.get("/healthz")
 def healthz() -> dict:
     return {"status": "ok"}
@@ -164,11 +178,15 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
     context = retrieve_context(f"vocabulary word {word}")
     result, source = _generate_vocab_result(word, payload, context)
 
+    cleaned_choices = {
+        key: _strip_language_labels(value)
+        for key, value in result["quiz_choices"].items()
+    }
     response = {
-        "definition": result["definition"],
-        "example_sentence": result["example_sentence"],
-        "quiz_question": result["quiz_question"],
-        "quiz_choices": result["quiz_choices"],
+        "definition": _strip_language_labels(result["definition"]),
+        "example_sentence": _strip_language_labels(result["example_sentence"]),
+        "quiz_question": _strip_language_labels(result["quiz_question"]),
+        "quiz_choices": cleaned_choices,
         "quiz_answer": result["quiz_answer"],
         "phonics": phonics_hint(word),
         "source": source,

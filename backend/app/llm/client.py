@@ -171,6 +171,13 @@ def generate_comprehension_exercise(
                 f"{context_lines}\n"
             )
 
+        line_by_line = ""
+        if learning_direction == "en_to_zh" and level == "beginner":
+            line_by_line = (
+                "\n- Use short sentences. For each sentence, put the English line first and the Chinese line next on a new line.\n"
+                "- Keep each line concise and easy to read.\n"
+            )
+
         prompt = f"""Generate a short, engaging children's storybook suitable for ages 5-9, followed by 3 multiple-choice comprehension questions.
 
 Requirements:
@@ -179,6 +186,7 @@ Requirements:
 - Questions: {config['question_complexity']}
 - Each question has 3 choices (A, B, C)
 - Provide a detailed image description for an illustration of the main scene
+{line_by_line}
 {context_block}
 
 {"Focus on theme: " + theme if theme else "Choose an appropriate theme like animals, family, school, adventure, or friendship."}

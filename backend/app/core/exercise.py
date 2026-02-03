@@ -26,12 +26,14 @@ def simple_exercise(
         return text_zh if target_language == "Chinese" else text_en
 
     def bilingual(text_en: str, text_zh: str) -> str:
-        target_text = text_zh if target_language == "Chinese" else text_en
-        native_text = text_en if native_language == "English" else text_zh
-        return f"{target_language}: {target_text}\n{native_language}: {native_text}"
+        if learning_direction == "en_to_zh":
+            return f"{text_en}\n{text_zh}"
+        if learning_direction == "zh_to_en":
+            return f"{text_zh}\n{text_en}"
+        return f"{text_en}\n{text_zh}"
 
     def both_languages(text_en: str, text_zh: str) -> str:
-        return f"English: {text_en}\nChinese: {text_zh}"
+        return f"{text_en}\n{text_zh}"
 
     text_definition_en = f"\"{word}\" is a word to learn."
     text_definition_zh = f"“{word}” 是一个要学习的词。"
@@ -84,18 +86,26 @@ def simple_comprehension_exercise(
     """Deterministic fallback comprehension exercise."""
     story_title_en = "The Brave Turtle"
     story_title_zh = "勇敢的小乌龟"
-    story_text_en = (
-        "Tina the turtle wanted to cross the garden. "
-        "She moved slowly and safely. "
-        "A friendly bird cheered her on. "
-        "Tina reached the pond and felt proud."
-    )
-    story_text_zh = (
-        "小乌龟蒂娜想穿过花园。"
-        "她慢慢又安全地移动。"
-        "一只友善的鸟为她加油。"
-        "蒂娜到了池塘，感到很自豪。"
-    )
+    story_lines = [
+        (
+            "Tina the turtle wanted to cross the garden.",
+            "小乌龟蒂娜想穿过花园。",
+        ),
+        (
+            "She moved slowly and safely.",
+            "她慢慢又安全地移动。",
+        ),
+        (
+            "A friendly bird cheered her on.",
+            "一只友善的鸟为她加油。",
+        ),
+        (
+            "Tina reached the pond and felt proud.",
+            "蒂娜到了池塘，感到很自豪。",
+        ),
+    ]
+    story_text_en = " ".join(line[0] for line in story_lines)
+    story_text_zh = "".join(line[1] for line in story_lines)
     questions_en = [
         {
             "question": "Who is the story about?",
@@ -153,12 +163,14 @@ def simple_comprehension_exercise(
         return text_zh if target_language == "Chinese" else text_en
 
     def bilingual(text_en: str, text_zh: str) -> str:
-        target_text = text_zh if target_language == "Chinese" else text_en
-        native_text = text_en if native_language == "English" else text_zh
-        return f"{target_language}: {target_text}\n{native_language}: {native_text}"
+        if learning_direction == "en_to_zh":
+            return f"{text_en}\n{text_zh}"
+        if learning_direction == "zh_to_en":
+            return f"{text_zh}\n{text_en}"
+        return f"{text_en}\n{text_zh}"
 
     def both_languages(text_en: str, text_zh: str) -> str:
-        return f"English: {text_en}\nChinese: {text_zh}"
+        return f"{text_en}\n{text_zh}"
 
     def choose_questions() -> list[dict]:
         if learning_direction == "both":
@@ -196,13 +208,27 @@ def simple_comprehension_exercise(
     style = output_style or "immersion"
     if learning_direction == "both":
         story_title = both_languages(story_title_en, story_title_zh)
-        story_text = both_languages(story_text_en, story_text_zh)
+        if level == "beginner":
+            story_text = "\n".join(
+                both_languages(en, zh) for en, zh in story_lines
+            )
+        else:
+            story_text = both_languages(story_text_en, story_text_zh)
     elif style == "bilingual":
         story_title = bilingual(story_title_en, story_title_zh)
-        story_text = bilingual(story_text_en, story_text_zh)
+        if level == "beginner":
+            story_text = "\n".join(bilingual(en, zh) for en, zh in story_lines)
+        else:
+            story_text = bilingual(story_text_en, story_text_zh)
     else:
         story_title = target_only(story_title_en, story_title_zh)
-        story_text = target_only(story_text_en, story_text_zh)
+        if level == "beginner":
+            if target_language == "Chinese":
+                story_text = "\n".join(line[1] for line in story_lines)
+            else:
+                story_text = "\n".join(line[0] for line in story_lines)
+        else:
+            story_text = target_only(story_text_en, story_text_zh)
 
     return {
         "story_title": story_title,

@@ -16,17 +16,23 @@ def _language_rules(
     if learning_direction == "both":
         return (
             "Provide both English and Chinese for every field. "
-            "Use two lines with labels 'English:' and 'Chinese:'."
+            "Use two lines with English first, Chinese second. "
+            "Do not add language labels."
         )
 
     target_language = "Chinese" if learning_direction == "en_to_zh" else "English"
     native_language = "English" if target_language == "Chinese" else "Chinese"
     if (output_style or "immersion") == "bilingual":
+        if learning_direction == "en_to_zh":
+            return (
+                "Provide both English and Chinese for every field. "
+                "Use two lines with English first, Chinese second. "
+                "Do not add language labels."
+            )
         return (
-            f"Provide both {target_language} (target language) and "
-            f"{native_language} (native scaffolding) for every field. "
-            f"Use two lines with labels '{target_language}:' and "
-            f"'{native_language}:'."
+            "Provide both Chinese and English for every field. "
+            "Use two lines with Chinese first, English second. "
+            "Do not add language labels."
         )
     return (
         f"Use only {target_language} for all text. "

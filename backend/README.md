@@ -29,24 +29,24 @@ Optional:
 - `POST /v1/pronunciation/assess`
 
 ### Vocab + story exercise request options
-`POST /v1/vocab/exercise` and `POST /v1/comprehension/exercise` accept optional bilingual configuration. The current UI targets English → Chinese and lets users pick immersion vs bilingual output.
+`POST /v1/vocab/exercise` and `POST /v1/comprehension/exercise` accept bilingual configuration. The current UI targets English → Chinese with bilingual output enabled.
 
 ```
 {
   "word": "tree",
   "learning_direction": "en_to_zh", // en_to_zh | zh_to_en | both
-  "output_style": "immersion"       // immersion | bilingual
+  "output_style": "bilingual"
 }
 
 {
   "level": "beginner",
   "learning_direction": "en_to_zh", // en_to_zh | zh_to_en | both
-  "output_style": "immersion"       // immersion | bilingual
+  "output_style": "bilingual"
 }
 ```
 
 - `learning_direction` controls the target language.
-- `output_style` toggles full immersion vs bilingual scaffolding.
+- `output_style` is currently set to bilingual output in the UI.
 
 ## Deploy (Render)
 1) Create a new Web Service connected to the repo.

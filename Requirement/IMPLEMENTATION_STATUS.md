@@ -28,7 +28,7 @@ issues so a new agent can continue work if the session ends.
 ## 2) Implemented (Frontend)
 - Flutter web UI:
   - Practice screen with vocab + comprehension modes.
-  - Vocab + story output style selector (English → Chinese direction).
+  - Vocab + story bilingual output (English → Chinese).
 - Results screen with summary + weak words list + recent practice.
 - Results screen with study time summaries (daily, total, weekly/monthly).
 - Quick Check screen with recommended-word quiz.
@@ -46,7 +46,7 @@ issues so a new agent can continue work if the session ends.
   - Per-question save to backend.
   - Optional image display when provided (supports inline data URIs).
   - Read-aloud word highlighting for web and mobile.
-  - Adjustable reading speed (0.25x - 1.5x).
+  - Adjustable reading speed (0.1x - 1.0x).
 - Custom vocab:
   - Manual word entry (comma/newline separated).
   - Word list selector (Default/Custom/Weak words).
