@@ -188,7 +188,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _compAnswered.clear();
     _highlightedRange = null;
     _storyLines = [];
-    _storySegments = [];
+    _storyTokens = [];
+    _storySpokenIndexMap = [];
     _storyPaused = false;
     _storyLineIndex = 0;
   }
