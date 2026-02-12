@@ -31,7 +31,7 @@ issues so a new agent can continue work if the session ends.
   - Vocab + story bilingual output (English → Chinese).
 - Results screen with summary + weak words list + recent practice.
 - Results screen with study time summaries (daily, total, weekly/monthly).
-  - Quick Check screen with recommended-word quiz.
+- Quick Check screen with recommended-word quiz.
 - Engagement loop:
   - Mascot header with animated reactions.
   - Daily goal progress bar.
