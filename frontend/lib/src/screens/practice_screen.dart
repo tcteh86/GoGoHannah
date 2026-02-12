@@ -703,10 +703,20 @@ class _PracticeScreenState extends State<PracticeScreen> {
     final segments = <_StorySegment>[];
     var cursor = 0;
     for (final line in selected) {
-      final spokenStart = cursor;
-      final spokenEnd = cursor + line.text.length;
-      segments.add(_StorySegment(spokenStart, spokenEnd, line.start, line.end));
-      cursor = spokenEnd + 1;
+      final matches = RegExp(r'\S+').allMatches(line.text);
+      for (final match in matches) {
+        final wordStart = match.start;
+        final wordEnd = match.end;
+        segments.add(
+          _StorySegment(
+            cursor + wordStart,
+            cursor + wordEnd,
+            line.start + wordStart,
+            line.start + wordEnd,
+          ),
+        );
+      }
+      cursor += line.text.length + 1;
     }
     return segments;
   }
