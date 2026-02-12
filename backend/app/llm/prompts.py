@@ -83,8 +83,12 @@ def build_task_prompt(word: str, context: list[str] | None = None) -> str:
     return f"""Target word: "{word}"
 {_format_context(context)}
 Create:
-1) a short, simple definition (max 12 words)
-2) one example sentence (max 12 words)
-3) a multiple-choice quiz question about meaning/usage
+1) definition in Cambridge-style bilingual format:
+   - line 1: concise English meaning with part of speech when possible
+   - line 2: matching Chinese translation
+2) 3-6 practical example sentence pairs in `example_sentence`:
+   - each example uses two lines (English line, then Chinese line)
+   - keep examples child-friendly and natural for daily use
+3) one multiple-choice quiz question about meaning/usage
 4) 3 choices (A/B/C) and the correct answer letter
 """
