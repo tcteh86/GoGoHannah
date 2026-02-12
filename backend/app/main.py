@@ -79,6 +79,79 @@ app.add_middleware(
 )
 
 
+def _generate_vocab_result(
+    word: str,
+    payload: VocabExerciseRequest,
+    context: list[str] | None,
+) -> tuple[dict, str]:
+    try:
+        result = generate_vocab_exercise(
+            word,
+            context=context,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
+        return result, "llm"
+    except LLMUnavailable:
+        result = simple_exercise(
+            word,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
+        return result, "fallback"
+
+
+def _strip_language_labels(text: str) -> str:
+    if not text:
+        return text
+    cleaned = []
+    for line in str(text).splitlines():
+        trimmed = line.strip()
+        for prefix in ("English:", "Chinese:", "English：", "Chinese："):
+            if trimmed.lower().startswith(prefix.lower()):
+                trimmed = trimmed[len(prefix) :].strip()
+                break
+        cleaned.append(trimmed)
+    return "\n".join(cleaned)
+
+
+def _split_bilingual_lines(text: str) -> tuple[str | None, str | None]:
+    lines = [line.strip() for line in str(text).splitlines() if line.strip()]
+    if not lines:
+        return None, None
+    english = None
+    chinese = None
+    for line in lines:
+        if any("\u4e00" <= ch <= "\u9fff" for ch in line):
+            chinese = chinese or line
+        else:
+            english = english or line
+    return english, chinese
+
+
+def _ensure_bilingual_text(
+    text: str,
+    fallback_text: str,
+    learning_direction: str | None,
+) -> str:
+    english, chinese = _split_bilingual_lines(_strip_language_labels(text))
+    fallback_english, fallback_chinese = _split_bilingual_lines(
+        _strip_language_labels(fallback_text)
+    )
+    english = english or fallback_english
+    chinese = chinese or fallback_chinese
+    if not english and not chinese:
+        return _strip_language_labels(text)
+    if not english:
+        english = chinese
+    if not chinese:
+        chinese = english
+
+    if learning_direction == "zh_to_en":
+        return f"{chinese}\n{english}"
+    return f"{english}\n{chinese}"
+
+
 @app.get("/healthz")
 def healthz() -> dict:
     return {"status": "ok"}
@@ -140,18 +213,35 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
         raise HTTPException(status_code=400, detail=str(exc))
 
     context = retrieve_context(f"vocabulary word {word}")
-    try:
-        result = generate_vocab_exercise(word, context=context)
-        source = "llm"
-    except LLMUnavailable:
-        result = simple_exercise(word)
-        source = "fallback"
+    result, source = _generate_vocab_result(word, payload, context)
+    fallback_for_bilingual = simple_exercise(
+        word,
+        learning_direction=payload.learning_direction,
+        output_style=payload.output_style,
+    )
 
+    cleaned_choices = {
+        key: _strip_language_labels(value)
+        for key, value in result["quiz_choices"].items()
+    }
+    cleaned_definition = _strip_language_labels(result["definition"])
+    cleaned_example = _strip_language_labels(result["example_sentence"])
+    if payload.output_style == "bilingual":
+        cleaned_definition = _ensure_bilingual_text(
+            cleaned_definition,
+            str(fallback_for_bilingual.get("definition", "")),
+            payload.learning_direction,
+        )
+        cleaned_example = _ensure_bilingual_text(
+            cleaned_example,
+            str(fallback_for_bilingual.get("example_sentence", "")),
+            payload.learning_direction,
+        )
     response = {
-        "definition": result["definition"],
-        "example_sentence": result["example_sentence"],
-        "quiz_question": result["quiz_question"],
-        "quiz_choices": result["quiz_choices"],
+        "definition": cleaned_definition,
+        "example_sentence": cleaned_example,
+        "quiz_question": _strip_language_labels(result["quiz_question"]),
+        "quiz_choices": cleaned_choices,
         "quiz_answer": result["quiz_answer"],
         "phonics": phonics_hint(word),
         "source": source,
@@ -180,10 +270,16 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
             theme=payload.theme,
             level=payload.level,
             context=context,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
         )
         source = "llm"
     except LLMUnavailable:
-        result = simple_comprehension_exercise(level=payload.level)
+        result = simple_comprehension_exercise(
+            level=payload.level,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
         source = "fallback"
 
     image_url = None
