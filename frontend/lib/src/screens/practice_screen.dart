@@ -88,7 +88,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
   bool _storySpeaking = false;
   _StoryHighlightRange? _highlightedRange;
   List<_StoryLine> _storyLines = [];
-  List<_StorySegment> _storySegments = [];
+  List<_StoryToken> _storyTokens = [];
+  List<int> _storySpokenIndexMap = [];
 
   @override
   void initState() {
@@ -556,19 +557,28 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _speechHelper.speak(trimmed);
   }
 
-  _DefinitionLines _definitionLines(String text) {
+  _BilingualLines _splitBilingualLines(String text) {
     final lines = text
         .split('\n')
         .map((line) => line.trim())
         .where((line) => line.isNotEmpty)
         .toList();
     if (lines.isEmpty) {
-      return const _DefinitionLines(null, null);
+      return const _BilingualLines(null, null);
     }
     if (lines.length == 1) {
-      return _DefinitionLines(lines.first, null);
+      return _BilingualLines(lines.first, null);
     }
-    return _DefinitionLines(lines.first, lines[1]);
+    String? english;
+    String? chinese;
+    for (final line in lines) {
+      if (RegExp(r'[\u4e00-\u9fff]').hasMatch(line)) {
+        chinese ??= line;
+      } else {
+        english ??= line;
+      }
+    }
+    return _BilingualLines(english ?? lines.first, chinese ?? lines.last);
   }
 
   void _startStoryReadAloud() {
@@ -652,6 +662,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     }
     final line = lines[_storyLineIndex];
     _storyLineIndex += 1;
+    _prepareStorySpeech(lines: [line]);
     setState(() {
       _storySpeaking = true;
       _storyPaused = false;
@@ -660,6 +671,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _storyReader.speak(
       line.text,
       rate: _storyRate,
+      onBoundary: _updateStoryHighlight,
       onEnd: () {
         if (mounted) {
           setState(() {
@@ -684,7 +696,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
       cursor = end + 1;
     }
     _storyLines = parsed;
-    _storySegments = _buildStorySegments();
   }
 
   List<_StoryLine> _selectedStoryLines() {
@@ -695,43 +706,66 @@ class _PracticeScreenState extends State<PracticeScreen> {
         .toList();
   }
 
-  List<_StorySegment> _buildStorySegments() {
-    final selected = _selectedStoryLines();
-    if (selected.isEmpty) {
-      return [];
-    }
-    final segments = <_StorySegment>[];
-    var cursor = 0;
-    for (final line in selected) {
-      final spokenStart = cursor;
-      final spokenEnd = cursor + line.text.length;
-      segments.add(_StorySegment(spokenStart, spokenEnd, line.start, line.end));
-      cursor = spokenEnd + 1;
-    }
-    return segments;
-  }
-
   String _buildSpokenText() {
     final selected = _selectedStoryLines();
     if (selected.isEmpty) {
       return '';
     }
+    _prepareStorySpeech(lines: selected);
     return selected.map((line) => line.text).join('\n');
   }
 
-  void _updateStoryHighlight(int charIndex) {
-    if (_storySegments.isEmpty) {
-      return;
-    }
-    for (final segment in _storySegments) {
-      if (charIndex >= segment.spokenStart && charIndex < segment.spokenEnd) {
-        setState(() {
-          _highlightedRange =
-              _StoryHighlightRange(segment.fullStart, segment.fullEnd);
-        });
-        break;
+  void _prepareStorySpeech({required List<_StoryLine> lines}) {
+    _storySpokenIndexMap = [];
+    for (var i = 0; i < lines.length; i += 1) {
+      final line = lines[i];
+      for (var j = 0; j < line.text.length; j += 1) {
+        _storySpokenIndexMap.add(line.start + j);
+      }
+      if (i < lines.length - 1) {
+        _storySpokenIndexMap.add(-1);
       }
     }
+    _storyTokens = _extractStoryTokens(lines.map((line) => line.text).join('\n'));
+  }
+
+  List<_StoryToken> _extractStoryTokens(String text) {
+    final tokenPattern = RegExp(r'[A-Za-z0-9]+|[\u4e00-\u9fff]|[^\s]');
+    return tokenPattern
+        .allMatches(text)
+        .map((match) => _StoryToken(match.start, match.end))
+        .toList();
+  }
+
+  void _updateStoryHighlight(int charIndex) {
+    if (_storyTokens.isEmpty || _storySpokenIndexMap.isEmpty) {
+      return;
+    }
+    final token = _storyTokens.firstWhere(
+      (item) => charIndex >= item.start && charIndex < item.end,
+      orElse: () => _storyTokens.last,
+    );
+    if (token.start >= _storySpokenIndexMap.length) {
+      return;
+    }
+    var mappedStart = token.start;
+    while (mappedStart < _storySpokenIndexMap.length &&
+        _storySpokenIndexMap[mappedStart] < 0) {
+      mappedStart += 1;
+    }
+    var mappedEnd = token.end - 1;
+    while (mappedEnd >= mappedStart && _storySpokenIndexMap[mappedEnd] < 0) {
+      mappedEnd -= 1;
+    }
+    if (mappedEnd < mappedStart || mappedEnd >= _storySpokenIndexMap.length) {
+      return;
+    }
+    setState(() {
+      _highlightedRange = _StoryHighlightRange(
+        _storySpokenIndexMap[mappedStart],
+        _storySpokenIndexMap[mappedEnd] + 1,
+      );
+    });
   }
 
   List<TextSpan> _buildStorySpans(String text) {
@@ -1007,11 +1041,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
             Builder(
               builder: (context) {
                 final definitionLines =
-                    _definitionLines(_exercise!.definition);
+                    _splitBilingualLines(_exercise!.definition);
+                final exampleLines =
+                    _splitBilingualLines(_exercise!.exampleSentence);
                 return _ExerciseCard(
                   exercise: _exercise!,
                   word: word,
                   definitionLines: definitionLines,
+                  exampleLines: exampleLines,
                   onListenWord: () => _speechHelper.speak(word),
                   onListenDefinitionEnglish: () => _speechHelper.speak(
                     definitionLines.english ?? _exercise!.definition,
@@ -1019,8 +1056,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   onListenDefinitionChinese: () => _speechHelper.speak(
                     definitionLines.chinese ?? _exercise!.definition,
                   ),
-                  onListenExample: () =>
-                      _speechHelper.speak(_exercise!.exampleSentence),
+                  onListenExampleEnglish: () => _speechHelper.speak(
+                    exampleLines.english ?? _exercise!.exampleSentence,
+                  ),
+                  onListenExampleChinese: () => _speechHelper.speak(
+                    exampleLines.chinese ?? _exercise!.exampleSentence,
+                  ),
                 );
               },
             ),
@@ -1317,20 +1358,24 @@ class _PracticeScreenState extends State<PracticeScreen> {
 class _ExerciseCard extends StatelessWidget {
   final VocabExercise exercise;
   final String word;
-  final _DefinitionLines definitionLines;
+  final _BilingualLines definitionLines;
+  final _BilingualLines exampleLines;
   final VoidCallback onListenWord;
   final VoidCallback onListenDefinitionEnglish;
   final VoidCallback onListenDefinitionChinese;
-  final VoidCallback onListenExample;
+  final VoidCallback onListenExampleEnglish;
+  final VoidCallback onListenExampleChinese;
 
   const _ExerciseCard({
     required this.exercise,
     required this.word,
     required this.definitionLines,
+    required this.exampleLines,
     required this.onListenWord,
     required this.onListenDefinitionEnglish,
     required this.onListenDefinitionChinese,
-    required this.onListenExample,
+    required this.onListenExampleEnglish,
+    required this.onListenExampleChinese,
   });
 
   @override
@@ -1405,17 +1450,35 @@ class _ExerciseCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Example: ${exercise.exampleSentence}',
+                    'Example (English): ${exampleLines.english ?? exercise.exampleSentence}',
                     style: const TextStyle(fontSize: 16),
                   ),
                 ),
                 IconButton(
-                  onPressed: onListenExample,
+                  onPressed: onListenExampleEnglish,
                   icon: const Icon(Icons.volume_up),
-                  tooltip: 'Listen to the example',
+                  tooltip: 'Listen to the English example',
                 ),
               ],
             ),
+            if (exampleLines.chinese != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Example (Chinese): ${exampleLines.chinese}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: onListenExampleChinese,
+                    icon: const Icon(Icons.volume_up),
+                    tooltip: 'Listen to the Chinese example',
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 8),
             Text(
               'Quiz: ${exercise.quizQuestion}',
@@ -1664,20 +1727,18 @@ class _StoryLine {
   _StoryLine(this.text, this.start, this.end, this.isChinese);
 }
 
-class _DefinitionLines {
+class _BilingualLines {
   final String? english;
   final String? chinese;
 
-  const _DefinitionLines(this.english, this.chinese);
+  const _BilingualLines(this.english, this.chinese);
 }
 
-class _StorySegment {
-  final int spokenStart;
-  final int spokenEnd;
-  final int fullStart;
-  final int fullEnd;
+class _StoryToken {
+  final int start;
+  final int end;
 
-  _StorySegment(this.spokenStart, this.spokenEnd, this.fullStart, this.fullEnd);
+  _StoryToken(this.start, this.end);
 }
 
 class _StoryHighlightRange {
