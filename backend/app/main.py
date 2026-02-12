@@ -292,9 +292,22 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
         except LLMUnavailable:
             image_url = None
 
+    cleaned_story_text = _strip_language_labels(result["story_text"])
+    if payload.output_style == "bilingual" or payload.learning_direction == "both":
+        fallback_story = simple_comprehension_exercise(
+            level=payload.level,
+            learning_direction=payload.learning_direction,
+            output_style=payload.output_style,
+        )
+        cleaned_story_text = _ensure_bilingual_text(
+            cleaned_story_text,
+            str(fallback_story.get("story_text", "")),
+            payload.learning_direction,
+        )
+
     response = {
         "story_title": result["story_title"],
-        "story_text": result["story_text"],
+        "story_text": cleaned_story_text,
         "image_description": result["image_description"],
         "image_url": image_url,
         "questions": result["questions"],

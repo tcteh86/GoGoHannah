@@ -17,6 +17,7 @@ def _language_rules(
         return (
             "Provide both English and Chinese for every field. "
             "Use two lines with English first, Chinese second. "
+            "For definition, the Chinese line must be a direct translation of the English line. "
             "Do not add language labels."
         )
 
@@ -27,11 +28,13 @@ def _language_rules(
             return (
                 "Provide both English and Chinese for every field. "
                 "Use two lines with English first, Chinese second. "
+                "For definition, the Chinese line must be a direct translation of the English line. "
                 "Do not add language labels."
             )
         return (
             "Provide both Chinese and English for every field. "
             "Use two lines with Chinese first, English second. "
+            "For definition, the Chinese line must be a direct translation of the English line. "
             "Do not add language labels."
         )
     return (
