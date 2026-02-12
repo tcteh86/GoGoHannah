@@ -220,18 +220,10 @@ def simple_comprehension_exercise(
     style = output_style or "immersion"
     if learning_direction == "both":
         story_title = both_languages(story_title_en, story_title_zh)
-        if level == "beginner":
-            story_text = "\n".join(
-                both_languages(en, zh) for en, zh in story_lines
-            )
-        else:
-            story_text = both_languages(story_text_en, story_text_zh)
+        story_text = both_languages(story_text_en, story_text_zh)
     elif style == "bilingual":
         story_title = bilingual(story_title_en, story_title_zh)
-        if level == "beginner":
-            story_text = "\n".join(bilingual(en, zh) for en, zh in story_lines)
-        else:
-            story_text = bilingual(story_text_en, story_text_zh)
+        story_text = bilingual(story_text_en, story_text_zh)
     else:
         story_title = target_only(story_title_en, story_title_zh)
         if level == "beginner":
