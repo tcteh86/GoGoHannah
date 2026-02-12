@@ -8,8 +8,12 @@ def simple_exercise(
         return {
             "definition": f"\"{word}\" is a word to learn.",
             "example_sentence": f"I can use the word {word} today.",
-            "quiz_question": "Which word are we learning now?",
-            "quiz_choices": {"A": word, "B": "apple", "C": "run"},
+            "quiz_question": f"What is the meaning of \"{word}\"?",
+            "quiz_choices": {
+                "A": f"The meaning of {word}.",
+                "B": "A kind of fruit.",
+                "C": "To move quickly.",
+            },
             "quiz_answer": "A",
         }
 
@@ -39,11 +43,19 @@ def simple_exercise(
     text_definition_zh = f"“{word}” 是一个要学习的词。"
     text_example_en = f"I can use the word {word} today."
     text_example_zh = f"我今天可以使用 {word}。"
-    text_quiz_en = "Which word are we learning now?"
-    text_quiz_zh = "我们现在在学习哪个词？"
+    text_quiz_en = f"What is the meaning of \"{word}\"?"
+    text_quiz_zh = f"\"{word}\" 的意思是什么？"
 
-    choices_en = {"A": word, "B": "apple", "C": "run"}
-    choices_zh = {"A": word, "B": "苹果", "C": "跑"}
+    choices_en = {
+        "A": f"The meaning of {word}.",
+        "B": "A kind of fruit.",
+        "C": "To move quickly.",
+    }
+    choices_zh = {
+        "A": f"{word} 的意思。",
+        "B": "一种水果。",
+        "C": "快速移动。",
+    }
 
     style = output_style or "immersion"
     if learning_direction == "both":

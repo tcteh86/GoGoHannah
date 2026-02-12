@@ -85,6 +85,6 @@ def build_task_prompt(word: str, context: list[str] | None = None) -> str:
 Create:
 1) a short, simple definition (max 12 words)
 2) one example sentence (max 12 words)
-3) a multiple-choice quiz question about meaning/usage
-4) 3 choices (A/B/C) and the correct answer letter
+3) a multiple-choice quiz question that asks for the meaning of the target word
+4) 3 choices (A/B/C) where only one choice matches the target word's meaning, and include the correct answer letter
 """
