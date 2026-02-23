@@ -33,6 +33,7 @@ Comprehension:
 Progress:
 - `POST /v1/progress/exercise`
 - `GET /v1/progress/summary`
+- `GET /v1/progress/daily`
 - `GET /v1/progress/recent`
 - `GET /v1/progress/recommended`
 - `POST /v1/progress/time`

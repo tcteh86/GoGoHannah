@@ -14,6 +14,7 @@ from .core.custom_vocab import (
     save_custom_vocab,
 )
 from .core.progress import (
+    get_daily_progress,
     get_child_progress,
     get_or_create_child,
     get_recent_exercises,
@@ -46,6 +47,7 @@ from .schemas import (
     CustomVocabResponse,
     CustomVocabSuggestRequest,
     CustomVocabSuggestResponse,
+    DailyProgressResponse,
     PronunciationAudioResponse,
     PronunciationScoreRequest,
     PronunciationScoreResponse,
@@ -383,6 +385,18 @@ def progress_summary(child_name: str) -> dict:
 def progress_recent(child_name: str, limit: int = 20) -> dict:
     child_id = get_or_create_child(child_name.strip())
     return {"exercises": get_recent_exercises(child_id, limit)}
+
+
+@app.get("/v1/progress/daily", response_model=DailyProgressResponse)
+def progress_daily(child_name: str, days: int = 30, daily_goal: int = 3) -> dict:
+    if days < 1 or days > 365:
+        raise HTTPException(status_code=400, detail="days must be between 1 and 365.")
+    if daily_goal < 1 or daily_goal > 50:
+        raise HTTPException(
+            status_code=400, detail="daily_goal must be between 1 and 50."
+        )
+    child_id = get_or_create_child(child_name.strip())
+    return get_daily_progress(child_id=child_id, daily_goal=daily_goal, days=days)
 
 
 @app.post("/v1/progress/time", response_model=StudyTimeResponse)

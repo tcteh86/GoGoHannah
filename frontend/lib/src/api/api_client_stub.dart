@@ -8,6 +8,7 @@ import '../models/pronunciation_assessment.dart';
 import '../models/rag_debug_result.dart';
 import '../models/recent_exercise.dart';
 import '../models/study_time_summary.dart';
+import '../models/daily_progress.dart';
 import 'api_client.dart';
 
 ApiClient getApiClient(String baseUrl) => _UnsupportedApiClient();
@@ -84,6 +85,14 @@ class _UnsupportedApiClient implements ApiClient {
     String childName,
     int limit,
   ) async =>
+      _unsupported();
+
+  @override
+  Future<DailyProgressSummary> fetchDailyProgress({
+    required String childName,
+    int days = 30,
+    int dailyGoal = 3,
+  }) async =>
       _unsupported();
 
   @override

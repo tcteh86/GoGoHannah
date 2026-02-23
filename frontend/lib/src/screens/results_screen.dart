@@ -5,6 +5,7 @@ import '../models/progress_summary.dart';
 import '../models/recent_exercise.dart';
 import '../models/session_state.dart';
 import '../models/study_time_summary.dart';
+import '../models/daily_progress.dart';
 import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
 import '../widgets/mascot_header.dart';
@@ -43,6 +44,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     StudyTimeSummary study;
     StudyTimeTotalSummary total;
     StudyTimeSummaryOverview summaryOverview;
+    DailyProgressSummary dailyProgress;
     try {
       study = await widget.apiClient.fetchStudyTime(
         childName: widget.childName,
@@ -78,12 +80,29 @@ class _ResultsScreenState extends State<ResultsScreen> {
         ),
       );
     }
+    try {
+      dailyProgress = await widget.apiClient.fetchDailyProgress(
+        childName: widget.childName,
+        days: 30,
+        dailyGoal: widget.sessionState.dailyGoal,
+      );
+    } catch (_) {
+      dailyProgress = DailyProgressSummary(
+        dailyGoal: widget.sessionState.dailyGoal,
+        todayCompleted: 0,
+        todayGoalReached: false,
+        currentStreak: widget.sessionState.streakCount,
+        bestStreak: widget.sessionState.streakCount,
+        history: const <DailyProgressEntry>[],
+      );
+    }
     return _ResultsData(
       summary: summary,
       recent: recent,
       studyTime: study,
       totalTime: total,
       periodSummary: summaryOverview,
+      dailyProgress: dailyProgress,
     );
   }
 
@@ -119,6 +138,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
           final studyTime = snapshot.data!.studyTime;
           final totalTime = snapshot.data!.totalTime;
           final periodSummary = snapshot.data!.periodSummary;
+          final dailyProgress = snapshot.data!.dailyProgress;
+          final history = dailyProgress.history.reversed.take(14).toList();
           final quizScore = summary.scoresByType['quiz']?.avgScore ?? 0;
           return ListView(
             padding: const EdgeInsets.all(20),
@@ -145,6 +166,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 title:
                     'This month (${_formatDateRange(periodSummary.month.startDate, periodSummary.month.endDate)})',
                 value: _formatDuration(periodSummary.month.totalSeconds),
+              ),
+              _MetricCard(
+                title: 'Current streak',
+                value: '${dailyProgress.currentStreak} day${dailyProgress.currentStreak == 1 ? '' : 's'}',
+              ),
+              _MetricCard(
+                title: 'Best streak',
+                value: '${dailyProgress.bestStreak} day${dailyProgress.bestStreak == 1 ? '' : 's'}',
               ),
               _MetricCard(
                 title: 'Total Exercises',
@@ -201,6 +230,29 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     );
                   },
                 ),
+              const SizedBox(height: 16),
+              const Text(
+                'Daily History',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              if (history.isEmpty)
+                const Text('No daily history yet.')
+              else
+                ...history.map(
+                  (item) {
+                    final label = _formatCompactDate(item.date);
+                    final status = item.goalReached ? 'Goal reached' : 'In progress';
+                    return ListTile(
+                      title: Text(label),
+                      subtitle: Text(status),
+                      trailing: Text(
+                        '${item.completed}/${item.goal}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    );
+                  },
+                ),
             ],
           );
         },
@@ -215,6 +267,7 @@ class _ResultsData {
   final StudyTimeSummary studyTime;
   final StudyTimeTotalSummary totalTime;
   final StudyTimeSummaryOverview periodSummary;
+  final DailyProgressSummary dailyProgress;
 
   _ResultsData({
     required this.summary,
@@ -222,6 +275,7 @@ class _ResultsData {
     required this.studyTime,
     required this.totalTime,
     required this.periodSummary,
+    required this.dailyProgress,
   });
 }
 

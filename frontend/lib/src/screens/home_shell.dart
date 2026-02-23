@@ -51,6 +51,10 @@ class _HomeShellState extends State<HomeShell> {
       _childName = name;
     });
     _startStudyTimer();
+    final sessionState = _sessionState;
+    if (sessionState != null) {
+      _hydrateSessionProgress(name, sessionState);
+    }
   }
 
   void _startStudyTimer() {
@@ -79,6 +83,29 @@ class _HomeShellState extends State<HomeShell> {
       );
     } catch (_) {
       // Ignore reporting failures; will retry on next tick.
+    }
+  }
+
+  Future<void> _hydrateSessionProgress(
+    String childName,
+    SessionState sessionState,
+  ) async {
+    try {
+      final snapshot = await widget.apiClient.fetchDailyProgress(
+        childName: childName,
+        days: 30,
+        dailyGoal: sessionState.dailyGoal,
+      );
+      if (!mounted || _childName != childName || _sessionState != sessionState) {
+        return;
+      }
+      sessionState.hydrateDailyProgress(
+        completedToday: snapshot.todayCompleted,
+        currentStreak: snapshot.currentStreak,
+        goalReached: snapshot.todayGoalReached,
+      );
+    } catch (_) {
+      // Keep session defaults if progress sync fails.
     }
   }
 

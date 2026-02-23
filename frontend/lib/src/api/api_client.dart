@@ -11,6 +11,7 @@ import '../models/pronunciation_assessment.dart';
 import '../models/rag_debug_result.dart';
 import '../models/recent_exercise.dart';
 import '../models/study_time_summary.dart';
+import '../models/daily_progress.dart';
 
 abstract class ApiClient {
   // Vocabulary
@@ -53,6 +54,11 @@ abstract class ApiClient {
   Future<void> saveExercise(SaveExercise payload);
   Future<ProgressSummary> fetchProgressSummary(String childName);
   Future<List<RecentExercise>> fetchRecentExercises(String childName, int limit);
+  Future<DailyProgressSummary> fetchDailyProgress({
+    required String childName,
+    int days,
+    int dailyGoal,
+  });
   Future<void> addStudyTime({
     required String childName,
     required String date,

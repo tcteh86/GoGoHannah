@@ -76,6 +76,22 @@ class RecentExercisesResponse(BaseModel):
     exercises: list[RecentExercise]
 
 
+class DailyProgressEntry(BaseModel):
+    date: str
+    completed: int
+    goal: int
+    goal_reached: bool
+
+
+class DailyProgressResponse(BaseModel):
+    daily_goal: int
+    today_completed: int
+    today_goal_reached: bool
+    current_streak: int
+    best_streak: int
+    history: list[DailyProgressEntry]
+
+
 class StudyTimeAddRequest(BaseModel):
     child_name: str = Field(..., min_length=1, max_length=64)
     date: str = Field(..., max_length=10)

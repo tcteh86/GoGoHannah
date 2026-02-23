@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from typing import Dict, List
 
 from .db import get_connection
@@ -184,6 +185,72 @@ def get_recent_exercises(child_id: int, limit: int = 20) -> List[Dict]:
             }
             for row in cursor.fetchall()
         ]
+
+
+def get_daily_progress(child_id: int, daily_goal: int = 3, days: int = 30) -> Dict:
+    """Get daily completion history and streak metrics."""
+    clamped_goal = max(1, min(daily_goal, 50))
+    clamped_days = max(1, min(days, 365))
+    today = date.today()
+    start_date = today - timedelta(days=clamped_days - 1)
+    start_str = start_date.isoformat()
+    end_str = today.isoformat()
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT SUBSTR(created_at, 1, 10) AS practice_date, COUNT(*)
+            FROM exercises
+            WHERE child_id = ?
+              AND SUBSTR(created_at, 1, 10) >= ?
+              AND SUBSTR(created_at, 1, 10) <= ?
+            GROUP BY practice_date
+        """,
+            (child_id, start_str, end_str),
+        )
+        count_by_date = {row[0]: int(row[1]) for row in cursor.fetchall()}
+
+    history = []
+    best_streak = 0
+    running_streak = 0
+    for index in range(clamped_days):
+        current_date = start_date + timedelta(days=index)
+        date_str = current_date.isoformat()
+        completed = count_by_date.get(date_str, 0)
+        goal_reached = completed >= clamped_goal
+        history.append(
+            {
+                "date": date_str,
+                "completed": completed,
+                "goal": clamped_goal,
+                "goal_reached": goal_reached,
+            }
+        )
+        if goal_reached:
+            running_streak += 1
+            if running_streak > best_streak:
+                best_streak = running_streak
+        else:
+            running_streak = 0
+
+    current_streak = 0
+    for entry in reversed(history):
+        if entry["goal_reached"]:
+            current_streak += 1
+        else:
+            break
+
+    today_completed = count_by_date.get(today.isoformat(), 0)
+    today_goal_reached = today_completed >= clamped_goal
+    return {
+        "daily_goal": clamped_goal,
+        "today_completed": today_completed,
+        "today_goal_reached": today_goal_reached,
+        "current_streak": current_streak,
+        "best_streak": best_streak,
+        "history": history,
+    }
 
 
 def clear_child_records(child_id: int) -> None:
