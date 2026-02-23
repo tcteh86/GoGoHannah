@@ -94,12 +94,22 @@ Flow:
 1) User selects a word from the vocabulary list.
 2) On "Generate Exercise", the app requests a vocab exercise from the backend.
 3) If LLM fails, fall back to `simple_exercise`.
-4) Display:
-   - Definition
-   - Example sentence
-   - Multiple-choice quiz (A/B/C)
-5) On "Check Answer":
-   - Save a `quiz` exercise with score 100 or 0.
+4) Display learning content:
+   - Definition (English shown first)
+   - Example sentence (English shown first)
+   - Chinese lines are revealed on demand (progressive reveal)
+5) Display quick checks:
+   - One rotating primary check type per generated exercise:
+     - Meaning match
+     - Context choice
+     - Fill-in-the-blank
+   - Plus two bidirectional checks:
+     - EN → ZH meaning
+     - ZH → EN meaning
+6) On each check:
+   - Show instructional feedback (correct EN/ZH meaning + wrong-choice explanation).
+7) After all checks are completed:
+   - Save one `quiz` exercise using aggregated score across checks.
 
 LLM output requirements:
 - JSON keys: `definition`, `example_sentence`, `quiz_question`,
@@ -108,6 +118,8 @@ LLM output requirements:
 Porting notes:
 - The fallback behavior is required so the app still runs without the LLM.
 - Keep the same scoring and data persistence format.
+- Preserve progressive reveal for Chinese content to encourage active recall.
+- Keep bidirectional EN/ZH checks in the same exercise flow for bilingual reinforcement.
 
 ### 3.4 Pronunciation practice (TTS + recording + scoring)
 Flow:

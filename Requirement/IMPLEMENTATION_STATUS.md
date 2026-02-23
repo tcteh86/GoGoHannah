@@ -30,6 +30,11 @@ issues so a new agent can continue work if the session ends.
 - Flutter web UI:
   - Practice screen with vocab + comprehension modes.
   - Vocab + story bilingual output (English → Chinese).
+  - Generate Exercise vocabulary UX:
+    - Progressive reveal for Chinese meaning/example lines.
+    - Rotating primary check type (meaning match/context/fill-blank).
+    - Bidirectional EN↔ZH meaning checks in the same exercise.
+    - Instructional feedback with correct meaning and wrong-choice explanation.
 - Results screen with summary + weak words list + recent practice.
 - Results screen with study time summaries (daily, total, weekly/monthly).
 - Results screen with persistent streak metrics (current/best) and daily history list.

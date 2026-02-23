@@ -53,9 +53,16 @@ class _PracticeScreenState extends State<PracticeScreen> {
   String _customAddMode = 'append';
   String? _selectedWord;
   VocabExercise? _exercise;
-  String? _selectedChoice;
   String? _feedback;
   bool _loading = false;
+  bool _showDefinitionChinese = false;
+  bool _showExampleChinese = false;
+  int _quizVariantSeed = 0;
+  bool _exerciseSaved = false;
+  final List<_QuizPrompt> _quizPrompts = [];
+  final Map<int, String> _quizSelections = {};
+  final Map<int, bool> _quizResults = {};
+  final Map<int, String> _quizFeedback = {};
 
   PracticeMode _mode = PracticeMode.vocabulary;
   ComprehensionExercise? _comprehension;
@@ -118,7 +125,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     super.dispose();
   }
 
-  Future<void> _generateExercise() async {
+  Future<void> _generateExercise(List<String> wordPool) async {
     final word = _selectedWord;
     if (word == null || word.isEmpty) {
       return;
@@ -126,8 +133,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
     setState(() {
       _loading = true;
       _exercise = null;
-      _selectedChoice = null;
       _feedback = null;
+      _showDefinitionChinese = false;
+      _showExampleChinese = false;
+      _exerciseSaved = false;
+      _quizPrompts.clear();
+      _quizSelections.clear();
+      _quizResults.clear();
+      _quizFeedback.clear();
     });
     try {
       final exercise = await widget.apiClient.generateVocabExercise(
@@ -135,8 +148,16 @@ class _PracticeScreenState extends State<PracticeScreen> {
         learningDirection: _learningDirectionValue,
         outputStyle: _outputStyleValue,
       );
+      final prompts = _buildQuizPrompts(
+        exercise: exercise,
+        word: word,
+        wordPool: wordPool,
+      );
       setState(() {
         _exercise = exercise;
+        _quizPrompts
+          ..clear()
+          ..addAll(prompts);
       });
       _maybeAutoPlayWord(word);
     } catch (error) {
@@ -174,7 +195,13 @@ class _PracticeScreenState extends State<PracticeScreen> {
   void _resetPracticeState() {
     _exercise = null;
     _feedback = null;
-    _selectedChoice = null;
+    _showDefinitionChinese = false;
+    _showExampleChinese = false;
+    _exerciseSaved = false;
+    _quizPrompts.clear();
+    _quizSelections.clear();
+    _quizResults.clear();
+    _quizFeedback.clear();
     _recording = null;
     _pronunciationScore = null;
     _pronunciationTranscript = null;
@@ -354,25 +381,338 @@ class _PracticeScreenState extends State<PracticeScreen> {
     }
   }
 
-  Future<void> _checkAnswer() async {
-    final exercise = _exercise;
-    if (exercise == null || _selectedChoice == null) {
-      return;
-    }
-    final correct = _selectedChoice == exercise.quizAnswer;
-    setState(() {
-      _feedback = correct ? 'Correct! Great job!' : 'Nice try! Keep practicing.';
-    });
-    widget.sessionState.recordAnswer(correct: correct);
-    await widget.apiClient.saveExercise(
-      SaveExercise(
-        childName: widget.childName,
-        word: _selectedWord ?? '',
-        exerciseType: 'quiz',
-        score: correct ? 100 : 0,
-        correct: correct,
+  List<_QuizPrompt> _buildQuizPrompts({
+    required VocabExercise exercise,
+    required String word,
+    required List<String> wordPool,
+  }) {
+    final definitionLines = _splitBilingualLines(exercise.definition);
+    final exampleLines = _splitBilingualLines(exercise.exampleSentence);
+    final prompts = <_QuizPrompt>[
+      _buildPrimaryPrompt(
+        exercise: exercise,
+        word: word,
+        exampleLines: exampleLines,
+        wordPool: wordPool,
+      ),
+    ];
+    prompts.addAll(
+      _buildBidirectionalPrompts(
+        exercise: exercise,
+        word: word,
+        definitionLines: definitionLines,
       ),
     );
+    return prompts;
+  }
+
+  _QuizPrompt _buildPrimaryPrompt({
+    required VocabExercise exercise,
+    required String word,
+    required _BilingualLines exampleLines,
+    required List<String> wordPool,
+  }) {
+    final mode = _quizVariantSeed % 3;
+    _quizVariantSeed += 1;
+    switch (mode) {
+      case 1:
+        return _buildContextPrompt(word: word, exampleLines: exampleLines);
+      case 2:
+        return _buildFillBlankPrompt(
+          word: word,
+          exampleLines: exampleLines,
+          wordPool: wordPool,
+        );
+      default:
+        final keys = ['A', 'B', 'C']
+            .where(exercise.quizChoices.containsKey)
+            .toList(growable: false);
+        final answer = keys.contains(exercise.quizAnswer) && keys.isNotEmpty
+            ? exercise.quizAnswer
+            : (keys.isNotEmpty ? keys.first : 'A');
+        return _QuizPrompt(
+          label: 'Meaning Match',
+          question: exercise.quizQuestion,
+          choices: exercise.quizChoices,
+          answer: answer,
+        );
+    }
+  }
+
+  _QuizPrompt _buildContextPrompt({
+    required String word,
+    required _BilingualLines exampleLines,
+  }) {
+    final exampleEnglish =
+        (exampleLines.english ?? '').trim().isNotEmpty
+            ? (exampleLines.english ?? '').trim()
+            : 'I can use the word $word today.';
+    final exampleChinese = exampleLines.chinese?.trim();
+    final correct = _mergeBilingualText(exampleEnglish, exampleChinese);
+    const wrongOneEn = 'I can eat this word for lunch.';
+    const wrongOneZh = '我可以把这个单词当午餐吃掉。';
+    const wrongTwoEn = 'This word is a race car.';
+    const wrongTwoZh = '这个单词是一辆赛车。';
+    return _createRotatingPrompt(
+      label: 'Context Choice',
+      question: 'Which sentence best shows the meaning of "$word"?\n哪一句最符合 "$word" 的意思？',
+      correctChoice: correct,
+      wrongChoiceOne: _mergeBilingualText(wrongOneEn, wrongOneZh),
+      wrongChoiceTwo: _mergeBilingualText(wrongTwoEn, wrongTwoZh),
+      seed: _quizVariantSeed,
+    );
+  }
+
+  _QuizPrompt _buildFillBlankPrompt({
+    required String word,
+    required _BilingualLines exampleLines,
+    required List<String> wordPool,
+  }) {
+    final exampleEnglish =
+        (exampleLines.english ?? '').trim().isNotEmpty
+            ? (exampleLines.english ?? '').trim()
+            : 'I can use the word $word today.';
+    final blankEnglish = _blankWord(exampleEnglish, word);
+    final exampleChinese = exampleLines.chinese?.trim();
+    final blankChinese = exampleChinese == null || exampleChinese.isEmpty
+        ? null
+        : _blankWord(exampleChinese, word);
+    final distractors = _buildFillBlankDistractors(word, wordPool);
+    return _createRotatingPrompt(
+      label: 'Fill in the Blank',
+      question: blankChinese == null
+          ? 'Fill in the blank with the correct word:\n$blankEnglish'
+          : 'Fill in the blank with the correct word:\n$blankEnglish\n请用正确的单词填空：\n$blankChinese',
+      correctChoice: word,
+      wrongChoiceOne: distractors[0],
+      wrongChoiceTwo: distractors[1],
+      seed: _quizVariantSeed,
+    );
+  }
+
+  List<String> _buildFillBlankDistractors(String word, List<String> wordPool) {
+    final target = word.toLowerCase();
+    final candidates = <String>[];
+    for (final item in wordPool) {
+      final trimmed = item.trim();
+      if (trimmed.isEmpty || trimmed.toLowerCase() == target) {
+        continue;
+      }
+      if (!candidates.contains(trimmed)) {
+        candidates.add(trimmed);
+      }
+      if (candidates.length >= 2) {
+        break;
+      }
+    }
+    if (candidates.length < 2) {
+      final synthetic = ['${word}s', '${word}ing', '${word}er'];
+      for (final item in synthetic) {
+        if (item.toLowerCase() == target || candidates.contains(item)) {
+          continue;
+        }
+        candidates.add(item);
+        if (candidates.length >= 2) {
+          break;
+        }
+      }
+    }
+    while (candidates.length < 2) {
+      candidates.add('${word}x');
+    }
+    return candidates;
+  }
+
+  String _blankWord(String text, String word) {
+    final escaped = RegExp.escape(word);
+    final regex = RegExp('\\b$escaped\\b', caseSensitive: false);
+    if (regex.hasMatch(text)) {
+      return text.replaceFirst(regex, '____');
+    }
+    return '$text ____';
+  }
+
+  _QuizPrompt _createRotatingPrompt({
+    required String label,
+    required String question,
+    required String correctChoice,
+    required String wrongChoiceOne,
+    required String wrongChoiceTwo,
+    required int seed,
+  }) {
+    const letters = ['A', 'B', 'C'];
+    final options = [correctChoice, wrongChoiceOne, wrongChoiceTwo];
+    final rotation = seed % 3;
+    final choices = <String, String>{};
+    var answer = 'A';
+    for (var index = 0; index < letters.length; index++) {
+      final optionIndex = (index + rotation) % options.length;
+      choices[letters[index]] = options[optionIndex];
+      if (optionIndex == 0) {
+        answer = letters[index];
+      }
+    }
+    return _QuizPrompt(
+      label: label,
+      question: question,
+      choices: choices,
+      answer: answer,
+    );
+  }
+
+  List<_QuizPrompt> _buildBidirectionalPrompts({
+    required VocabExercise exercise,
+    required String word,
+    required _BilingualLines definitionLines,
+  }) {
+    final keys = ['A', 'B', 'C']
+        .where(exercise.quizChoices.containsKey)
+        .toList(growable: false);
+    if (keys.length != 3 || !keys.contains(exercise.quizAnswer)) {
+      return const [];
+    }
+
+    final chineseChoices = <String, String>{};
+    final englishChoices = <String, String>{};
+    var hasChinese = true;
+    for (final key in keys) {
+      final raw = exercise.quizChoices[key] ?? '';
+      final lines = _splitBilingualLines(raw);
+      final english = lines.english ?? raw;
+      final chinese = lines.chinese;
+      englishChoices[key] = english;
+      if (chinese == null || chinese.trim().isEmpty) {
+        hasChinese = false;
+        chineseChoices[key] = raw;
+      } else {
+        chineseChoices[key] = chinese;
+      }
+    }
+    if (!hasChinese) {
+      return const [];
+    }
+
+    final chinesePromptLine = definitionLines.chinese?.trim();
+    final enToZh = _QuizPrompt(
+      label: 'EN → ZH Meaning',
+      question: 'Choose the Chinese meaning of "$word".',
+      choices: chineseChoices,
+      answer: exercise.quizAnswer,
+    );
+    final zhToEn = _QuizPrompt(
+      label: 'ZH → EN Meaning',
+      question: chinesePromptLine == null || chinesePromptLine.isEmpty
+          ? '选择 "$word" 的英文意思。'
+          : '根据这句中文，选择 "$word" 的英文意思：\n$chinesePromptLine',
+      choices: englishChoices,
+      answer: exercise.quizAnswer,
+    );
+    return [enToZh, zhToEn];
+  }
+
+  String _mergeBilingualText(String english, String? chinese) {
+    final en = english.trim();
+    final zh = chinese?.trim();
+    if (zh == null || zh.isEmpty) {
+      return en;
+    }
+    return '$en\n$zh';
+  }
+
+  Future<void> _checkQuizPrompt(
+    int index,
+    _BilingualLines definitionLines,
+  ) async {
+    final exercise = _exercise;
+    if (exercise == null || index < 0 || index >= _quizPrompts.length) {
+      return;
+    }
+    if (_quizResults.containsKey(index)) {
+      return;
+    }
+    final selected = _quizSelections[index];
+    if (selected == null || selected.isEmpty) {
+      return;
+    }
+    final prompt = _quizPrompts[index];
+    final correct = selected == prompt.answer;
+    final feedback = _buildInstructionalFeedback(
+      correct: correct,
+      prompt: prompt,
+      selectedChoiceKey: selected,
+      definitionLines: definitionLines,
+      word: _selectedWord ?? '',
+    );
+    setState(() {
+      _quizResults[index] = correct;
+      _quizFeedback[index] = feedback;
+    });
+
+    final allChecked = _quizPrompts.isNotEmpty &&
+        _quizResults.length == _quizPrompts.length &&
+        !_exerciseSaved;
+    if (!allChecked) {
+      return;
+    }
+
+    final correctCount =
+        _quizResults.values.where((value) => value == true).length;
+    final score = ((correctCount / _quizPrompts.length) * 100).round();
+    final passed = score >= 70;
+    setState(() {
+      _exerciseSaved = true;
+      _feedback =
+          'Exercise complete: $correctCount/${_quizPrompts.length} correct.';
+    });
+    widget.sessionState.recordAnswer(correct: passed);
+    try {
+      await widget.apiClient.saveExercise(
+        SaveExercise(
+          childName: widget.childName,
+          word: _selectedWord ?? '',
+          exerciseType: 'quiz',
+          score: score,
+          correct: passed,
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _feedback = 'Saved locally, but failed to sync quiz score: $error';
+        });
+      }
+    }
+  }
+
+  String _buildInstructionalFeedback({
+    required bool correct,
+    required _QuizPrompt prompt,
+    required String selectedChoiceKey,
+    required _BilingualLines definitionLines,
+    required String word,
+  }) {
+    final englishMeaning =
+        (definitionLines.english ?? _exercise?.definition ?? '').trim();
+    final chineseMeaning = definitionLines.chinese?.trim();
+    final correctChoice = (prompt.choices[prompt.answer] ?? '').trim();
+    final selectedChoice = (prompt.choices[selectedChoiceKey] ?? '').trim();
+    if (correct) {
+      return [
+        'Correct! Great job.',
+        if (englishMeaning.isNotEmpty) 'EN meaning: $englishMeaning',
+        if (chineseMeaning != null && chineseMeaning.isNotEmpty)
+          'ZH meaning: $chineseMeaning',
+      ].join('\n');
+    }
+    return [
+      'Not quite. Keep going!',
+      if (correctChoice.isNotEmpty) 'Correct answer: ${prompt.answer}. $correctChoice',
+      if (englishMeaning.isNotEmpty) 'EN meaning: $englishMeaning',
+      if (chineseMeaning != null && chineseMeaning.isNotEmpty)
+        'ZH meaning: $chineseMeaning',
+      if (selectedChoice.isNotEmpty)
+        'Why: "$selectedChoice" does not match "$word".',
+    ].join('\n');
   }
 
   Future<void> _showRagDebug() async {
@@ -1032,7 +1372,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: _loading ? null : _generateExercise,
+            onPressed: _loading ? null : () => _generateExercise(words),
             icon: const Icon(Icons.auto_awesome),
             label: const Text('Generate Exercise'),
           ),
@@ -1050,6 +1390,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   word: word,
                   definitionLines: definitionLines,
                   exampleLines: exampleLines,
+                  showDefinitionChinese: _showDefinitionChinese,
+                  showExampleChinese: _showExampleChinese,
+                  onToggleDefinitionChinese: () => setState(
+                    () => _showDefinitionChinese = !_showDefinitionChinese,
+                  ),
+                  onToggleExampleChinese: () => setState(
+                    () => _showExampleChinese = !_showExampleChinese,
+                  ),
                   onListenWord: () => _speechHelper.speak(word),
                   onListenDefinitionEnglish: () => _speechHelper.speak(
                     definitionLines.english ?? _exercise!.definition,
@@ -1068,19 +1416,44 @@ class _PracticeScreenState extends State<PracticeScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Choose the answer:',
+              'Quick checks:',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            _AnswerChoices(
-              exercise: _exercise!,
-              selectedChoice: _selectedChoice,
-              onChanged: (value) => setState(() => _selectedChoice = value),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _selectedChoice == null ? null : _checkAnswer,
-              child: const Text('Check Answer'),
+            Builder(
+              builder: (context) {
+                final definitionLines =
+                    _splitBilingualLines(_exercise!.definition);
+                return Column(
+                  children: _quizPrompts.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final prompt = entry.value;
+                    final selected = _quizSelections[index];
+                    final checked = _quizResults[index] != null;
+                    final feedback = _quizFeedback[index];
+                    return _QuizPromptCard(
+                      index: index,
+                      prompt: prompt,
+                      selectedChoice: selected,
+                      checked: checked,
+                      feedback: feedback,
+                      onChoiceChanged: checked
+                          ? null
+                          : (value) {
+                              if (value == null) {
+                                return;
+                              }
+                              setState(() {
+                                _quizSelections[index] = value;
+                              });
+                            },
+                      onCheck: selected == null || checked
+                          ? null
+                          : () => _checkQuizPrompt(index, definitionLines),
+                    );
+                  }).toList(),
+                );
+              },
             ),
           ],
           if (_feedback != null) ...[
@@ -1361,6 +1734,10 @@ class _ExerciseCard extends StatelessWidget {
   final String word;
   final _BilingualLines definitionLines;
   final _BilingualLines exampleLines;
+  final bool showDefinitionChinese;
+  final bool showExampleChinese;
+  final VoidCallback onToggleDefinitionChinese;
+  final VoidCallback onToggleExampleChinese;
   final VoidCallback onListenWord;
   final VoidCallback onListenDefinitionEnglish;
   final VoidCallback onListenDefinitionChinese;
@@ -1372,6 +1749,10 @@ class _ExerciseCard extends StatelessWidget {
     required this.word,
     required this.definitionLines,
     required this.exampleLines,
+    required this.showDefinitionChinese,
+    required this.showExampleChinese,
+    required this.onToggleDefinitionChinese,
+    required this.onToggleExampleChinese,
     required this.onListenWord,
     required this.onListenDefinitionEnglish,
     required this.onListenDefinitionChinese,
@@ -1429,6 +1810,22 @@ class _ExerciseCard extends StatelessWidget {
               ],
             ),
             if (definitionLines.chinese != null) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onToggleDefinitionChinese,
+                  icon: Icon(
+                    showDefinitionChinese ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  label: Text(
+                    showDefinitionChinese
+                        ? 'Hide Chinese meaning'
+                        : 'Reveal Chinese meaning',
+                  ),
+                ),
+              ),
+            ],
+            if (showDefinitionChinese && definitionLines.chinese != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -1463,6 +1860,22 @@ class _ExerciseCard extends StatelessWidget {
               ],
             ),
             if (exampleLines.chinese != null) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onToggleExampleChinese,
+                  icon: Icon(
+                    showExampleChinese ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  label: Text(
+                    showExampleChinese
+                        ? 'Hide Chinese example'
+                        : 'Reveal Chinese example',
+                  ),
+                ),
+              ),
+            ],
+            if (showExampleChinese && exampleLines.chinese != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -1481,9 +1894,9 @@ class _ExerciseCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
-            Text(
-              'Quiz: ${exercise.quizQuestion}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            const Text(
+              'Tip: Guess in English first, then reveal Chinese.',
+              style: TextStyle(fontSize: 14, color: Colors.black54),
             ),
             if (exercise.source != null) ...[
               const SizedBox(height: 6),
@@ -1499,34 +1912,83 @@ class _ExerciseCard extends StatelessWidget {
   }
 }
 
-class _AnswerChoices extends StatelessWidget {
-  final VocabExercise exercise;
+class _QuizPromptCard extends StatelessWidget {
+  final int index;
+  final _QuizPrompt prompt;
   final String? selectedChoice;
-  final ValueChanged<String?> onChanged;
+  final bool checked;
+  final String? feedback;
+  final ValueChanged<String?>? onChoiceChanged;
+  final VoidCallback? onCheck;
 
-  const _AnswerChoices({
-    required this.exercise,
+  const _QuizPromptCard({
+    required this.index,
+    required this.prompt,
     required this.selectedChoice,
-    required this.onChanged,
+    required this.checked,
+    required this.feedback,
+    required this.onChoiceChanged,
+    required this.onCheck,
   });
 
   @override
   Widget build(BuildContext context) {
-    final keys = ['A', 'B', 'C'];
-    return Column(
-      children: keys
-          .where((key) => exercise.quizChoices.containsKey(key))
-          .map(
-            (key) => RadioListTile<String>(
-              value: key,
-              groupValue: selectedChoice,
-              onChanged: onChanged,
-              title: Text('${key}. ${exercise.quizChoices[key]}'),
+    final choiceKeys = ['A', 'B', 'C']
+        .where(prompt.choices.containsKey)
+        .toList(growable: false);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Check ${index + 1}: ${prompt.label}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-          )
-          .toList(),
+            const SizedBox(height: 6),
+            Text(prompt.question),
+            const SizedBox(height: 6),
+            ...choiceKeys.map(
+              (key) => RadioListTile<String>(
+                value: key,
+                groupValue: selectedChoice,
+                onChanged: onChoiceChanged,
+                title: Text('$key. ${prompt.choices[key]}'),
+              ),
+            ),
+            const SizedBox(height: 4),
+            FilledButton(
+              onPressed: onCheck,
+              child: Text(checked ? 'Checked' : 'Check'),
+            ),
+            if (feedback != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                feedback!,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
+}
+
+class _QuizPrompt {
+  final String label;
+  final String question;
+  final Map<String, String> choices;
+  final String answer;
+
+  const _QuizPrompt({
+    required this.label,
+    required this.question,
+    required this.choices,
+    required this.answer,
+  });
 }
 
 class _ComprehensionCard extends StatelessWidget {

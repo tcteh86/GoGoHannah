@@ -28,7 +28,16 @@ Use this checklist to validate the live prototype before new feature work.
 
 ### Vocabulary Practice
 - [ ] Select word and generate exercise
-- [ ] Check answer shows feedback
+- [ ] English definition/example show immediately
+- [ ] Chinese definition/example can be revealed and hidden
+- [ ] Quick checks render for:
+  - [ ] rotating primary type (meaning/context/fill-blank)
+  - [ ] EN → ZH meaning
+  - [ ] ZH → EN meaning
+- [ ] Check feedback shows:
+  - [ ] correct answer
+  - [ ] EN/ZH meaning reference
+  - [ ] wrong-choice explanation
 - [ ] Mascot reaction updates for correct/incorrect
 - [ ] Result saves and appears in Results summary
 

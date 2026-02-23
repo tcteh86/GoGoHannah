@@ -80,6 +80,11 @@ Completed:
   - Recent practice history endpoint + UI list.
   - Weak-word suggestions highlighted for review.
   - Daily progress endpoint + UI daily history view.
+- Vocabulary exercise UX enhancements:
+  - Chinese reveal controls (English-first learning flow).
+  - Rotating check styles (meaning/context/fill-blank).
+  - EN↔ZH bidirectional meaning checks per generated exercise.
+  - Instructional check feedback (correct meaning + wrong-choice explanation).
 - Study time tracking:
   - Daily, total, weekly/monthly summaries shown in results.
 - Read-aloud improvements:
