@@ -1,6 +1,6 @@
 # Implementation Status (Living Document)
 
-Last updated: 30 Jan 2026
+Last updated: 23 Feb 2026
 
 This document captures what is implemented, what is pending, and known
 issues so a new agent can continue work if the session ends.
@@ -31,7 +31,7 @@ issues so a new agent can continue work if the session ends.
   - Vocab + story bilingual output (English → Chinese).
 - Results screen with summary + weak words list + recent practice.
 - Results screen with study time summaries (daily, total, weekly/monthly).
-- Quick Check screen with recommended-word quiz.
+- Quick Check screen with recommended-word quiz (uses vocab exercise API path, LLM + fallback).
 - Engagement loop:
   - Mascot header with animated reactions.
   - Daily goal progress bar.
@@ -70,6 +70,7 @@ issues so a new agent can continue work if the session ends.
 ## 5) Known Issues / Notes
 - Some mobile browsers do not emit web speech boundary events; a timing-based
   fallback drives highlighting to stay in sync with read-aloud audio.
+- Record deletion is not exposed in the current API/UI flow (helper exists only in backend core).
 - Render builds require web-safe imports only:
   - Use dart:web_audio for AudioContext/Analyser.
   - Avoid HtmlElementView unless ui_web registry is supported.
@@ -77,16 +78,9 @@ issues so a new agent can continue work if the session ends.
   - If no audio captured, show friendly error and retry.
 
 ## 6) Recent Commits (for reference)
-- Latest: Refresh documentation, remove architecture diagram doc, align roadmap.
-- 2ed6012: Expand story read speed range and sync highlight timing.
-- 85fbbcc: Improve TTS rate mapping and web highlight fallback.
-- 6c6dae5: Add web fallback for story highlight.
-- d593491: Add mobile story read highlight support.
-- d1e924e: Fix results date format and story visuals.
-- 7034f5c: Update milestone report progress.
-- b22fb35: Add QA checklist and harden audio recording.
-- d8cf3db: Fix recording timeout and remove typed pronunciation.
-- 5251ff4: Add recording level indicator and audio preview.
-- 9c61759: Fix web audio imports for build.
-- 1900e59: Simplify recorded audio playback for web build.
-- 9f51d15: Add waveform preview and fix fftSize null.
+- 7c5ce55: Enforce two-line story text and definition translation rule.
+- e608aac: Restore two-line bilingual story output format.
+- 3d27d4e: Focus vocab quiz on meaning comprehension.
+- 0cf5a8e: Fix story state reset compile error.
+- f4de35b: Refine story highlight behavior and bilingual vocab display.
+- 08e027c: Make story language buttons mobile-friendly.
