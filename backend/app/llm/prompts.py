@@ -18,8 +18,11 @@ def _language_rules(
             "Provide both English and Chinese for every field. "
             "Use two lines with English first, Chinese second. "
             "For definition, the Chinese line must be a direct translation of the English line. "
+            "For example_sentence, the Chinese line must directly translate the English line. "
             "Definition must explain the actual meaning, not a placeholder. "
+            "Example sentence must show natural usage of the target word in context. "
             "Never use generic templates like 'is a word to learn' or '是一个要学习的词'. "
+            "Never use template examples like 'I can use the word ... today' or '我今天可以使用...'. "
             "Do not add language labels."
         )
 
@@ -31,16 +34,22 @@ def _language_rules(
                 "Provide both English and Chinese for every field. "
                 "Use two lines with English first, Chinese second. "
                 "For definition, the Chinese line must be a direct translation of the English line. "
+                "For example_sentence, the Chinese line must directly translate the English line. "
                 "Definition must explain the actual meaning, not a placeholder. "
+                "Example sentence must show natural usage of the target word in context. "
                 "Never use generic templates like 'is a word to learn' or '是一个要学习的词'. "
+                "Never use template examples like 'I can use the word ... today' or '我今天可以使用...'. "
                 "Do not add language labels."
             )
         return (
             "Provide both Chinese and English for every field. "
             "Use two lines with Chinese first, English second. "
             "For definition, the Chinese line must be a direct translation of the English line. "
+            "For example_sentence, the Chinese line must directly translate the English line. "
             "Definition must explain the actual meaning, not a placeholder. "
+            "Example sentence must show natural usage of the target word in context. "
             "Never use generic templates like 'is a word to learn' or '是一个要学习的词'. "
+            "Never use template examples like 'I can use the word ... today' or '我今天可以使用...'. "
             "Do not add language labels."
         )
     return (
@@ -98,5 +107,8 @@ Create:
 4) 3 choices (A/B/C) where only one choice matches the target word's meaning, and include the correct answer letter
 Important:
 - Do not write placeholder definitions like "{word} is a word to learn."
+- Do not write placeholder examples like "I can use the word {word} today."
+- Make quiz choices meaningful and specific (not templates like "the meaning of {word}").
 - In bilingual mode, Chinese definition must clearly translate the English meaning.
+- In bilingual mode, Chinese example and quiz text must clearly translate the English lines.
 """

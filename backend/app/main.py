@@ -35,6 +35,7 @@ from .core.scoring import calculate_pronunciation_score
 from .llm.client import (
     LLMUnavailable,
     generate_comprehension_exercise,
+    generate_example_sentence,
     generate_story_image,
     generate_vocab_exercise,
     suggest_vocab_corrections,
@@ -208,6 +209,149 @@ def _repair_definition_text(
     return f"{english}\n{translated}"
 
 
+def _looks_template_example(text: str) -> bool:
+    normalized = str(text or "").strip().lower()
+    if not normalized:
+        return True
+    template_patterns = (
+        "i can use the word",
+        "use the word",
+        "我今天可以使用",
+    )
+    return any(pattern in normalized for pattern in template_patterns)
+
+
+def _looks_template_quiz_choice(text: str, word: str) -> bool:
+    normalized = str(text or "").strip().lower()
+    if not normalized:
+        return True
+    template_patterns = (
+        "the meaning of",
+        "的意思",
+        "word to learn",
+    )
+    if word.strip().lower() in normalized and "meaning" in normalized:
+        return True
+    return any(pattern in normalized for pattern in template_patterns)
+
+
+def _format_bilingual_output(
+    english: str,
+    chinese: str,
+    learning_direction: str | None,
+) -> str:
+    if learning_direction == "zh_to_en":
+        return f"{chinese}\n{english}"
+    return f"{english}\n{chinese}"
+
+
+def _repair_example_text(
+    example_text: str,
+    definition_text: str,
+    word: str,
+    source: str,
+    learning_direction: str | None,
+) -> str:
+    cleaned = _strip_language_labels(example_text)
+    english, chinese = _split_bilingual_lines(cleaned)
+    english = english.strip() if english else ""
+    chinese = chinese.strip() if chinese else ""
+    if source != "llm":
+        return cleaned
+
+    needs_english_repair = (not english) or _looks_template_example(english)
+    needs_chinese_repair = (not chinese) or _looks_template_example(chinese)
+    if not needs_english_repair and not needs_chinese_repair:
+        return cleaned
+
+    if needs_english_repair:
+        definition_en, _ = _split_bilingual_lines(definition_text)
+        seed_definition = (
+            definition_en.strip()
+            if definition_en and definition_en.strip()
+            else f'"{word}" has a specific meaning.'
+        )
+        try:
+            english = generate_example_sentence(word=word, definition=seed_definition)
+        except LLMUnavailable:
+            english = f'The teacher explained "{word}" in class today.'
+
+    if needs_chinese_repair and english:
+        try:
+            chinese = translate_to_chinese(english)
+        except LLMUnavailable:
+            chinese = chinese or english
+
+    if not english and not chinese:
+        return cleaned
+    if not english:
+        english = chinese
+    if not chinese:
+        chinese = english
+    return _format_bilingual_output(english, chinese, learning_direction)
+
+
+def _repair_quiz_text(
+    word: str,
+    quiz_question: str,
+    quiz_choices: dict,
+    quiz_answer: str,
+    definition_text: str,
+    source: str,
+    learning_direction: str | None,
+) -> tuple[str, dict]:
+    cleaned_question = _strip_language_labels(quiz_question)
+    cleaned_choices = {
+        key: _strip_language_labels(value) for key, value in quiz_choices.items()
+    }
+    if source != "llm":
+        return cleaned_question, cleaned_choices
+
+    definition_en, definition_zh = _split_bilingual_lines(definition_text)
+    definition_en = definition_en.strip() if definition_en else ""
+    definition_zh = definition_zh.strip() if definition_zh else ""
+
+    question_en, question_zh = _split_bilingual_lines(cleaned_question)
+    question_en = question_en.strip() if question_en else ""
+    question_zh = question_zh.strip() if question_zh else ""
+    if not question_en:
+        question_en = f'Which meaning best matches "{word}"?'
+    if not question_zh:
+        try:
+            question_zh = translate_to_chinese(question_en)
+        except LLMUnavailable:
+            question_zh = question_en
+    repaired_question = _format_bilingual_output(
+        question_en, question_zh, learning_direction
+    )
+
+    repaired_choices = {}
+    for key, raw_value in cleaned_choices.items():
+        choice_en, choice_zh = _split_bilingual_lines(raw_value)
+        choice_en = choice_en.strip() if choice_en else str(raw_value).strip()
+        choice_zh = choice_zh.strip() if choice_zh else ""
+
+        if key == quiz_answer and (
+            _looks_template_quiz_choice(choice_en, word) or not choice_en
+        ):
+            if definition_en:
+                choice_en = definition_en
+
+        if (not choice_zh) or _looks_template_quiz_choice(choice_zh, word):
+            if key == quiz_answer and definition_zh:
+                choice_zh = definition_zh
+            else:
+                try:
+                    choice_zh = translate_to_chinese(choice_en)
+                except LLMUnavailable:
+                    choice_zh = choice_zh or choice_en
+
+        repaired_choices[key] = _format_bilingual_output(
+            choice_en, choice_zh, learning_direction
+        )
+    return repaired_question, repaired_choices
+
+
 @app.get("/healthz")
 def healthz() -> dict:
     return {"status": "ok"}
@@ -280,6 +424,7 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
         key: _strip_language_labels(value)
         for key, value in result["quiz_choices"].items()
     }
+    cleaned_question = _strip_language_labels(result["quiz_question"])
     cleaned_definition = _strip_language_labels(result["definition"])
     cleaned_example = _strip_language_labels(result["example_sentence"])
     if payload.output_style == "bilingual":
@@ -310,10 +455,26 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
             example_fallback,
             payload.learning_direction,
         )
+        cleaned_example = _repair_example_text(
+            cleaned_example,
+            cleaned_definition,
+            word,
+            source,
+            payload.learning_direction,
+        )
+        cleaned_question, cleaned_choices = _repair_quiz_text(
+            word=word,
+            quiz_question=cleaned_question,
+            quiz_choices=cleaned_choices,
+            quiz_answer=str(result.get("quiz_answer", "")),
+            definition_text=cleaned_definition,
+            source=source,
+            learning_direction=payload.learning_direction,
+        )
     response = {
         "definition": cleaned_definition,
         "example_sentence": cleaned_example,
-        "quiz_question": _strip_language_labels(result["quiz_question"]),
+        "quiz_question": cleaned_question,
         "quiz_choices": cleaned_choices,
         "quiz_answer": result["quiz_answer"],
         "phonics": phonics_hint(word),

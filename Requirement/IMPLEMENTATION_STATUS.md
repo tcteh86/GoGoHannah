@@ -13,6 +13,9 @@ issues so a new agent can continue work if the session ends.
 - Vocab definition quality guard:
   - Reject/retry template definitions in LLM generation.
   - Repair missing/template Chinese definition lines using translation fallback.
+- Vocab example and quiz quality guard:
+  - Reject/retry template examples and low-quality quiz choices in LLM generation.
+  - Repair template/missing Chinese example and quiz lines using translation fallback.
 - Bilingual vocab options for English ↔ Chinese (learning direction + output style).
 - Progress save + summary + recommended words.
 - Daily progress endpoint with persistent streak and goal-based history (`/v1/progress/daily`).

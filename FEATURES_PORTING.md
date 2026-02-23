@@ -122,6 +122,8 @@ Porting notes:
 - Keep bidirectional EN/ZH checks in the same exercise flow for bilingual reinforcement.
 - Enforce definition quality rules: avoid generic placeholder definitions and repair
   missing/templated Chinese definition lines from LLM output.
+- Enforce example/quiz quality rules: avoid template example sentences and generic
+  quiz-choice placeholders; repair missing/template Chinese lines when needed.
 
 ### 3.4 Pronunciation practice (TTS + recording + scoring)
 Flow:

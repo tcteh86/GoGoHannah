@@ -50,12 +50,49 @@ _TEMPLATE_DEFINITION_PATTERNS = (
     "单词",
 )
 
+_TEMPLATE_EXAMPLE_PATTERNS = (
+    "i can use the word",
+    "我今天可以使用",
+    "use the word",
+)
+
+_TEMPLATE_QUIZ_CHOICE_PATTERNS = (
+    "the meaning of",
+    "的意思",
+    "word to learn",
+)
+
 
 def _is_template_definition(text: str) -> bool:
     normalized = str(text or "").strip().lower()
     if not normalized:
         return True
     return any(pattern in normalized for pattern in _TEMPLATE_DEFINITION_PATTERNS)
+
+
+def _is_template_example(text: str) -> bool:
+    normalized = str(text or "").strip().lower()
+    if not normalized:
+        return True
+    return any(pattern in normalized for pattern in _TEMPLATE_EXAMPLE_PATTERNS)
+
+
+def _is_low_quality_quiz_choice(text: str, word: str) -> bool:
+    normalized = str(text or "").strip().lower()
+    if not normalized:
+        return True
+    if word.strip().lower() in normalized and "meaning" in normalized:
+        return True
+    return any(pattern in normalized for pattern in _TEMPLATE_QUIZ_CHOICE_PATTERNS)
+
+
+def _has_low_quality_quiz(result: dict, word: str) -> bool:
+    choices = result.get("quiz_choices")
+    answer = str(result.get("quiz_answer", "")).strip()
+    if not isinstance(choices, dict) or answer not in {"A", "B", "C"}:
+        return True
+    correct_choice = str(choices.get(answer, ""))
+    return _is_low_quality_quiz_choice(correct_choice, word)
 
 
 def suggest_vocab_corrections(words: list[str]) -> list[str]:
@@ -114,7 +151,11 @@ def generate_vocab_exercise(
                 extra_quality_rule = (
                     "\nQuality correction:\n"
                     "- Definition must be concrete and word-specific.\n"
+                    "- Example sentence must be natural and word-specific.\n"
+                    "- Quiz choices must be meaningful, not templates.\n"
                     "- Never use templates like 'is a word to learn' or '是一个要学习的词'.\n"
+                    "- Never use template examples like 'I can use the word ... today'.\n"
+                    "- Never use template quiz choices like 'the meaning of ...'.\n"
                     "- If bilingual, Chinese definition must clearly translate the English meaning.\n"
                 )
             response = get_client().chat.completions.create(
@@ -159,10 +200,19 @@ def generate_vocab_exercise(
                 raise ValueError("Invalid quiz_answer.")
 
             definition = str(result.get("definition", ""))
+            example_sentence = str(result.get("example_sentence", ""))
             if _is_template_definition(definition):
                 if attempt == 0:
                     continue
                 raise ValueError("Template definition detected.")
+            if _is_template_example(example_sentence):
+                if attempt == 0:
+                    continue
+                raise ValueError("Template example sentence detected.")
+            if _has_low_quality_quiz(result, word):
+                if attempt == 0:
+                    continue
+                raise ValueError("Low-quality quiz choice detected.")
 
             return result
         raise ValueError("Unable to generate non-template definition.")
@@ -203,6 +253,41 @@ Sentence:
         return translated
     except Exception as exc:
         raise LLMUnavailable(f"Failed to translate definition: {str(exc)}")
+
+
+def generate_example_sentence(word: str, definition: str) -> str:
+    """Generate one natural example sentence for a target word."""
+    if not word.strip():
+        raise LLMUnavailable("Empty word for example generation.")
+    try:
+        prompt = f"""Create one short, natural example sentence for children aged 5-9.
+Requirements:
+- Use the target word exactly as given.
+- Keep sentence under 12 words.
+- Match this meaning: {definition}
+- Return only one plain sentence (no labels).
+
+Target word: {word}
+"""
+        response = get_client().chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You write short, child-friendly English examples.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.3,
+            max_tokens=80,
+        )
+        sentence = response.choices[0].message.content.strip()
+        sentence = re.split(r"\r?\n", sentence)[0].strip()
+        if not sentence:
+            raise ValueError("Empty example sentence result.")
+        return sentence
+    except Exception as exc:
+        raise LLMUnavailable(f"Failed to generate example sentence: {str(exc)}")
 
 
 def generate_comprehension_exercise(
