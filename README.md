@@ -12,10 +12,10 @@ the learning experience engaging while showcasing GenAI techniques.
 - Practice output: AI-generated definition + example sentence + multiple-choice quiz
 - Bilingual vocab + story practice (English ↔ Chinese) with bilingual output
 - Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
-- Progress tracking with personalized recommendations and detailed analytics
-- Practiced words wheel visualization with performance indicators
+- Progress tracking with personalized recommendations, weak-word insights, and recent practice history
+- Study time tracking (daily, weekly/monthly, and total summaries)
 - Smart word recommendation system (prioritizes weak words, avoids over-practice)
-- Record management with secure deletion
+- Custom vocabulary management with typo suggestions (manual entry)
 - Clean project boundaries: UI vs core logic vs LLM wrapper
 
 ## Tech Stack

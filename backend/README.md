@@ -19,14 +19,33 @@ Optional:
 
 ## API (current milestone scope)
 - `GET /healthz`
+
+Vocabulary:
 - `GET /v1/vocab/default`
+- `GET /v1/vocab/custom`
+- `POST /v1/vocab/custom/add`
+- `POST /v1/vocab/custom/suggest`
 - `POST /v1/vocab/exercise`
+
+Comprehension:
 - `POST /v1/comprehension/exercise`
+
+Progress:
 - `POST /v1/progress/exercise`
 - `GET /v1/progress/summary`
+- `GET /v1/progress/recent`
 - `GET /v1/progress/recommended`
+- `POST /v1/progress/time`
+- `GET /v1/progress/time`
+- `GET /v1/progress/time/total`
+- `GET /v1/progress/time/summary`
+
+Pronunciation:
 - `POST /v1/pronunciation/score`
 - `POST /v1/pronunciation/assess`
+
+Debug:
+- `GET /v1/debug/rag` (enabled only when debug flag is on)
 
 ### Vocab + story exercise request options
 `POST /v1/vocab/exercise` and `POST /v1/comprehension/exercise` accept bilingual configuration. The current UI targets English → Chinese with bilingual output enabled.

@@ -21,7 +21,7 @@ LLM integration:
 
 Vocabulary data:
 - `backend/app/vocab/default_vocab.csv` is the built-in vocabulary list.
-- `backend/app/vocab/loader.py` loads default or uploaded CSV vocab lists.
+- `backend/app/vocab/loader.py` loads default vocab and provides CSV parsing utilities.
 
 ## 2) Data Model and Persistence
 
@@ -41,6 +41,20 @@ Tables:
   - `score` (integer 0-100)
   - `correct` (boolean)
   - `created_at`
+- `custom_vocab`
+  - `id` (primary key)
+  - `child_id` (foreign key to `children`)
+  - `word`
+  - `list_name` (optional)
+  - `created_at`
+  - unique key on (`child_id`, `word`)
+- `study_time`
+  - `id` (primary key)
+  - `child_id` (foreign key to `children`)
+  - `date` (ISO date)
+  - `total_seconds`
+  - `updated_at`
+  - unique key on (`child_id`, `date`)
 
 Key aggregation behaviors:
 - Total exercises and accuracy for a child.
@@ -61,7 +75,7 @@ Porting notes:
 ### 3.2 Vocabulary source selection
 Sources:
 - Default vocabulary list from `default_vocab.csv`.
-- Uploaded CSV that must contain a `word` column.
+- Custom vocabulary list saved per child via manual word entry.
 - Recommended words from progress data.
 
 Validation:
@@ -70,19 +84,20 @@ Validation:
   - Length: 1-32 characters.
 
 Porting notes:
-- Preserve the same CSV validation and sanitization rules to avoid regressions.
+- Preserve the same sanitization and dedupe behavior when saving custom words.
+- CSV parsing utilities exist in backend helpers, but CSV upload is not wired into
+  the current Flutter UI flow.
 
 ### 3.3 Vocabulary practice (definition + example + quiz)
 Flow:
 1) User selects a word from the vocabulary list.
-2) On "Start Practice", the app requests an LLM exercise.
+2) On "Generate Exercise", the app requests a vocab exercise from the backend.
 3) If LLM fails, fall back to `simple_exercise`.
 4) Display:
    - Definition
    - Example sentence
    - Multiple-choice quiz (A/B/C)
 5) On "Check Answer":
-   - `check_answer` is case-insensitive.
    - Save a `quiz` exercise with score 100 or 0.
 
 LLM output requirements:
@@ -103,8 +118,9 @@ Flow:
 6) Save a `pronunciation` exercise with the score.
 
 Fallback:
-- If transcription fails, user can type their pronunciation.
-- Text input is scored the same way and still saved.
+- If recording or transcription fails, the UI shows an error and prompts retry.
+- `POST /v1/pronunciation/score` still exists, but the current web UI flow
+  uses `POST /v1/pronunciation/assess` for audio assessment.
 
 Porting notes:
 - Keep "auto-play once, replay on demand" for pronunciation practice.
@@ -130,6 +146,7 @@ Porting notes:
 
 ### 3.6 Progress summary and analytics
 Displayed metrics:
+- Study time (daily, total, weekly, monthly)
 - Total exercises
 - Overall accuracy
 - Average quiz score
@@ -140,13 +157,9 @@ Recent activity:
 Weak words:
 - List of words with low scores (<70).
 
-Practiced words wheel:
-- Most recently practiced words with avg score and attempt count.
-- UI shows only the first 5 in the wheel display.
-
 Porting notes:
-- The "wheel" is purely presentational. Recreate the same data
-  and apply your own visualization.
+- Current UI renders list-based analytics (metrics, weak words, recent practice);
+  there is no practiced-words wheel visualization in this codebase.
 
 ### 3.7 Smart recommendations
 Algorithm:
@@ -164,21 +177,22 @@ Porting notes:
 
 ### 3.8 Test and Check (quick quiz)
 Flow:
-- Generate a 3-question quiz from recommended words plus defaults.
-- Uses `simple_exercise` for all questions (no LLM).
+- Fetch up to 3 recommended words.
+- Generate each question through the same vocab exercise API path
+  (`/v1/vocab/exercise`), which is LLM-first with fallback.
 - Saves each answer as `test` exercise.
 
 Porting notes:
-- Keep `simple_exercise` behavior so quick checks are deterministic.
+- Keep the recommended-word-first flow and `test` persistence behavior.
 
-### 3.9 Record management
+### 3.9 Record management status
 Flow:
-- User can delete all records.
-- This deletes both `exercises` and the `children` row.
+- Backend helper `clear_child_records` exists in `core/progress.py`.
+- No user-facing delete endpoint is currently exposed in `main.py`.
+- The current Flutter UI does not provide a delete-records action.
 
 Porting notes:
-- Keep a confirmation step before deletion.
-- The delete operation is irreversible in the current app.
+- If deletion is added later, keep confirmation before irreversible actions.
 
 ## 4) LLM Integration Details
 

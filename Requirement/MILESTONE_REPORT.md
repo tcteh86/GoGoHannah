@@ -83,7 +83,7 @@ Completed:
   - Daily, total, weekly/monthly summaries shown in results.
 - Read-aloud improvements:
   - Word highlighting on web and mobile (TTS boundary + fallback timing).
-  - Adjustable reading speed control (0.25x - 1.5x).
+  - Adjustable reading speed control (0.1x - 1.0x).
 - Results polish:
   - Compact date ranges for week/month on small screens.
 - Story visuals:
@@ -107,7 +107,7 @@ Done:
 - Flutter web UI for practice, results, and quick check.
 - Pronunciation analysis flow (audio + transcription).
 - Comprehension story flow (story + questions + illustration).
-- Custom vocab upload + manual entry flow.
+- Custom vocab manual entry + per-child storage flow.
 - Custom vocab typo correction suggestions.
 - Recent practice history view + weak-word highlighting.
 
@@ -143,13 +143,13 @@ Next:
 - Hardened web audio recording (timeouts, empty capture handling).
 - Added live audio level indicator and waveform preview for recordings.
 - RAG + embeddings implementation plan approved.
-- Added custom vocab upload + manual entry.
+- Added custom vocab manual entry and per-child storage flow.
 - Added recent practice history and weak-word suggestions in UI.
 
 ## 6) Update Log (Jan 29, 2026)
 - Added read-aloud word highlighting support on web and mobile, with a timing
   fallback for browsers missing boundary events.
-- Expanded story read-aloud speed range to 0.25x - 1.5x and synced highlight
+- Expanded story read-aloud speed range to 0.1x - 1.0x and synced highlight
   timing to reading speed.
 - Improved story illustration delivery by supporting inline data-URI images.
 - Shortened results date ranges for better mobile readability.
