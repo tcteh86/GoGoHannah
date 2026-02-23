@@ -12,6 +12,7 @@ issues so a new agent can continue work if the session ends.
 - Vocab exercise generation (LLM + fallback) with phonics hints.
 - Bilingual vocab options for English ↔ Chinese (learning direction + output style).
 - Progress save + summary + recommended words.
+- Daily progress endpoint with persistent streak and goal-based history (`/v1/progress/daily`).
 - Study time tracking endpoints (daily, total, weekly/monthly summaries).
 - Recent practice endpoint (recent exercises history).
 - Comprehension story generation with level selection.
@@ -31,12 +32,13 @@ issues so a new agent can continue work if the session ends.
   - Vocab + story bilingual output (English → Chinese).
 - Results screen with summary + weak words list + recent practice.
 - Results screen with study time summaries (daily, total, weekly/monthly).
+- Results screen with persistent streak metrics (current/best) and daily history list.
 - Quick Check screen with recommended-word quiz (uses vocab exercise API path, LLM + fallback).
 - Engagement loop:
   - Mascot header with animated reactions.
   - Daily goal progress bar.
   - Badge unlock when goal reached.
-  - Streak counter (session-based).
+  - Streak counter synced from backend daily-goal progress.
 - Pronunciation practice:
   - Record/stop with timeout guard.
   - Live audio level indicator during recording.
@@ -58,6 +60,7 @@ issues so a new agent can continue work if the session ends.
 - API smoke checks (manual):
   - /healthz, /v1/vocab/default, /v1/vocab/exercise
   - /v1/progress/exercise + /v1/progress/summary
+  - /v1/progress/daily
   - /v1/comprehension/exercise
   - /v1/pronunciation/score + /v1/pronunciation/assess
 

@@ -61,6 +61,7 @@ Key aggregation behaviors:
 - Average score and count grouped by `exercise_type`.
 - Weak words: average score under 70.
 - Recent exercises ordered by timestamp.
+- Daily completion history and streak metrics from `/v1/progress/daily`.
 
 ## 3) Feature Breakdown
 
@@ -150,6 +151,7 @@ Displayed metrics:
 - Total exercises
 - Overall accuracy
 - Average quiz score
+- Current streak and best streak (goal-based)
 
 Recent activity:
 - Table of recent exercises (word, type, score, correct, date).
@@ -157,9 +159,13 @@ Recent activity:
 Weak words:
 - List of words with low scores (<70).
 
+Daily history:
+- Date-by-date completion against daily goal (recent window).
+
 Porting notes:
 - Current UI renders list-based analytics (metrics, weak words, recent practice);
   there is no practiced-words wheel visualization in this codebase.
+- Streak is based on days where the daily goal is reached, not just any activity.
 
 ### 3.7 Smart recommendations
 Algorithm:

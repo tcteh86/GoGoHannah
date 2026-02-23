@@ -14,6 +14,7 @@ the learning experience engaging while showcasing GenAI techniques.
 - Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
 - Progress tracking with personalized recommendations, weak-word insights, and recent practice history
 - Study time tracking (daily, weekly/monthly, and total summaries)
+- Persistent streak tracking based on daily-goal completion, with daily history
 - Smart word recommendation system (prioritizes weak words, avoids over-practice)
 - Custom vocabulary management with typo suggestions (manual entry)
 - Clean project boundaries: UI vs core logic vs LLM wrapper

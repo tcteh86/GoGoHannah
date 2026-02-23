@@ -58,7 +58,7 @@ Completed:
   - Mascot header with animated reactions.
   - Daily goal tracker with progress bar.
   - Badge unlock for goal completion.
-  - Streak counter (session-based).
+  - Persistent streak counter based on daily goal completion.
 - Phase B (GenAI depth) shipped:
   - Comprehension story mode with level selection.
   - Optional illustration generation hook.
@@ -79,6 +79,7 @@ Completed:
 - Progress insights:
   - Recent practice history endpoint + UI list.
   - Weak-word suggestions highlighted for review.
+  - Daily progress endpoint + UI daily history view.
 - Study time tracking:
   - Daily, total, weekly/monthly summaries shown in results.
 - Read-aloud improvements:
