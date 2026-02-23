@@ -1,68 +1,70 @@
-# Project Proposal  
-## A Prototype of an AI-Based English Vocabulary Learning Assistant for Young Learners  
-*(Individual Project)*
+# Project Summary
+## A Prototype of an AI-Based English Vocabulary Learning Assistant for Young Learners
 
 ---
 
 ## 1. Problem Formulation & User Need
 
-In Singapore, English is the primary language used in education, professional environments, and daily communication. As a result, developing strong English vocabulary skills from an early age is critical for children’s academic success and long-term communication ability. However, many young learners aged 5–9 face difficulties in consistently practising and expanding their English vocabulary outside the classroom.
-
-One key challenge is limited parental availability. Many parents have demanding work schedules and are unable to dedicate regular time to structured vocabulary or reading practice with their children. Additionally, not all parents are confident in their own English proficiency, which can further limit their ability to effectively guide vocabulary learning even when time is available.
-
-While professional English tuition and enrichment programmes exist, these services are often expensive and not accessible to all families. This creates unequal access to quality language learning support, particularly for less-fortunate households. Existing learning resources such as worksheets or basic vocabulary applications tend to be static, rely on fixed content, and lack adaptive guidance to support independent learning.
-
-This individual project aims to address these challenges by developing a **prototype AI-based English vocabulary learning assistant** that supports independent learning for young learners. To ensure feasibility within the project timeline, the initial phase focuses specifically on vocabulary learning, providing structured practice and basic AI-generated guidance.
+Young learners (ages 5-9) need consistent English practice outside school, but
+many families have limited time for guided vocabulary and reading support.
+GoGoHannah addresses this with a child-friendly practice app that combines
+structured exercises with AI-generated content.
 
 ---
 
-## 2. Method & Generative AI Service Justification
+## 2. Method & Generative AI Services (Current Implementation)
 
-This project adopts a **text-based Generative AI approach** to support vocabulary learning in a flexible and scalable manner. Compared to traditional rule-based or static learning tools, Generative AI enables dynamic generation of learning content and explanations.
+The current implementation uses a Flutter web frontend and FastAPI backend with
+OpenAI services:
 
-### Text Modality (Core)
-A **Large Language Model (LLM)** is used to generate:
-- Vocabulary practice items  
-- Simple usage examples  
-- Basic explanations to support understanding and recall  
+- Text generation (`gpt-4o-mini`) for vocabulary and comprehension exercises
+- Audio transcription (`whisper-1`) for pronunciation assessment
+- Image generation (`dall-e-3`) for optional story illustration
+- Embeddings support (`text-embedding-3-small`) for optional RAG scaffolding
 
-Instead of relying solely on predefined vocabulary content, the LLM dynamically produces age-appropriate guidance that adapts to the selected vocabulary set.
-
-### Bounded Use of Generative AI
-The role of Generative AI in this project is intentionally constrained. The system focuses only on:
-- Vocabulary-level content generation  
-- Simple explanations and examples  
-
-Advanced personalisation, learner profiling, or behavioural modelling are intentionally excluded to maintain scope control and project feasibility.
-
-### Selected Generative AI Service
-**Gemini (school-provided)** is selected as the primary Generative AI service due to:
-- Strong text generation capabilities  
-- Scalability for web-based deployment  
-- Availability at no additional cost to the project  
-
-This makes Gemini a suitable and practical choice for an academic prototype.
+Boundaries are enforced with prompt constraints, schema validation, and input
+sanitization to keep outputs age-appropriate and structurally reliable.
 
 ---
 
 ## 3. Integration, Features & User Interaction Flow
 
-### Project Scope (Phase 1 – Core Implementation)
+### Current Scope
 
-The scope of this phase includes:
-- A web-based prototype with a simple and child-friendly interface  
-- Vocabulary-focused practice using text input  
-- LLM-based generation of vocabulary guidance and usage examples  
-- A default primary-level vocabulary set  
-- Optional parent-defined vocabulary input  
+- Web-based prototype with child-friendly UI
+- Child-name gate before practice starts
+- Vocabulary and comprehension practice modes
+- Progress tracking, recent history, weak-word insights, and study-time summaries
+- Recommended-word quick check flow
+- Custom vocabulary manual entry with typo suggestion support
 
-### Core Features
+### Core Implemented Features
 
-- **Vocabulary Selection**  
-  Parents can choose from a default vocabulary list or provide a custom list of words. Custom input may be provided by typing, pasting text, or uploading a simple CSV file.
+- **Vocabulary Selection**
+  - Built-in default word list
+  - Custom per-child word list via manual entry (comma/newline separated)
 
-- **Vocabulary Practice**  
-  Children practise vocabulary through text-based exercises generated by the LLM.
+- **Vocabulary Practice**
+  - Generate definition + example + 3-choice quiz
+  - Backend uses LLM-first generation with deterministic fallback
+  - Bilingual English/Chinese output currently used in UI
 
-- **AI-Generated Guidance**  
-  The system provides simple explanations or usage examples to support understanding and
+- **Pronunciation Practice**
+  - Auto-play word TTS
+  - Audio recording + upload for transcription and scoring
+  - Recording preview and playback in UI
+
+- **Comprehension Practice**
+  - Story generation by level with 3 comprehension questions
+  - Optional illustration generation
+  - Story read-aloud with highlighting and speed control
+
+- **Results & Progress**
+  - Total exercises, accuracy, average quiz score
+  - Weak-word list and recent practice history
+  - Study-time views (daily, weekly, monthly, total)
+
+### Notes on Current Limits
+
+- CSV upload is not wired into the current Flutter UI flow.
+- Record deletion is not currently exposed as a user-facing API/UI action.

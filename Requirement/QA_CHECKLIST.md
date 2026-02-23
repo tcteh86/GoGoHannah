@@ -36,7 +36,7 @@ Use this checklist to validate the live prototype before new feature work.
 - [ ] Record audio and stop recording
 - [ ] Playback works
 - [ ] Scoring returns transcription + score
-- [ ] Typed pronunciation scoring works
+- [ ] Recording/transcription failure shows friendly retry guidance
 
 ### Comprehension Mode
 - [ ] Generate story at each level
