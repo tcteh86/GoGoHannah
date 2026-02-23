@@ -18,6 +18,8 @@ def _language_rules(
             "Provide both English and Chinese for every field. "
             "Use two lines with English first, Chinese second. "
             "For definition, the Chinese line must be a direct translation of the English line. "
+            "Definition must explain the actual meaning, not a placeholder. "
+            "Never use generic templates like 'is a word to learn' or '是一个要学习的词'. "
             "Do not add language labels."
         )
 
@@ -29,12 +31,16 @@ def _language_rules(
                 "Provide both English and Chinese for every field. "
                 "Use two lines with English first, Chinese second. "
                 "For definition, the Chinese line must be a direct translation of the English line. "
+                "Definition must explain the actual meaning, not a placeholder. "
+                "Never use generic templates like 'is a word to learn' or '是一个要学习的词'. "
                 "Do not add language labels."
             )
         return (
             "Provide both Chinese and English for every field. "
             "Use two lines with Chinese first, English second. "
             "For definition, the Chinese line must be a direct translation of the English line. "
+            "Definition must explain the actual meaning, not a placeholder. "
+            "Never use generic templates like 'is a word to learn' or '是一个要学习的词'. "
             "Do not add language labels."
         )
     return (
@@ -86,8 +92,11 @@ def build_task_prompt(word: str, context: list[str] | None = None) -> str:
     return f"""Target word: "{word}"
 {_format_context(context)}
 Create:
-1) a short, simple definition (max 12 words)
+1) a short, simple definition (max 12 words) that explains the real meaning
 2) one example sentence (max 12 words)
 3) a multiple-choice quiz question that asks for the meaning of the target word
 4) 3 choices (A/B/C) where only one choice matches the target word's meaning, and include the correct answer letter
+Important:
+- Do not write placeholder definitions like "{word} is a word to learn."
+- In bilingual mode, Chinese definition must clearly translate the English meaning.
 """

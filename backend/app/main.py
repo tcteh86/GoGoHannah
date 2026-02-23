@@ -38,6 +38,7 @@ from .llm.client import (
     generate_story_image,
     generate_vocab_exercise,
     suggest_vocab_corrections,
+    translate_to_chinese,
     transcribe_audio,
 )
 from .schemas import (
@@ -154,6 +155,59 @@ def _ensure_bilingual_text(
     return f"{english}\n{chinese}"
 
 
+def _looks_template_definition(text: str) -> bool:
+    normalized = str(text or "").strip().lower()
+    if not normalized:
+        return True
+    template_patterns = (
+        "is a word to learn",
+        "word to learn",
+        "要学习的词",
+        "学习的词",
+    )
+    return any(pattern in normalized for pattern in template_patterns)
+
+
+def _repair_definition_text(
+    definition_text: str,
+    quiz_choices: dict,
+    quiz_answer: str,
+    source: str,
+    learning_direction: str | None,
+) -> str:
+    cleaned = _strip_language_labels(definition_text)
+    english, chinese = _split_bilingual_lines(cleaned)
+    english = english.strip() if english else ""
+    chinese = chinese.strip() if chinese else ""
+
+    if source != "llm":
+        return cleaned
+
+    # Prefer the correct quiz choice as backup meaning when definition looks generic.
+    if _looks_template_definition(english):
+        choice = str(quiz_choices.get(quiz_answer, ""))
+        choice_en, _ = _split_bilingual_lines(_strip_language_labels(choice))
+        if choice_en and not _looks_template_definition(choice_en):
+            english = choice_en.strip()
+
+    needs_chinese_repair = (not chinese) or _looks_template_definition(chinese)
+    needs_english_repair = (not english) or _looks_template_definition(english)
+    if not needs_chinese_repair and not needs_english_repair:
+        return cleaned
+
+    if not english:
+        return cleaned
+
+    try:
+        translated = translate_to_chinese(english)
+    except LLMUnavailable:
+        translated = chinese or english
+
+    if learning_direction == "zh_to_en":
+        return f"{translated}\n{english}"
+    return f"{english}\n{translated}"
+
+
 @app.get("/healthz")
 def healthz() -> dict:
     return {"status": "ok"}
@@ -229,14 +283,31 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
     cleaned_definition = _strip_language_labels(result["definition"])
     cleaned_example = _strip_language_labels(result["example_sentence"])
     if payload.output_style == "bilingual":
+        definition_fallback = (
+            str(fallback_for_bilingual.get("definition", ""))
+            if source != "llm"
+            else ""
+        )
+        example_fallback = (
+            str(fallback_for_bilingual.get("example_sentence", ""))
+            if source != "llm"
+            else ""
+        )
         cleaned_definition = _ensure_bilingual_text(
             cleaned_definition,
-            str(fallback_for_bilingual.get("definition", "")),
+            definition_fallback,
+            payload.learning_direction,
+        )
+        cleaned_definition = _repair_definition_text(
+            cleaned_definition,
+            cleaned_choices,
+            str(result.get("quiz_answer", "")),
+            source,
             payload.learning_direction,
         )
         cleaned_example = _ensure_bilingual_text(
             cleaned_example,
-            str(fallback_for_bilingual.get("example_sentence", "")),
+            example_fallback,
             payload.learning_direction,
         )
     response = {

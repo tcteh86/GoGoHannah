@@ -12,6 +12,7 @@ the learning experience engaging while showcasing GenAI techniques.
 - Practice output with progressive bilingual reveal (English first, Chinese on demand)
 - Instructional feedback that shows correct EN/ZH meaning and explains wrong choices
 - Rotating vocabulary checks (meaning match, context choice, fill-in-the-blank) plus EN↔ZH meaning checks
+- Definition quality guardrails to avoid template Chinese meanings in generated exercises
 - Bilingual vocab + story practice (English ↔ Chinese) with bilingual output
 - Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
 - Progress tracking with personalized recommendations, weak-word insights, and recent practice history

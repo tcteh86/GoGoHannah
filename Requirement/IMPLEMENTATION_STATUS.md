@@ -10,6 +10,9 @@ issues so a new agent can continue work if the session ends.
 ## 1) Implemented (Backend)
 - FastAPI service with health and vocab endpoints.
 - Vocab exercise generation (LLM + fallback) with phonics hints.
+- Vocab definition quality guard:
+  - Reject/retry template definitions in LLM generation.
+  - Repair missing/template Chinese definition lines using translation fallback.
 - Bilingual vocab options for English ↔ Chinese (learning direction + output style).
 - Progress save + summary + recommended words.
 - Daily progress endpoint with persistent streak and goal-based history (`/v1/progress/daily`).

@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from typing import Any, Dict
 
 from dotenv import load_dotenv
@@ -39,6 +40,22 @@ EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
 
 class LLMUnavailable(Exception):
     pass
+
+
+_TEMPLATE_DEFINITION_PATTERNS = (
+    "is a word to learn",
+    "word to learn",
+    "要学习的词",
+    "学习的词",
+    "单词",
+)
+
+
+def _is_template_definition(text: str) -> bool:
+    normalized = str(text or "").strip().lower()
+    if not normalized:
+        return True
+    return any(pattern in normalized for pattern in _TEMPLATE_DEFINITION_PATTERNS)
 
 
 def suggest_vocab_corrections(words: list[str]) -> list[str]:
@@ -91,47 +108,101 @@ def generate_vocab_exercise(
 ) -> Dict[str, Any]:
     """Generate a vocab exercise for `word` using OpenAI."""
     try:
+        for attempt in range(2):
+            extra_quality_rule = ""
+            if attempt == 1:
+                extra_quality_rule = (
+                    "\nQuality correction:\n"
+                    "- Definition must be concrete and word-specific.\n"
+                    "- Never use templates like 'is a word to learn' or '是一个要学习的词'.\n"
+                    "- If bilingual, Chinese definition must clearly translate the English meaning.\n"
+                )
+            response = get_client().chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": build_system_prompt(
+                            learning_direction=learning_direction,
+                            output_style=output_style,
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": build_task_prompt(word, context=context)
+                        + extra_quality_rule,
+                    },
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.7,
+                max_tokens=300,
+            )
+
+            result = json.loads(response.choices[0].message.content.strip())
+
+            required_keys = [
+                "definition",
+                "example_sentence",
+                "quiz_question",
+                "quiz_choices",
+                "quiz_answer",
+            ]
+            if not all(key in result for key in required_keys):
+                raise ValueError("Incomplete response from LLM.")
+
+            if not isinstance(result["quiz_choices"], dict) or set(
+                result["quiz_choices"].keys()
+            ) != {"A", "B", "C"}:
+                raise ValueError("Invalid quiz_choices format.")
+
+            if result["quiz_answer"] not in ["A", "B", "C"]:
+                raise ValueError("Invalid quiz_answer.")
+
+            definition = str(result.get("definition", ""))
+            if _is_template_definition(definition):
+                if attempt == 0:
+                    continue
+                raise ValueError("Template definition detected.")
+
+            return result
+        raise ValueError("Unable to generate non-template definition.")
+
+    except Exception as exc:
+        raise LLMUnavailable(f"Failed to generate exercise: {str(exc)}")
+
+
+def translate_to_chinese(text: str) -> str:
+    """Translate a short meaning sentence into natural Chinese."""
+    if not text.strip():
+        raise LLMUnavailable("Empty text for translation.")
+    try:
+        prompt = f"""Translate this short vocabulary meaning sentence into natural, child-friendly Chinese.
+Return plain Chinese text only.
+Do not include labels, notes, or quotes.
+
+Sentence:
+{text}
+"""
         response = get_client().chat.completions.create(
             model=MODEL_NAME,
             messages=[
                 {
                     "role": "system",
-                    "content": build_system_prompt(
-                        learning_direction=learning_direction,
-                        output_style=output_style,
-                    ),
+                    "content": "You are a precise English-to-Chinese translator for children.",
                 },
-                {"role": "user", "content": build_task_prompt(word, context=context)},
+                {"role": "user", "content": prompt},
             ],
-            response_format={"type": "json_object"},
-            temperature=0.7,
-            max_tokens=300,
+            temperature=0.2,
+            max_tokens=120,
         )
-
-        result = json.loads(response.choices[0].message.content.strip())
-
-        required_keys = [
-            "definition",
-            "example_sentence",
-            "quiz_question",
-            "quiz_choices",
-            "quiz_answer",
-        ]
-        if not all(key in result for key in required_keys):
-            raise ValueError("Incomplete response from LLM.")
-
-        if not isinstance(result["quiz_choices"], dict) or set(
-            result["quiz_choices"].keys()
-        ) != {"A", "B", "C"}:
-            raise ValueError("Invalid quiz_choices format.")
-
-        if result["quiz_answer"] not in ["A", "B", "C"]:
-            raise ValueError("Invalid quiz_answer.")
-
-        return result
-
+        translated = response.choices[0].message.content.strip()
+        # Keep only one concise line if the model returns multiple lines.
+        translated = re.split(r"\r?\n", translated)[0].strip()
+        if not translated:
+            raise ValueError("Empty translation result.")
+        return translated
     except Exception as exc:
-        raise LLMUnavailable(f"Failed to generate exercise: {str(exc)}")
+        raise LLMUnavailable(f"Failed to translate definition: {str(exc)}")
 
 
 def generate_comprehension_exercise(

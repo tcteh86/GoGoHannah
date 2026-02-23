@@ -85,6 +85,7 @@ Completed:
   - Rotating check styles (meaning/context/fill-blank).
   - EN↔ZH bidirectional meaning checks per generated exercise.
   - Instructional check feedback (correct meaning + wrong-choice explanation).
+  - Definition quality guard to reduce template-based Chinese meanings.
 - Study time tracking:
   - Daily, total, weekly/monthly summaries shown in results.
 - Read-aloud improvements:

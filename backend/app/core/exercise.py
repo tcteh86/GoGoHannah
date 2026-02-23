@@ -1,16 +1,54 @@
+_FALLBACK_MEANINGS = {
+    "happy": ("feeling glad and full of joy.", "感到开心和快乐。"),
+    "sad": ("feeling unhappy.", "感到难过。"),
+    "brave": ("showing courage when something feels hard.", "在困难时表现出勇气。"),
+    "gentle": ("kind, soft, and not rough.", "温和、不粗暴。"),
+    "kind": ("being nice and helpful to others.", "对别人友善并愿意帮助。"),
+    "strong": ("having a lot of power in body or mind.", "身体或意志有力量。"),
+    "clever": ("quick at learning and solving problems.", "聪明，学得快。"),
+    "friendly": ("kind and easy to get along with.", "友好，容易相处。"),
+    "excited": ("feeling very happy and eager.", "感到兴奋和期待。"),
+    "angry": ("feeling mad about something.", "感到生气。"),
+    "calm": ("peaceful and not upset.", "平静，不紧张。"),
+    "funny": ("making people laugh.", "让人发笑。"),
+    "shy": ("nervous around people you do not know well.", "在人前容易害羞。"),
+    "loud": ("making a strong sound.", "声音很大。"),
+    "quiet": ("making little or no sound.", "声音很小或安静。"),
+    "fast": ("moving or happening quickly.", "移动或发生得很快。"),
+    "slow": ("moving or happening with little speed.", "移动或发生得很慢。"),
+    "big": ("large in size.", "体积大。"),
+    "small": ("little in size.", "体积小。"),
+    "hot": ("having a high temperature.", "温度高，很热。"),
+    "cold": ("having a low temperature.", "温度低，很冷。"),
+    "safe": ("free from danger.", "安全，没有危险。"),
+    "dangerous": ("able to cause harm.", "危险，可能造成伤害。"),
+}
+
+
+def _fallback_definition(word: str) -> tuple[str, str]:
+    meaning = _FALLBACK_MEANINGS.get(word.lower())
+    if meaning:
+        return meaning
+    return (
+        f'"{word}" has a specific meaning used in daily life.',
+        f'“{word}” 在日常生活中有具体含义。',
+    )
+
+
 def simple_exercise(
     word: str,
     learning_direction: str | None = None,
     output_style: str | None = None,
 ) -> dict:
     """Deterministic fallback exercise so the app works without an LLM."""
+    meaning_en, meaning_zh = _fallback_definition(word)
     if not learning_direction:
         return {
-            "definition": f"\"{word}\" is a word to learn.",
+            "definition": meaning_en,
             "example_sentence": f"I can use the word {word} today.",
             "quiz_question": f"What is the meaning of \"{word}\"?",
             "quiz_choices": {
-                "A": f"The meaning of {word}.",
+                "A": meaning_en,
                 "B": "A kind of fruit.",
                 "C": "To move quickly.",
             },
@@ -39,20 +77,19 @@ def simple_exercise(
     def both_languages(text_en: str, text_zh: str) -> str:
         return f"{text_en}\n{text_zh}"
 
-    text_definition_en = f"\"{word}\" is a word to learn."
-    text_definition_zh = f"“{word}” 是一个要学习的词。"
+    text_definition_en, text_definition_zh = meaning_en, meaning_zh
     text_example_en = f"I can use the word {word} today."
     text_example_zh = f"我今天可以使用 {word}。"
     text_quiz_en = f"What is the meaning of \"{word}\"?"
     text_quiz_zh = f"\"{word}\" 的意思是什么？"
 
     choices_en = {
-        "A": f"The meaning of {word}.",
+        "A": text_definition_en,
         "B": "A kind of fruit.",
         "C": "To move quickly.",
     }
     choices_zh = {
-        "A": f"{word} 的意思。",
+        "A": text_definition_zh,
         "B": "一种水果。",
         "C": "快速移动。",
     }
