@@ -26,7 +26,7 @@ class QuickCheckScreen extends StatefulWidget {
 class _QuickCheckScreenState extends State<QuickCheckScreen> {
   bool _loading = false;
   String? _error;
-  bool _showChinese = false;
+  bool _showChinese = true;
   List<_QuickCheckItem> _items = [];
   final Map<int, String> _selectedChoices = {};
   final Map<int, bool> _answered = {};
