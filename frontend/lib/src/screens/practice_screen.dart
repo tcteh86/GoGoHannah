@@ -1579,34 +1579,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
-                Icon(Icons.flag_rounded, size: 18, color: Color(0xFF5B21B6)),
-                SizedBox(width: 8),
-                Text(
-                  'Vocabulary Mission Path',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF312E81),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-                backgroundColor: const Color(0xFFE5E7EB),
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xFF7C3AED),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
             LayoutBuilder(
               builder: (context, constraints) {
+                final isUltraCompact = constraints.maxWidth < 360;
                 final isCompact = constraints.maxWidth < 470;
                 final stepChips = <Widget>[
                   _buildVocabMissionStepChip(
@@ -1616,6 +1591,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     completed: true,
                     active: false,
                     compact: isCompact,
+                    ultraCompact: isUltraCompact,
                   ),
                   _buildVocabMissionStepChip(
                     step: 2,
@@ -1624,6 +1600,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     completed: hasWordSelection,
                     active: !hasWordSelection,
                     compact: isCompact,
+                    ultraCompact: isUltraCompact,
                   ),
                   _buildVocabMissionStepChip(
                     step: 3,
@@ -1632,33 +1609,87 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     completed: _exerciseSaved,
                     active: hasWordSelection && !_exerciseSaved,
                     compact: isCompact,
+                    ultraCompact: isUltraCompact,
                   ),
                 ];
+                final missionHeader = Row(
+                  children: [
+                    const Icon(
+                      Icons.flag_rounded,
+                      size: 18,
+                      color: Color(0xFF5B21B6),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Vocabulary Mission Path',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isUltraCompact ? 14 : 15,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF312E81),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+                final progressBar = ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: isUltraCompact ? 7 : 8,
+                    backgroundColor: const Color(0xFFE5E7EB),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF7C3AED),
+                    ),
+                  ),
+                );
                 if (isCompact) {
-                  final compactChipWidth = math.min(
-                    constraints.maxWidth,
-                    math.max(132.0, (constraints.maxWidth - 8) / 2),
-                  );
-                  return Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: stepChips
-                        .map(
-                          (chip) => SizedBox(
-                            width: compactChipWidth,
-                            child: chip,
-                          ),
-                        )
-                        .toList(),
+                  final compactChipWidth = isUltraCompact
+                      ? constraints.maxWidth
+                      : math.min(
+                          constraints.maxWidth,
+                          math.max(132.0, (constraints.maxWidth - 8) / 2),
+                        );
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      missionHeader,
+                      const SizedBox(height: 10),
+                      progressBar,
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: stepChips
+                            .map(
+                              (chip) => SizedBox(
+                                width: compactChipWidth,
+                                child: chip,
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ],
                   );
                 }
-                return Row(
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: stepChips[0]),
-                    const SizedBox(width: 8),
-                    Expanded(child: stepChips[1]),
-                    const SizedBox(width: 8),
-                    Expanded(child: stepChips[2]),
+                    missionHeader,
+                    const SizedBox(height: 10),
+                    progressBar,
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(child: stepChips[0]),
+                        const SizedBox(width: 8),
+                        Expanded(child: stepChips[1]),
+                        const SizedBox(width: 8),
+                        Expanded(child: stepChips[2]),
+                      ],
+                    ),
                   ],
                 );
               },
@@ -1676,6 +1707,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     required bool completed,
     required bool active,
     bool compact = false,
+    bool ultraCompact = false,
   }) {
     final backgroundColor = completed
         ? const Color(0xFFEDE9FE)
@@ -1734,7 +1766,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   maxLines: 2,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: ultraCompact ? 11 : 12,
                     fontWeight: FontWeight.w700,
                     color: foregroundColor,
                   ),
