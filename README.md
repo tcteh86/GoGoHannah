@@ -11,13 +11,14 @@ the learning experience engaging while showcasing GenAI techniques.
 - Optional vocabulary via custom word list entry
 - Practice output with progressive bilingual reveal (English first, Chinese on demand)
 - Instructional feedback that shows correct EN/ZH meaning and explains wrong choices
-- Rotating vocabulary checks (meaning match, context choice, fill-in-the-blank) plus EN↔ZH meaning checks
+- Vocabulary meaning-match quiz (single focused check per generated exercise)
 - Meaning quality guardrails to reduce template outputs in definition/example/quiz Chinese content
 - Bilingual vocab + story practice (English ↔ Chinese) with bilingual output
 - Story UX for early readers: chunked EN-first blocks, optional Chinese reveal, and clue-based question feedback
 - Vocabulary image hint button with abstract-word detection (disabled when non-visualizable)
 - Child-friendly vocabulary selectors: horizontal source carousel + tap word chips
 - Mission-style vocabulary flow: 3 step cards, progress tracker, and mini celebration on completion
+- Quiz tab for recommended words with bilingual EN/中文 presentation toggle
 - Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
 - Progress tracking with personalized recommendations, weak-word insights, and recent practice history
 - Study time tracking (daily, weekly/monthly, and total summaries)
@@ -81,7 +82,7 @@ From `frontend/`:
 ## Roadmap
 - ✅ Backend API scaffold with OpenAI integration (vocab exercises)
 - ✅ Progress tracking endpoints
-- ✅ Flutter web UI (practice, results, quick check)
+- ✅ Flutter web UI (practice, results, quiz)
 - ✅ Pronunciation (audio + transcription)
 - ✅ Comprehension stories
 - ✅ Vocabulary image hint tool (abstract words are flagged and disabled)

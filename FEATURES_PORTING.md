@@ -94,7 +94,7 @@ Flow:
 1) UI shows a mission-style 3-step flow card:
    - Step 1 choose list
    - Step 2 pick word
-   - Step 3 generate + finish checks
+   - Step 3 generate + finish quiz
    with a live progress indicator.
 2) User chooses a word source using horizontal carousel buttons
    (Default/Custom/Weak) and selects a word from horizontal scrollable chips.
@@ -104,22 +104,16 @@ Flow:
    - Definition (English shown first)
    - Example sentence (English shown first)
    - Chinese lines are revealed on demand (progressive reveal)
-6) Display quick checks:
-   - One rotating primary check type per generated exercise:
-     - Meaning match
-     - Context choice
-     - Fill-in-the-blank
-   - Plus two bidirectional checks:
-     - EN → ZH meaning
-     - ZH → EN meaning
-7) On each check:
+6) Display one focused quiz:
+   - Meaning-match multiple choice from backend (`quiz_question`, `quiz_choices`).
+7) On quiz submit:
    - Show instructional feedback (correct EN/ZH meaning + wrong-choice explanation).
 8) Optional image hint:
    - "Generate Image Hint" button is enabled only for visualizable words.
    - Abstract words are flagged and keep the button disabled.
    - On click, backend generates and returns an image hint URL.
-9) After all checks are completed:
-   - Save one `quiz` exercise using aggregated score across checks.
+9) After quiz is completed:
+   - Save one `quiz` exercise.
    - Trigger a short reward banner/animation to reinforce completion.
 
 LLM output requirements:
@@ -133,7 +127,7 @@ Porting notes:
 - Keep the mission-style step cards and progress indicator in the vocab flow.
 - Keep mission-step labels responsive on narrow/mobile screens (wrap layout + 2-line labels, no truncation).
 - Preserve progressive reveal for Chinese content to encourage active recall.
-- Keep bidirectional EN/ZH checks in the same exercise flow for bilingual reinforcement.
+- Keep the vocabulary-session quiz focused on one meaning-match question.
 - Enforce definition quality rules: avoid generic placeholder definitions and repair
   missing/templated Chinese definition lines from LLM output.
 - Enforce example/quiz quality rules: avoid template example sentences and generic
@@ -220,20 +214,22 @@ Algorithm:
 
 Usage:
 - Used in "Recommended for You" vocabulary mode.
-- Used for "Smart Suggestions" and "Test & Check" candidate selection.
+- Used for "Smart Suggestions" and "Quiz" candidate selection.
 
 Porting notes:
 - Keep the same prioritization order to match current behavior.
 
-### 3.8 Test and Check (quick quiz)
+### 3.8 Quiz (recommended words)
 Flow:
 - Fetch up to 3 recommended words.
 - Generate each question through the same vocab exercise API path
   (`/v1/vocab/exercise`), which is LLM-first with fallback.
-- Saves each answer as `test` exercise.
+- Request bilingual exercise output (`en_to_zh` + `bilingual`) and render EN first
+  with optional Chinese support in the UI.
+- Saves each answer as `quiz` exercise.
 
 Porting notes:
-- Keep the recommended-word-first flow and `test` persistence behavior.
+- Keep the recommended-word-first flow and bilingual quiz rendering.
 
 ### 3.9 Record management status
 Flow:
@@ -274,7 +270,7 @@ Tests:
 - Recreate the three main screens:
   - Practice
   - Past Results
-  - Test and Check
+  - Quiz
 - Preserve data model and persistence, or migrate to an equivalent store.
 - Keep word sanitization rules to avoid invalid input.
 - Keep quiz and pronunciation scoring behavior.

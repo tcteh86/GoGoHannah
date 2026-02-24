@@ -59,7 +59,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
   bool _loading = false;
   bool _showDefinitionChinese = false;
   bool _showExampleChinese = false;
-  int _quizVariantSeed = 0;
   bool _exerciseSaved = false;
   final List<_QuizPrompt> _quizPrompts = [];
   final Map<int, String> _quizSelections = {};
@@ -136,7 +135,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     super.dispose();
   }
 
-  Future<void> _generateExercise(List<String> wordPool) async {
+  Future<void> _generateExercise() async {
     final word = _selectedWord;
     if (word == null || word.isEmpty) {
       return;
@@ -164,11 +163,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
         learningDirection: _learningDirectionValue,
         outputStyle: _outputStyleValue,
       );
-      final prompts = _buildQuizPrompts(
-        exercise: exercise,
-        word: word,
-        wordPool: wordPool,
-      );
+      final prompts = _buildQuizPrompts(exercise: exercise);
       setState(() {
         _exercise = exercise;
         _quizPrompts
@@ -478,240 +473,21 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
   List<_QuizPrompt> _buildQuizPrompts({
     required VocabExercise exercise,
-    required String word,
-    required List<String> wordPool,
-  }) {
-    final definitionLines = _splitBilingualLines(exercise.definition);
-    final exampleLines = _splitBilingualLines(exercise.exampleSentence);
-    final prompts = <_QuizPrompt>[
-      _buildPrimaryPrompt(
-        exercise: exercise,
-        word: word,
-        exampleLines: exampleLines,
-        wordPool: wordPool,
-      ),
-    ];
-    prompts.addAll(
-      _buildBidirectionalPrompts(
-        exercise: exercise,
-        word: word,
-        definitionLines: definitionLines,
-      ),
-    );
-    return prompts;
-  }
-
-  _QuizPrompt _buildPrimaryPrompt({
-    required VocabExercise exercise,
-    required String word,
-    required _BilingualLines exampleLines,
-    required List<String> wordPool,
-  }) {
-    final mode = _quizVariantSeed % 3;
-    _quizVariantSeed += 1;
-    switch (mode) {
-      case 1:
-        return _buildContextPrompt(word: word, exampleLines: exampleLines);
-      case 2:
-        return _buildFillBlankPrompt(
-          word: word,
-          exampleLines: exampleLines,
-          wordPool: wordPool,
-        );
-      default:
-        final keys = ['A', 'B', 'C']
-            .where(exercise.quizChoices.containsKey)
-            .toList(growable: false);
-        final answer = keys.contains(exercise.quizAnswer) && keys.isNotEmpty
-            ? exercise.quizAnswer
-            : (keys.isNotEmpty ? keys.first : 'A');
-        return _QuizPrompt(
-          label: 'Meaning Match',
-          question: exercise.quizQuestion,
-          choices: exercise.quizChoices,
-          answer: answer,
-        );
-    }
-  }
-
-  _QuizPrompt _buildContextPrompt({
-    required String word,
-    required _BilingualLines exampleLines,
-  }) {
-    final exampleEnglish =
-        (exampleLines.english ?? '').trim().isNotEmpty
-            ? (exampleLines.english ?? '').trim()
-            : 'I can use the word $word today.';
-    final exampleChinese = exampleLines.chinese?.trim();
-    final correct = _mergeBilingualText(exampleEnglish, exampleChinese);
-    const wrongOneEn = 'I can eat this word for lunch.';
-    const wrongOneZh = '我可以把这个单词当午餐吃掉。';
-    const wrongTwoEn = 'This word is a race car.';
-    const wrongTwoZh = '这个单词是一辆赛车。';
-    return _createRotatingPrompt(
-      label: 'Context Choice',
-      question: 'Which sentence best shows the meaning of "$word"?\n哪一句最符合 "$word" 的意思？',
-      correctChoice: correct,
-      wrongChoiceOne: _mergeBilingualText(wrongOneEn, wrongOneZh),
-      wrongChoiceTwo: _mergeBilingualText(wrongTwoEn, wrongTwoZh),
-      seed: _quizVariantSeed,
-    );
-  }
-
-  _QuizPrompt _buildFillBlankPrompt({
-    required String word,
-    required _BilingualLines exampleLines,
-    required List<String> wordPool,
-  }) {
-    final exampleEnglish =
-        (exampleLines.english ?? '').trim().isNotEmpty
-            ? (exampleLines.english ?? '').trim()
-            : 'I can use the word $word today.';
-    final blankEnglish = _blankWord(exampleEnglish, word);
-    final exampleChinese = exampleLines.chinese?.trim();
-    final blankChinese = exampleChinese == null || exampleChinese.isEmpty
-        ? null
-        : _blankWord(exampleChinese, word);
-    final distractors = _buildFillBlankDistractors(word, wordPool);
-    return _createRotatingPrompt(
-      label: 'Fill in the Blank',
-      question: blankChinese == null
-          ? 'Fill in the blank with the correct word:\n$blankEnglish'
-          : 'Fill in the blank with the correct word:\n$blankEnglish\n请用正确的单词填空：\n$blankChinese',
-      correctChoice: word,
-      wrongChoiceOne: distractors[0],
-      wrongChoiceTwo: distractors[1],
-      seed: _quizVariantSeed,
-    );
-  }
-
-  List<String> _buildFillBlankDistractors(String word, List<String> wordPool) {
-    final target = word.toLowerCase();
-    final candidates = <String>[];
-    for (final item in wordPool) {
-      final trimmed = item.trim();
-      if (trimmed.isEmpty || trimmed.toLowerCase() == target) {
-        continue;
-      }
-      if (!candidates.contains(trimmed)) {
-        candidates.add(trimmed);
-      }
-      if (candidates.length >= 2) {
-        break;
-      }
-    }
-    if (candidates.length < 2) {
-      final synthetic = ['${word}s', '${word}ing', '${word}er'];
-      for (final item in synthetic) {
-        if (item.toLowerCase() == target || candidates.contains(item)) {
-          continue;
-        }
-        candidates.add(item);
-        if (candidates.length >= 2) {
-          break;
-        }
-      }
-    }
-    while (candidates.length < 2) {
-      candidates.add('${word}x');
-    }
-    return candidates;
-  }
-
-  String _blankWord(String text, String word) {
-    final escaped = RegExp.escape(word);
-    final regex = RegExp('\\b$escaped\\b', caseSensitive: false);
-    if (regex.hasMatch(text)) {
-      return text.replaceFirst(regex, '____');
-    }
-    return '$text ____';
-  }
-
-  _QuizPrompt _createRotatingPrompt({
-    required String label,
-    required String question,
-    required String correctChoice,
-    required String wrongChoiceOne,
-    required String wrongChoiceTwo,
-    required int seed,
-  }) {
-    const letters = ['A', 'B', 'C'];
-    final options = [correctChoice, wrongChoiceOne, wrongChoiceTwo];
-    final rotation = seed % 3;
-    final choices = <String, String>{};
-    var answer = 'A';
-    for (var index = 0; index < letters.length; index++) {
-      final optionIndex = (index + rotation) % options.length;
-      choices[letters[index]] = options[optionIndex];
-      if (optionIndex == 0) {
-        answer = letters[index];
-      }
-    }
-    return _QuizPrompt(
-      label: label,
-      question: question,
-      choices: choices,
-      answer: answer,
-    );
-  }
-
-  List<_QuizPrompt> _buildBidirectionalPrompts({
-    required VocabExercise exercise,
-    required String word,
-    required _BilingualLines definitionLines,
   }) {
     final keys = ['A', 'B', 'C']
         .where(exercise.quizChoices.containsKey)
         .toList(growable: false);
-    if (keys.length != 3 || !keys.contains(exercise.quizAnswer)) {
-      return const [];
-    }
-
-    final chineseChoices = <String, String>{};
-    final englishChoices = <String, String>{};
-    var hasChinese = true;
-    for (final key in keys) {
-      final raw = exercise.quizChoices[key] ?? '';
-      final lines = _splitBilingualLines(raw);
-      final english = lines.english ?? raw;
-      final chinese = lines.chinese;
-      englishChoices[key] = english;
-      if (chinese == null || chinese.trim().isEmpty) {
-        hasChinese = false;
-        chineseChoices[key] = raw;
-      } else {
-        chineseChoices[key] = chinese;
-      }
-    }
-    if (!hasChinese) {
-      return const [];
-    }
-
-    final chinesePromptLine = definitionLines.chinese?.trim();
-    final enToZh = _QuizPrompt(
-      label: 'EN → ZH Meaning',
-      question: 'Choose the Chinese meaning of "$word".',
-      choices: chineseChoices,
-      answer: exercise.quizAnswer,
-    );
-    final zhToEn = _QuizPrompt(
-      label: 'ZH → EN Meaning',
-      question: chinesePromptLine == null || chinesePromptLine.isEmpty
-          ? '选择 "$word" 的英文意思。'
-          : '根据这句中文，选择 "$word" 的英文意思：\n$chinesePromptLine',
-      choices: englishChoices,
-      answer: exercise.quizAnswer,
-    );
-    return [enToZh, zhToEn];
-  }
-
-  String _mergeBilingualText(String english, String? chinese) {
-    final en = english.trim();
-    final zh = chinese?.trim();
-    if (zh == null || zh.isEmpty) {
-      return en;
-    }
-    return '$en\n$zh';
+    final answer = keys.contains(exercise.quizAnswer) && keys.isNotEmpty
+        ? exercise.quizAnswer
+        : (keys.isNotEmpty ? keys.first : 'A');
+    return [
+      _QuizPrompt(
+        label: 'Meaning Match',
+        question: exercise.quizQuestion,
+        choices: exercise.quizChoices,
+        answer: answer,
+      ),
+    ];
   }
 
   Future<void> _checkQuizPrompt(
@@ -2033,7 +1809,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
           step: 3,
           title: 'Generate and complete the challenge',
           subtitle: hasWordSelection
-              ? 'Create exercise, finish quick checks, and practice pronunciation.'
+              ? 'Create exercise, finish the quiz, and practice pronunciation.'
               : 'Select a mission word first to unlock this step.',
           enabled: hasWordSelection,
           child: IgnorePointer(
@@ -2044,7 +1820,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 FilledButton.icon(
                   onPressed: _loading || !hasWordSelection
                       ? null
-                      : () => _generateExercise(words),
+                      : _generateExercise,
                   icon: const Icon(Icons.auto_awesome),
                   label: const Text('Generate Exercise'),
                 ),
@@ -2100,7 +1876,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Quick checks:',
+                    'Quiz:',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),

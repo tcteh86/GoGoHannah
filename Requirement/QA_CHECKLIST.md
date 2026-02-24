@@ -25,7 +25,7 @@ Use this checklist to validate the live prototype before new feature work.
 ## Frontend Flow Checks
 ### Entry + Navigation
 - [ ] Enter child name and start
-- [ ] Switch between Practice, Results, Quick Check tabs
+- [ ] Switch between Practice, Results, Quiz tabs
 
 ### Vocabulary Practice
 - [ ] Mission UI shows 3 step cards (choose list, pick word, generate/complete)
@@ -37,20 +37,23 @@ Use this checklist to validate the live prototype before new feature work.
 - [ ] Select word and generate exercise
 - [ ] English definition/example show immediately
 - [ ] Chinese definition/example can be revealed and hidden
-- [ ] Quick checks render for:
-  - [ ] rotating primary type (meaning/context/fill-blank)
-  - [ ] EN → ZH meaning
-  - [ ] ZH → EN meaning
-- [ ] Check feedback shows:
+- [ ] Quiz renders one meaning-match question (A/B/C choices)
+- [ ] Quiz feedback shows:
   - [ ] correct answer
   - [ ] EN/ZH meaning reference
   - [ ] wrong-choice explanation
 - [ ] Mascot reaction updates for correct/incorrect
 - [ ] Result saves and appears in Results summary
-- [ ] Completion celebration banner appears after all quick checks are submitted
+- [ ] Completion celebration banner appears after quiz submission
 - [ ] Image hint button behavior:
   - [ ] enabled for concrete words and can render image
   - [ ] disabled/grayed out for abstract words with clear message
+
+### Quiz Tab
+- [ ] Generate quiz from recommended words
+- [ ] Quiz questions and choices render bilingual (EN first, Chinese optional)
+- [ ] English / English+中文 toggle updates presentation
+- [ ] Answer feedback shows bilingual text
 
 ### Pronunciation Practice
 - [ ] Record audio and stop recording
@@ -94,5 +97,5 @@ Use this checklist to validate the live prototype before new feature work.
 - [ ] Screenshot: Practice (comprehension)
 - [ ] Screenshot: Pronunciation result
 - [ ] Screenshot: Results summary
-- [ ] Screenshot: Quick Check
+- [ ] Screenshot: Quiz
 - [ ] Notes / issues:

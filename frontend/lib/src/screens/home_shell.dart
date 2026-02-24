@@ -195,7 +195,7 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(
             icon: Icon(Icons.quiz_outlined),
             selectedIcon: Icon(Icons.quiz),
-            label: 'Quick Check',
+            label: 'Quiz',
           ),
         ],
       ),

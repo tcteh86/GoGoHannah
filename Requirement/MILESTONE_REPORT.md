@@ -34,7 +34,7 @@ Justification:
 Current:
 - FastAPI backend in `backend/` with OpenAI integration.
 - SQLite persistence for progress tracking.
-- Flutter web UI for practice, results, and quick check.
+- Flutter web UI for practice, results, and quiz.
 
 Planned:
 - Flutter web frontend hosted on Firebase.
@@ -84,15 +84,17 @@ Completed:
   - Weak-word suggestions highlighted for review.
   - Daily progress endpoint + UI daily history view.
 - Vocabulary exercise UX enhancements:
-  - Mission-style 3-step learning flow (choose list → pick word → complete checks).
+  - Mission-style 3-step learning flow (choose list → pick word → complete quiz).
   - Visual mission progress tracker with step-state updates.
   - Chinese reveal controls (English-first learning flow).
-  - Rotating check styles (meaning/context/fill-blank).
-  - EN↔ZH bidirectional meaning checks per generated exercise.
+  - Single meaning-match quiz per generated exercise.
   - Instructional check feedback (correct meaning + wrong-choice explanation).
   - Definition/example/quiz quality guards to reduce template-based Chinese outputs.
   - On-demand vocabulary image hint generation with abstract-word disable rule.
-  - Small completion celebration banner after finishing quick checks.
+  - Small completion celebration banner after finishing quiz.
+- Quiz tab enhancements:
+  - Recommended-word bilingual quiz generation (EN/中文).
+  - English-first display with optional Chinese reveal toggle.
 - Study time tracking:
   - Daily, total, weekly/monthly summaries shown in results.
 - Read-aloud improvements:
@@ -118,7 +120,7 @@ Done:
 - Bilingual story configuration for English → Chinese practice.
 - Progress save + summary endpoints.
 - Study time tracking endpoints + results summaries.
-- Flutter web UI for practice, results, and quick check.
+- Flutter web UI for practice, results, and quiz.
 - Pronunciation analysis flow (audio + transcription).
 - Comprehension story flow (story + questions).
 - Comprehension UX upgrades (chunked EN/ZH blocks,

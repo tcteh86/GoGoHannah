@@ -42,14 +42,15 @@ issues so a new agent can continue work if the session ends.
     - Live mission progress tracker across the 3 steps.
     - Responsive mobile mission chips (wrap layout + multi-line labels).
     - Progressive reveal for Chinese meaning/example lines.
-    - Rotating primary check type (meaning match/context/fill-blank).
-    - Bidirectional EN↔ZH meaning checks in the same exercise.
+    - Single meaning-match quiz per generated exercise.
     - Instructional feedback with correct meaning and wrong-choice explanation.
-    - Mini completion celebration banner after finishing all checks.
+    - Mini completion celebration banner after finishing quiz.
 - Results screen with summary + weak words list + recent practice.
 - Results screen with study time summaries (daily, total, weekly/monthly).
 - Results screen with persistent streak metrics (current/best) and daily history list.
-- Quick Check screen with recommended-word quiz (uses vocab exercise API path, LLM + fallback).
+- Quiz screen with recommended-word bilingual quiz (uses vocab exercise API path, LLM + fallback).
+  - English-first question/choice display with optional Chinese toggle.
+  - Bilingual answer feedback and correct-answer explanation.
 - Engagement loop:
   - Mascot header with animated reactions.
   - Daily goal progress bar.
