@@ -40,6 +40,7 @@ issues so a new agent can continue work if the session ends.
   - Generate Exercise vocabulary UX:
     - Mission-style 3-step cards (choose list, pick word, generate/complete).
     - Live mission progress tracker across the 3 steps.
+    - Responsive mobile mission chips (wrap layout + multi-line labels).
     - Progressive reveal for Chinese meaning/example lines.
     - Rotating primary check type (meaning match/context/fill-blank).
     - Bidirectional EN↔ZH meaning checks in the same exercise.

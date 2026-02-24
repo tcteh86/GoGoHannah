@@ -1605,38 +1605,63 @@ class _PracticeScreenState extends State<PracticeScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildVocabMissionStepChip(
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 470;
+                final stepChips = <Widget>[
+                  _buildVocabMissionStepChip(
                     step: 1,
                     icon: Icons.view_carousel_rounded,
                     label: 'Choose list',
                     completed: true,
                     active: false,
+                    compact: isCompact,
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildVocabMissionStepChip(
+                  _buildVocabMissionStepChip(
                     step: 2,
                     icon: Icons.style_rounded,
                     label: 'Pick word',
                     completed: hasWordSelection,
                     active: !hasWordSelection,
+                    compact: isCompact,
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildVocabMissionStepChip(
+                  _buildVocabMissionStepChip(
                     step: 3,
                     icon: Icons.auto_awesome_rounded,
                     label: 'Finish checks',
                     completed: _exerciseSaved,
                     active: hasWordSelection && !_exerciseSaved,
+                    compact: isCompact,
                   ),
-                ),
-              ],
+                ];
+                if (isCompact) {
+                  final compactChipWidth = math.min(
+                    constraints.maxWidth,
+                    math.max(132.0, (constraints.maxWidth - 8) / 2),
+                  );
+                  return Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: stepChips
+                        .map(
+                          (chip) => SizedBox(
+                            width: compactChipWidth,
+                            child: chip,
+                          ),
+                        )
+                        .toList(),
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: stepChips[0]),
+                    const SizedBox(width: 8),
+                    Expanded(child: stepChips[1]),
+                    const SizedBox(width: 8),
+                    Expanded(child: stepChips[2]),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -1650,6 +1675,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     required String label,
     required bool completed,
     required bool active,
+    bool compact = false,
   }) {
     final backgroundColor = completed
         ? const Color(0xFFEDE9FE)
@@ -1666,51 +1692,76 @@ class _PracticeScreenState extends State<PracticeScreen> {
         : active
             ? const Color(0xFF4338CA)
             : const Color(0xFF6B7280);
+    final stepBadge = CircleAvatar(
+      radius: 10,
+      backgroundColor: completed
+          ? const Color(0xFF6D28D9)
+          : const Color(0xFFE5E7EB),
+      child: completed
+          ? const Icon(Icons.check, size: 12, color: Colors.white)
+          : Text(
+              '$step',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF4B5563),
+              ),
+            ),
+    );
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 8, vertical: 8),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: borderColor, width: completed ? 2 : 1),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            radius: 10,
-            backgroundColor: completed
-                ? const Color(0xFF6D28D9)
-                : const Color(0xFFE5E7EB),
-            child: completed
-                ? const Icon(Icons.check, size: 12, color: Colors.white)
-                : Text(
-                    '$step',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF4B5563),
+      child: compact
+          ? Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    stepBadge,
+                    const SizedBox(width: 6),
+                    Icon(icon, size: 14, color: foregroundColor),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: foregroundColor,
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                stepBadge,
+                const SizedBox(width: 6),
+                Icon(icon, size: 14, color: foregroundColor),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: foregroundColor,
                     ),
                   ),
-          ),
-          const SizedBox(width: 6),
-          Icon(icon, size: 14, color: foregroundColor),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: foregroundColor,
-              ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 

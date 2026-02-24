@@ -30,6 +30,7 @@ Use this checklist to validate the live prototype before new feature work.
 ### Vocabulary Practice
 - [ ] Mission UI shows 3 step cards (choose list, pick word, generate/complete)
 - [ ] Mission progress bar/step states update as learner advances
+- [ ] On mobile width, mission step labels are fully readable (no truncation)
 - [ ] Word-list source selector is horizontal carousel (Default/Custom/Weak)
 - [ ] Carousel source selection updates the displayed word pool
 - [ ] Word picker is scrollable chips (tap to select)

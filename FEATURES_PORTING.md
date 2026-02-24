@@ -131,6 +131,7 @@ Porting notes:
 - Keep the same scoring and data persistence format.
 - Keep child-friendly source/word selectors (carousel + chips) rather than dropdowns.
 - Keep the mission-style step cards and progress indicator in the vocab flow.
+- Keep mission-step labels responsive on narrow/mobile screens (wrap layout + 2-line labels, no truncation).
 - Preserve progressive reveal for Chinese content to encourage active recall.
 - Keep bidirectional EN/ZH checks in the same exercise flow for bilingual reinforcement.
 - Enforce definition quality rules: avoid generic placeholder definitions and repair
