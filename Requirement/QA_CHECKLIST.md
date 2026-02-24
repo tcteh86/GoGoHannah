@@ -52,6 +52,7 @@ Use this checklist to validate the live prototype before new feature work.
 - [ ] Story renders as short blocks (not one long paragraph)
 - [ ] English line is visible first for each block
 - [ ] Read-aloud highlight appears directly in story blocks (no duplicate highlight panel)
+- [ ] Chinese read-aloud highlights each character/word in sequence (no skipped jumps)
 - [ ] Chinese reveal works:
   - [ ] per block
   - [ ] reveal all / hide all

@@ -60,6 +60,7 @@ issues so a new agent can continue work if the session ends.
   - Per-question save to backend.
   - Optional image display when provided (supports inline data URIs).
   - Read-aloud word highlighting for web and mobile (rendered directly inside story blocks).
+  - Chinese read-aloud highlight sync improved with hybrid fallback pacing + native anchor timing on web.
   - Adjustable reading speed (0.1x - 1.0x).
   - English-first story blocks with progressive Chinese reveal (per block + reveal all).
   - Guided question feedback with EN/ZH explanation and clue block highlighting.
