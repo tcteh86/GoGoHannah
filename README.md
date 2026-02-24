@@ -17,6 +17,7 @@ the learning experience engaging while showcasing GenAI techniques.
 - Story UX for early readers: chunked EN-first blocks, optional Chinese reveal, and clue-based question feedback
 - Vocabulary image hint button with abstract-word detection (disabled when non-visualizable)
 - Child-friendly vocabulary selectors: horizontal source carousel + tap word chips
+- Mission-style vocabulary flow: 3 step cards, progress tracker, and mini celebration on completion
 - Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
 - Progress tracking with personalized recommendations, weak-word insights, and recent practice history
 - Study time tracking (daily, weekly/monthly, and total summaries)
@@ -84,6 +85,7 @@ From `frontend/`:
 - ✅ Pronunciation (audio + transcription)
 - ✅ Comprehension stories
 - ✅ Vocabulary image hint tool (abstract words are flagged and disabled)
+- ✅ Mission-style vocabulary practice flow (step cards + progress + reward animation)
 - ⏳ RAG + embeddings + multi-agent workflow
 
 ## Notes on GenAI Safety (future)

@@ -84,12 +84,15 @@ Completed:
   - Weak-word suggestions highlighted for review.
   - Daily progress endpoint + UI daily history view.
 - Vocabulary exercise UX enhancements:
+  - Mission-style 3-step learning flow (choose list → pick word → complete checks).
+  - Visual mission progress tracker with step-state updates.
   - Chinese reveal controls (English-first learning flow).
   - Rotating check styles (meaning/context/fill-blank).
   - EN↔ZH bidirectional meaning checks per generated exercise.
   - Instructional check feedback (correct meaning + wrong-choice explanation).
   - Definition/example/quiz quality guards to reduce template-based Chinese outputs.
   - On-demand vocabulary image hint generation with abstract-word disable rule.
+  - Small completion celebration banner after finishing quick checks.
 - Study time tracking:
   - Daily, total, weekly/monthly summaries shown in results.
 - Read-aloud improvements:

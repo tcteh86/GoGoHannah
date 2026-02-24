@@ -68,6 +68,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
   String? _vocabHintImageUrl;
   String? _vocabHintError;
   bool _vocabHintLoading = false;
+  bool _showVocabMissionCelebration = false;
+  String _vocabMissionCelebrationText = '';
 
   PracticeMode _mode = PracticeMode.vocabulary;
   ComprehensionExercise? _comprehension;
@@ -149,6 +151,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _showDefinitionChinese = false;
       _showExampleChinese = false;
       _exerciseSaved = false;
+      _showVocabMissionCelebration = false;
+      _vocabMissionCelebrationText = '';
       _quizPrompts.clear();
       _quizSelections.clear();
       _quizResults.clear();
@@ -261,6 +265,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _showDefinitionChinese = false;
     _showExampleChinese = false;
     _exerciseSaved = false;
+    _showVocabMissionCelebration = false;
+    _vocabMissionCelebrationText = '';
     _quizPrompts.clear();
     _quizSelections.clear();
     _quizResults.clear();
@@ -269,6 +275,27 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _pronunciationScore = null;
     _pronunciationTranscript = null;
     _pronunciationFeedback = null;
+  }
+
+  void _triggerVocabMissionCelebration({required bool passed}) {
+    if (!mounted) {
+      return;
+    }
+    final message = passed
+        ? 'Mission complete! Star earned!'
+        : 'Mission complete! Try once more for a higher score!';
+    setState(() {
+      _showVocabMissionCelebration = true;
+      _vocabMissionCelebrationText = message;
+    });
+    Future<void>.delayed(const Duration(milliseconds: 1800), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showVocabMissionCelebration = false;
+      });
+    });
   }
 
   void _resetComprehensionState() {
@@ -732,6 +759,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _feedback =
           'Exercise complete: $correctCount/${_quizPrompts.length} correct.';
     });
+    _triggerVocabMissionCelebration(passed: passed);
     widget.sessionState.recordAnswer(correct: passed);
     try {
       await widget.apiClient.saveExercise(
@@ -1535,6 +1563,271 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
+  Widget _buildVocabularyMissionProgress({required bool hasWordSelection}) {
+    final completedSteps = 1 + (hasWordSelection ? 1 : 0) + (_exerciseSaved ? 1 : 0);
+    final progress = completedSteps / 3;
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: const Color(0xFFF8FAFC),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.flag_rounded, size: 18, color: Color(0xFF5B21B6)),
+                SizedBox(width: 8),
+                Text(
+                  'Vocabulary Mission Path',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF312E81),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 8,
+                backgroundColor: const Color(0xFFE5E7EB),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  Color(0xFF7C3AED),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildVocabMissionStepChip(
+                    step: 1,
+                    icon: Icons.view_carousel_rounded,
+                    label: 'Choose list',
+                    completed: true,
+                    active: false,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildVocabMissionStepChip(
+                    step: 2,
+                    icon: Icons.style_rounded,
+                    label: 'Pick word',
+                    completed: hasWordSelection,
+                    active: !hasWordSelection,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildVocabMissionStepChip(
+                    step: 3,
+                    icon: Icons.auto_awesome_rounded,
+                    label: 'Finish checks',
+                    completed: _exerciseSaved,
+                    active: hasWordSelection && !_exerciseSaved,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVocabMissionStepChip({
+    required int step,
+    required IconData icon,
+    required String label,
+    required bool completed,
+    required bool active,
+  }) {
+    final backgroundColor = completed
+        ? const Color(0xFFEDE9FE)
+        : active
+            ? const Color(0xFFEEF2FF)
+            : Colors.white;
+    final borderColor = completed
+        ? const Color(0xFF7C3AED)
+        : active
+            ? const Color(0xFF6366F1)
+            : const Color(0xFFD1D5DB);
+    final foregroundColor = completed
+        ? const Color(0xFF5B21B6)
+        : active
+            ? const Color(0xFF4338CA)
+            : const Color(0xFF6B7280);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: completed ? 2 : 1),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircleAvatar(
+            radius: 10,
+            backgroundColor: completed
+                ? const Color(0xFF6D28D9)
+                : const Color(0xFFE5E7EB),
+            child: completed
+                ? const Icon(Icons.check, size: 12, color: Colors.white)
+                : Text(
+                    '$step',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF4B5563),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 6),
+          Icon(icon, size: 14, color: foregroundColor),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: foregroundColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVocabularyStepCard({
+    required int step,
+    required String title,
+    required String subtitle,
+    required Widget child,
+    bool enabled = true,
+  }) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 180),
+      opacity: enabled ? 1 : 0.56,
+      child: Card(
+        margin: EdgeInsets.zero,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 13,
+                    backgroundColor: const Color(0xFFEDE9FE),
+                    child: Text(
+                      '$step',
+                      style: const TextStyle(
+                        color: Color(0xFF5B21B6),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              child,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVocabMissionCelebrationBanner() {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 360),
+      switchInCurve: Curves.easeOutBack,
+      switchOutCurve: Curves.easeIn,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.92, end: 1).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: _showVocabMissionCelebration
+          ? Container(
+              key: ValueKey(_vocabMissionCelebrationText),
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF34D399)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.stars_rounded, color: Color(0xFF047857)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _vocabMissionCelebrationText,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF065F46),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : const SizedBox.shrink(key: ValueKey('no-vocab-celebration')),
+    );
+  }
+
   Widget _buildVocabularySection(List<String> words) {
     String? emptyMessage;
     if (words.isEmpty) {
@@ -1550,6 +1843,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
     } else if (_selectedWord == null || !words.contains(_selectedWord)) {
       _selectedWord = words.first;
     }
+    final hasWordSelection =
+        _selectedWord != null && words.contains(_selectedWord);
     final word = _selectedWord ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1559,16 +1854,24 @@ class _PracticeScreenState extends State<PracticeScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Word list:',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        _buildVocabSourceCarousel(),
-        const SizedBox(height: 4),
-        const Text(
-          'Swipe left or right to choose.',
-          style: TextStyle(fontSize: 12, color: Colors.black54),
+        _buildVocabularyMissionProgress(hasWordSelection: hasWordSelection),
+        const SizedBox(height: 12),
+        _buildVocabularyStepCard(
+          step: 1,
+          title: 'Choose your word list',
+          subtitle:
+              'Swipe to pick Default, Custom, or Weak Words before starting.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildVocabSourceCarousel(),
+              const SizedBox(height: 4),
+              const Text(
+                'Swipe left or right to choose.',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+          ),
         ),
         if (_vocabSource == VocabListSource.customList) ...[
           const SizedBox(height: 12),
@@ -1617,184 +1920,217 @@ class _PracticeScreenState extends State<PracticeScreen> {
             ),
           ],
         ],
-        if (emptyMessage != null) ...[
-          const SizedBox(height: 12),
-          Text(
-            emptyMessage,
-            style: const TextStyle(fontSize: 16),
-          ),
-        ],
-        if (words.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          const Text(
-            'Pick a word to practice:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          _buildWordChipCarousel(words),
-          const SizedBox(height: 4),
-          const Text(
-            'Tap a word chip to select.',
-            style: TextStyle(fontSize: 12, color: Colors.black54),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: _loading ? null : () => _generateExercise(words),
-            icon: const Icon(Icons.auto_awesome),
-            label: const Text('Generate Exercise'),
-          ),
-          const SizedBox(height: 20),
-          if (_loading) const LoadingView(message: 'Creating exercise...'),
-          if (_exercise != null) ...[
-            Builder(
-              builder: (context) {
-                final definitionLines =
-                    _splitBilingualLines(_exercise!.definition);
-                final exampleLines =
-                    _splitBilingualLines(_exercise!.exampleSentence);
-                return _ExerciseCard(
-                  exercise: _exercise!,
-                  word: word,
-                  definitionLines: definitionLines,
-                  exampleLines: exampleLines,
-                  imageHintUrl: _vocabHintImageUrl,
-                  imageHintError: _vocabHintError,
-                  imageHintLoading: _vocabHintLoading,
-                  onGenerateImageHint: _generateVocabImageHint,
-                  showDefinitionChinese: _showDefinitionChinese,
-                  showExampleChinese: _showExampleChinese,
-                  onToggleDefinitionChinese: () => setState(
-                    () => _showDefinitionChinese = !_showDefinitionChinese,
+        const SizedBox(height: 12),
+        _buildVocabularyStepCard(
+          step: 2,
+          title: 'Pick your mission word',
+          subtitle: words.isNotEmpty
+              ? 'Tap one word chip to lock your mission target.'
+              : (emptyMessage ?? 'No words available for this list yet.'),
+          enabled: words.isNotEmpty,
+          child: words.isNotEmpty
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildWordChipCarousel(words),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Tap a word chip to select.',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
+                )
+              : Text(
+                  emptyMessage ?? 'No words available for this list yet.',
+                  style: const TextStyle(fontSize: 16),
+                ),
+        ),
+        const SizedBox(height: 12),
+        _buildVocabularyStepCard(
+          step: 3,
+          title: 'Generate and complete the challenge',
+          subtitle: hasWordSelection
+              ? 'Create exercise, finish quick checks, and practice pronunciation.'
+              : 'Select a mission word first to unlock this step.',
+          enabled: hasWordSelection,
+          child: IgnorePointer(
+            ignoring: !hasWordSelection,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FilledButton.icon(
+                  onPressed: _loading || !hasWordSelection
+                      ? null
+                      : () => _generateExercise(words),
+                  icon: const Icon(Icons.auto_awesome),
+                  label: const Text('Generate Exercise'),
+                ),
+                _buildVocabMissionCelebrationBanner(),
+                if (!hasWordSelection) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Pick a word in Step 2 to begin.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
-                  onToggleExampleChinese: () => setState(
-                    () => _showExampleChinese = !_showExampleChinese,
+                ],
+                const SizedBox(height: 16),
+                if (_loading) const LoadingView(message: 'Creating exercise...'),
+                if (_exercise != null) ...[
+                  Builder(
+                    builder: (context) {
+                      final definitionLines =
+                          _splitBilingualLines(_exercise!.definition);
+                      final exampleLines =
+                          _splitBilingualLines(_exercise!.exampleSentence);
+                      return _ExerciseCard(
+                        exercise: _exercise!,
+                        word: word,
+                        definitionLines: definitionLines,
+                        exampleLines: exampleLines,
+                        imageHintUrl: _vocabHintImageUrl,
+                        imageHintError: _vocabHintError,
+                        imageHintLoading: _vocabHintLoading,
+                        onGenerateImageHint: _generateVocabImageHint,
+                        showDefinitionChinese: _showDefinitionChinese,
+                        showExampleChinese: _showExampleChinese,
+                        onToggleDefinitionChinese: () => setState(
+                          () => _showDefinitionChinese = !_showDefinitionChinese,
+                        ),
+                        onToggleExampleChinese: () => setState(
+                          () => _showExampleChinese = !_showExampleChinese,
+                        ),
+                        onListenWord: () => _speechHelper.speak(word),
+                        onListenDefinitionEnglish: () => _speechHelper.speak(
+                          definitionLines.english ?? _exercise!.definition,
+                        ),
+                        onListenDefinitionChinese: () => _speechHelper.speak(
+                          definitionLines.chinese ?? _exercise!.definition,
+                        ),
+                        onListenExampleEnglish: () => _speechHelper.speak(
+                          exampleLines.english ?? _exercise!.exampleSentence,
+                        ),
+                        onListenExampleChinese: () => _speechHelper.speak(
+                          exampleLines.chinese ?? _exercise!.exampleSentence,
+                        ),
+                      );
+                    },
                   ),
-                  onListenWord: () => _speechHelper.speak(word),
-                  onListenDefinitionEnglish: () => _speechHelper.speak(
-                    definitionLines.english ?? _exercise!.definition,
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Quick checks:',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  onListenDefinitionChinese: () => _speechHelper.speak(
-                    definitionLines.chinese ?? _exercise!.definition,
+                  const SizedBox(height: 8),
+                  Builder(
+                    builder: (context) {
+                      final definitionLines =
+                          _splitBilingualLines(_exercise!.definition);
+                      return Column(
+                        children: _quizPrompts.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final prompt = entry.value;
+                          final selected = _quizSelections[index];
+                          final checked = _quizResults[index] != null;
+                          final feedback = _quizFeedback[index];
+                          return _QuizPromptCard(
+                            index: index,
+                            prompt: prompt,
+                            selectedChoice: selected,
+                            checked: checked,
+                            feedback: feedback,
+                            onChoiceChanged: checked
+                                ? null
+                                : (value) {
+                                    if (value == null) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _quizSelections[index] = value;
+                                    });
+                                  },
+                            onCheck: selected == null || checked
+                                ? null
+                                : () => _checkQuizPrompt(index, definitionLines),
+                          );
+                        }).toList(),
+                      );
+                    },
                   ),
-                  onListenExampleEnglish: () => _speechHelper.speak(
-                    exampleLines.english ?? _exercise!.exampleSentence,
+                ],
+                if (_feedback != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _feedback!,
+                    style: const TextStyle(fontSize: 16),
                   ),
-                  onListenExampleChinese: () => _speechHelper.speak(
-                    exampleLines.chinese ?? _exercise!.exampleSentence,
+                ],
+                const SizedBox(height: 16),
+                const Text(
+                  'Pronunciation practice:',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: _pronunciationLoading ? null : _toggleRecording,
+                  icon: Icon(_audioRecorder.isRecording ? Icons.stop : Icons.mic),
+                  label: Text(
+                    _audioRecorder.isRecording ? 'Stop Recording' : 'Record',
                   ),
-                );
-              },
+                ),
+                if (_audioRecorder.isRecording) ...[
+                  const SizedBox(height: 6),
+                  const Text('Recording... tap stop when you are done.'),
+                  const SizedBox(height: 8),
+                  AudioLevelIndicator(
+                    levelListenable: _audioRecorder.levelListenable,
+                  ),
+                ],
+                if (_pronunciationLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: LoadingView(message: 'Scoring pronunciation...'),
+                  ),
+                if (_recording != null) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Recorded audio:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  ValueListenableBuilder<List<double>>(
+                    valueListenable: _waveformNotifier,
+                    builder: (context, levels, _) {
+                      if (levels.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: AudioWaveformPreview(levels: levels),
+                      );
+                    },
+                  ),
+                  FilledButton.icon(
+                    onPressed: () => _audioPlayback.playUrl(_recording!.url),
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Play Back'),
+                  ),
+                ],
+                if (_pronunciationTranscript != null) ...[
+                  const SizedBox(height: 8),
+                  Text('You said: $_pronunciationTranscript'),
+                ],
+                if (_pronunciationScore != null) ...[
+                  const SizedBox(height: 4),
+                  Text('Score: $_pronunciationScore / 100'),
+                ],
+                if (_pronunciationFeedback != null) ...[
+                  const SizedBox(height: 4),
+                  Text(_pronunciationFeedback!),
+                ],
+              ],
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Quick checks:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Builder(
-              builder: (context) {
-                final definitionLines =
-                    _splitBilingualLines(_exercise!.definition);
-                return Column(
-                  children: _quizPrompts.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final prompt = entry.value;
-                    final selected = _quizSelections[index];
-                    final checked = _quizResults[index] != null;
-                    final feedback = _quizFeedback[index];
-                    return _QuizPromptCard(
-                      index: index,
-                      prompt: prompt,
-                      selectedChoice: selected,
-                      checked: checked,
-                      feedback: feedback,
-                      onChoiceChanged: checked
-                          ? null
-                          : (value) {
-                              if (value == null) {
-                                return;
-                              }
-                              setState(() {
-                                _quizSelections[index] = value;
-                              });
-                            },
-                      onCheck: selected == null || checked
-                          ? null
-                          : () => _checkQuizPrompt(index, definitionLines),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-          ],
-          if (_feedback != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              _feedback!,
-              style: const TextStyle(fontSize: 16),
-            ),
-          ],
-          const SizedBox(height: 16),
-          const Text(
-            'Pronunciation practice:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: _pronunciationLoading ? null : _toggleRecording,
-            icon: Icon(_audioRecorder.isRecording ? Icons.stop : Icons.mic),
-            label:
-                Text(_audioRecorder.isRecording ? 'Stop Recording' : 'Record'),
-          ),
-          if (_audioRecorder.isRecording) ...[
-            const SizedBox(height: 6),
-            const Text('Recording... tap stop when you are done.'),
-            const SizedBox(height: 8),
-            AudioLevelIndicator(levelListenable: _audioRecorder.levelListenable),
-          ],
-          if (_pronunciationLoading)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: LoadingView(message: 'Scoring pronunciation...'),
-            ),
-          if (_recording != null) ...[
-            const SizedBox(height: 8),
-            const Text(
-              'Recorded audio:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 6),
-            ValueListenableBuilder<List<double>>(
-              valueListenable: _waveformNotifier,
-              builder: (context, levels, _) {
-                if (levels.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: AudioWaveformPreview(levels: levels),
-                );
-              },
-            ),
-            FilledButton.icon(
-              onPressed: () => _audioPlayback.playUrl(_recording!.url),
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Play Back'),
-            ),
-          ],
-          if (_pronunciationTranscript != null) ...[
-            const SizedBox(height: 8),
-            Text('You said: $_pronunciationTranscript'),
-          ],
-          if (_pronunciationScore != null) ...[
-            const SizedBox(height: 4),
-            Text('Score: $_pronunciationScore / 100'),
-          ],
-          if (_pronunciationFeedback != null) ...[
-            const SizedBox(height: 4),
-            Text(_pronunciationFeedback!),
-          ],
-        ],
+        ),
       ],
     );
   }

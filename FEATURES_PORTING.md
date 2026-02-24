@@ -91,15 +91,20 @@ Porting notes:
 
 ### 3.3 Vocabulary practice (definition + example + quiz)
 Flow:
-1) User chooses a word source using horizontal carousel buttons
+1) UI shows a mission-style 3-step flow card:
+   - Step 1 choose list
+   - Step 2 pick word
+   - Step 3 generate + finish checks
+   with a live progress indicator.
+2) User chooses a word source using horizontal carousel buttons
    (Default/Custom/Weak) and selects a word from horizontal scrollable chips.
-2) On "Generate Exercise", the app requests a vocab exercise from the backend.
-3) If LLM fails, fall back to `simple_exercise`.
-4) Display learning content:
+3) On "Generate Exercise", the app requests a vocab exercise from the backend.
+4) If LLM fails, fall back to `simple_exercise`.
+5) Display learning content:
    - Definition (English shown first)
    - Example sentence (English shown first)
    - Chinese lines are revealed on demand (progressive reveal)
-5) Display quick checks:
+6) Display quick checks:
    - One rotating primary check type per generated exercise:
      - Meaning match
      - Context choice
@@ -107,14 +112,15 @@ Flow:
    - Plus two bidirectional checks:
      - EN → ZH meaning
      - ZH → EN meaning
-6) On each check:
+7) On each check:
    - Show instructional feedback (correct EN/ZH meaning + wrong-choice explanation).
-7) Optional image hint:
+8) Optional image hint:
    - "Generate Image Hint" button is enabled only for visualizable words.
    - Abstract words are flagged and keep the button disabled.
    - On click, backend generates and returns an image hint URL.
-8) After all checks are completed:
+9) After all checks are completed:
    - Save one `quiz` exercise using aggregated score across checks.
+   - Trigger a short reward banner/animation to reinforce completion.
 
 LLM output requirements:
 - JSON keys: `definition`, `example_sentence`, `quiz_question`,
@@ -124,6 +130,7 @@ Porting notes:
 - The fallback behavior is required so the app still runs without the LLM.
 - Keep the same scoring and data persistence format.
 - Keep child-friendly source/word selectors (carousel + chips) rather than dropdowns.
+- Keep the mission-style step cards and progress indicator in the vocab flow.
 - Preserve progressive reveal for Chinese content to encourage active recall.
 - Keep bidirectional EN/ZH checks in the same exercise flow for bilingual reinforcement.
 - Enforce definition quality rules: avoid generic placeholder definitions and repair

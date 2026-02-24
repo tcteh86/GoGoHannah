@@ -28,6 +28,8 @@ Use this checklist to validate the live prototype before new feature work.
 - [ ] Switch between Practice, Results, Quick Check tabs
 
 ### Vocabulary Practice
+- [ ] Mission UI shows 3 step cards (choose list, pick word, generate/complete)
+- [ ] Mission progress bar/step states update as learner advances
 - [ ] Word-list source selector is horizontal carousel (Default/Custom/Weak)
 - [ ] Carousel source selection updates the displayed word pool
 - [ ] Word picker is scrollable chips (tap to select)
@@ -44,6 +46,7 @@ Use this checklist to validate the live prototype before new feature work.
   - [ ] wrong-choice explanation
 - [ ] Mascot reaction updates for correct/incorrect
 - [ ] Result saves and appears in Results summary
+- [ ] Completion celebration banner appears after all quick checks are submitted
 - [ ] Image hint button behavior:
   - [ ] enabled for concrete words and can render image
   - [ ] disabled/grayed out for abstract words with clear message
