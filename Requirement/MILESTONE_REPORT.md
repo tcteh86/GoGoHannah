@@ -178,3 +178,15 @@ Next:
 ## 8) Update Log (Jan 31, 2026)
 - Added bilingual vocab configuration (English → Chinese, bilingual output).
 - Added bilingual story configuration (English → Chinese, bilingual output).
+
+
+## 9) Update Log (Feb 24, 2026)
+- Implemented freeze-safe parent data portability features for immediate release use:
+  - Progress DB backup download: `GET /v1/progress/db-export`.
+  - Progress DB restore upload: `POST /v1/progress/db-import` (atomic replace).
+  - Human-readable progress export: `GET /v1/progress/report.csv`.
+  - Custom vocabulary CSV export/import: `GET /v1/vocab/custom/export`, `POST /v1/vocab/custom/import`.
+- Added optional shared-secret guard for DB transfer endpoints (`GOGOHANNAH_DB_EXPORT_TOKEN` via `X-DB-Export-Token`).
+- Added web UI Data Tools entry points (Home shell app-bar + bottom sheet) to trigger DB and CSV transfer actions without external services.
+- Added/updated automated tests to cover DB export/import, vocab CSV import/export roundtrip, and progress report CSV output.
+- Deferred Google OAuth, Google Drive sync, and scheduled parent email reporting to future milestone due to freeze timeline.

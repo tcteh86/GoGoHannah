@@ -1,6 +1,6 @@
 # Implementation Status (Living Document)
 
-Last updated: 23 Feb 2026
+Last updated: 24 Feb 2026
 
 This document captures what is implemented, what is pending, and known
 issues so a new agent can continue work if the session ends.
@@ -30,6 +30,15 @@ issues so a new agent can continue work if the session ends.
 - SQLite persistence for children + exercises.
 - Custom vocab storage + manual list endpoints.
 - Custom vocab typo suggestions endpoint (LLM spelling corrections).
+- Progress data portability endpoints:
+  - `GET /v1/progress/db-export` (SQLite backup download).
+  - `POST /v1/progress/db-import` (SQLite backup restore with atomic file replace).
+  - Optional shared-token guard via `GOGOHANNAH_DB_EXPORT_TOKEN` + `X-DB-Export-Token`.
+- Human-readable progress report export endpoint:
+  - `GET /v1/progress/report.csv` (summary metrics + recent exercise rows).
+- Custom vocabulary CSV portability endpoints:
+  - `GET /v1/vocab/custom/export`
+  - `POST /v1/vocab/custom/import` (`append`/`replace`).
 - RAG scaffolding (documents + embeddings tables, retrieval utilities, prompt
   context injection) gated by `GOGOHANNAH_RAG_ENABLED`.
 
@@ -79,6 +88,11 @@ issues so a new agent can continue work if the session ends.
   - Typo suggestions with confirm/accept flow for corrections.
 - Optional vocab generation parameters to request bilingual exercises.
 - App tab order aligned to learning loop: Practice → Quiz → Results.
+- Data Tools UX (Home shell):
+  - Export/import progress backup (`.db`).
+  - Export progress report (`.csv`).
+  - Export/import custom vocabulary CSV (`append` / `replace`).
+  - Action feedback via success/error snackbars and app-bar shortcut entry point.
 
 ## 3) QA Artifacts
 - QA checklist: Requirement/QA_CHECKLIST.md
@@ -88,6 +102,12 @@ issues so a new agent can continue work if the session ends.
   - /v1/progress/daily
   - /v1/comprehension/exercise
   - /v1/pronunciation/score + /v1/pronunciation/assess
+- Data portability smoke checks (manual/API):
+  - `/v1/progress/db-export`
+  - `/v1/progress/db-import`
+  - `/v1/progress/report.csv`
+  - `/v1/vocab/custom/export`
+  - `/v1/vocab/custom/import`
 
 ## 4) Pending / Planned
 - RAG enablement + QA (set env flag, validate results).
@@ -106,6 +126,9 @@ issues so a new agent can continue work if the session ends.
   - If no audio captured, show friendly error and retry.
 
 ## 6) Recent Commits (for reference)
+- 8827e28: add UI data tools and progress report csv export.
+- 6043833: add progress db import and custom vocab csv import/export.
+- 29cff20: add progress database export endpoint for freeze backup.
 - 7c5ce55: Enforce two-line story text and definition translation rule.
 - e608aac: Restore two-line bilingual story output format.
 - 3d27d4e: Focus vocab quiz on meaning comprehension.

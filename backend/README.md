@@ -13,6 +13,7 @@ with pronunciation scoring as a follow-up step.
 Optional:
 - `GOGOHANNAH_CORS_ORIGINS=http://localhost:5173`
 - `GOGOHANNAH_DB_PATH=/absolute/path/to/progress.db`
+- `GOGOHANNAH_DB_EXPORT_TOKEN=optional_shared_secret_for_db_export`
 
 ## Run (local)
 `uvicorn backend.app.main:app --reload`
@@ -25,6 +26,8 @@ Vocabulary:
 - `GET /v1/vocab/custom`
 - `POST /v1/vocab/custom/add`
 - `POST /v1/vocab/custom/suggest`
+- `GET /v1/vocab/custom/export`
+- `POST /v1/vocab/custom/import`
 - `POST /v1/vocab/exercise`
 - `POST /v1/vocab/image-hint`
 
@@ -37,10 +40,33 @@ Progress:
 - `GET /v1/progress/daily`
 - `GET /v1/progress/recent`
 - `GET /v1/progress/recommended`
+- `GET /v1/progress/report.csv`
+- `GET /v1/progress/db-export`
+- `POST /v1/progress/db-import`
 - `POST /v1/progress/time`
 - `GET /v1/progress/time`
 - `GET /v1/progress/time/total`
 - `GET /v1/progress/time/summary`
+
+Progress report CSV:
+- `GET /v1/progress/report.csv?child_name=...&limit=500`
+  - Exports a human-readable CSV summary + recent exercise rows for one child.
+
+Database export:
+- `GET /v1/progress/db-export`
+  - Downloads the current `progress.db` file as an attachment.
+  - Optional header guard: `X-DB-Export-Token: <token>` when `GOGOHANNAH_DB_EXPORT_TOKEN` is configured.
+
+Database import:
+- `POST /v1/progress/db-import`
+  - Replaces current `progress.db` with uploaded file (`multipart/form-data`, field: `file`).
+  - Uses the same optional token header guard as export.
+
+Vocabulary CSV import/export:
+- `GET /v1/vocab/custom/export?child_name=...`
+  - Exports custom vocabulary for a child as CSV with `word` column.
+- `POST /v1/vocab/custom/import`
+  - Imports CSV into custom vocabulary (`child_name`, `mode=append|replace`, `file`).
 
 Pronunciation:
 - `POST /v1/pronunciation/score`
