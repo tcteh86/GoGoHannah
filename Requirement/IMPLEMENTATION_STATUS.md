@@ -59,7 +59,7 @@ issues so a new agent can continue work if the session ends.
 - Comprehension:
   - Per-question save to backend.
   - Optional image display when provided (supports inline data URIs).
-  - Read-aloud word highlighting for web and mobile.
+  - Read-aloud word highlighting for web and mobile (rendered directly inside story blocks).
   - Adjustable reading speed (0.1x - 1.0x).
   - English-first story blocks with progressive Chinese reveal (per block + reveal all).
   - Pre-read key vocabulary cards (EN first, Chinese reveal on demand).

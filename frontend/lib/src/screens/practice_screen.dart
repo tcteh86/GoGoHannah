@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
@@ -74,6 +76,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   bool _showKeyVocabularyChinese = false;
   int? _activeClueBlockIndex;
   final Set<int> _revealedStoryBlockChinese = {};
+  int? _autoRevealedStoryBlockChinese;
   final String _outputStyleValue = 'bilingual';
   ReadMode _readMode = ReadMode.continuous;
   ReadLanguage _readLanguage = ReadLanguage.english;
@@ -223,6 +226,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _showKeyVocabularyChinese = false;
     _activeClueBlockIndex = null;
     _revealedStoryBlockChinese.clear();
+    _autoRevealedStoryBlockChinese = null;
     _highlightedRange = null;
     _storyLines = [];
     _storyTokens = [];
@@ -965,6 +969,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
             _storySpeaking = false;
             _storyPaused = false;
             _highlightedRange = null;
+            _autoRevealedStoryBlockChinese = null;
           });
         }
       },
@@ -996,6 +1001,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
         _storySpeaking = false;
         _storyPaused = false;
         _highlightedRange = null;
+        _autoRevealedStoryBlockChinese = null;
       });
     }
   }
@@ -1017,7 +1023,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
     setState(() {
       _storySpeaking = true;
       _storyPaused = false;
-      _highlightedRange = _StoryHighlightRange(line.start, line.end);
+      final range = _StoryHighlightRange(line.start, line.end);
+      _highlightedRange = range;
+      _autoRevealedStoryBlockChinese = line.isChinese && !_showStoryChinese
+          ? _findChineseBlockIndexForRange(range)
+          : null;
     });
     _storyReader.speak(
       line.text,
@@ -1047,6 +1057,83 @@ class _PracticeScreenState extends State<PracticeScreen> {
       cursor = end + 1;
     }
     _storyLines = parsed;
+  }
+
+  List<_StoryBlockLineRange> _buildStoryBlockLineRanges(
+    ComprehensionExercise exercise,
+  ) {
+    final lines = _storyLines
+        .where((line) => line.text.trim().isNotEmpty)
+        .toList(growable: false);
+    if (lines.isEmpty || exercise.storyBlocks.isEmpty) {
+      return const [];
+    }
+    var searchCursor = 0;
+
+    int? findNextLineIndex(String target) {
+      final normalizedTarget = target.trim();
+      if (normalizedTarget.isEmpty) {
+        return null;
+      }
+      for (var i = searchCursor; i < lines.length; i += 1) {
+        if (lines[i].text.trim() == normalizedTarget) {
+          searchCursor = i + 1;
+          return i;
+        }
+      }
+      for (var i = 0; i < lines.length; i += 1) {
+        if (lines[i].text.trim() == normalizedTarget) {
+          if (i >= searchCursor) {
+            searchCursor = i + 1;
+          }
+          return i;
+        }
+      }
+      return null;
+    }
+
+    final ranges = <_StoryBlockLineRange>[];
+    for (final block in exercise.storyBlocks) {
+      final englishIndex = findNextLineIndex(block.english);
+      final chineseIndex = findNextLineIndex(block.chinese);
+      ranges.add(
+        _StoryBlockLineRange(
+          english: englishIndex == null
+              ? null
+              : _StoryHighlightRange(
+                  lines[englishIndex].start,
+                  lines[englishIndex].end,
+                ),
+          chinese: chineseIndex == null
+              ? null
+              : _StoryHighlightRange(
+                  lines[chineseIndex].start,
+                  lines[chineseIndex].end,
+                ),
+        ),
+      );
+    }
+    return ranges;
+  }
+
+  int? _findChineseBlockIndexForRange(_StoryHighlightRange range) {
+    final exercise = _comprehension;
+    if (exercise == null) {
+      return null;
+    }
+    final ranges = _buildStoryBlockLineRanges(exercise);
+    for (var index = 0; index < ranges.length; index += 1) {
+      final chineseRange = ranges[index].chinese;
+      if (chineseRange == null) {
+        continue;
+      }
+      final overlaps =
+          range.start < chineseRange.end && range.end > chineseRange.start;
+      if (overlaps) {
+        return index;
+      }
+    }
+    return null;
   }
 
   List<_StoryLine> _selectedStoryLines() {
@@ -1111,37 +1198,17 @@ class _PracticeScreenState extends State<PracticeScreen> {
     if (mappedEnd < mappedStart || mappedEnd >= _storySpokenIndexMap.length) {
       return;
     }
-    setState(() {
-      _highlightedRange = _StoryHighlightRange(
-        _storySpokenIndexMap[mappedStart],
-        _storySpokenIndexMap[mappedEnd] + 1,
-      );
-    });
-  }
-
-  List<TextSpan> _buildStorySpans(String text) {
-    final range = _highlightedRange;
-    if (range == null) {
-      return [TextSpan(text: text)];
-    }
-    final spans = <TextSpan>[];
-    if (range.start > 0) {
-      spans.add(TextSpan(text: text.substring(0, range.start)));
-    }
-    spans.add(
-      TextSpan(
-        text: text.substring(range.start, range.end),
-        style: const TextStyle(
-          backgroundColor: Color(0xFFFFF3B0),
-          color: Color(0xFFD97706),
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+    final nextRange = _StoryHighlightRange(
+      _storySpokenIndexMap[mappedStart],
+      _storySpokenIndexMap[mappedEnd] + 1,
     );
-    if (range.end < text.length) {
-      spans.add(TextSpan(text: text.substring(range.end)));
-    }
-    return spans;
+    final revealChineseBlock = _showStoryChinese
+        ? null
+        : _findChineseBlockIndexForRange(nextRange);
+    setState(() {
+      _highlightedRange = nextRange;
+      _autoRevealedStoryBlockChinese = revealChineseBlock;
+    });
   }
 
   Future<void> _generateComprehension() async {
@@ -1157,6 +1224,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _showKeyVocabularyChinese = false;
       _activeClueBlockIndex = null;
       _revealedStoryBlockChinese.clear();
+      _autoRevealedStoryBlockChinese = null;
     });
     try {
       final exercise = await widget.apiClient.generateComprehensionExercise(
@@ -1165,8 +1233,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
         learningDirection: _learningDirectionValue,
         outputStyle: _outputStyleValue,
       );
+      _prepareStoryLines(exercise.storyText);
       setState(() {
         _comprehension = exercise;
+        _storyLineIndex = 0;
+        _highlightedRange = null;
+        _autoRevealedStoryBlockChinese = null;
       });
     } catch (error) {
       setState(() {
@@ -1612,14 +1684,17 @@ class _PracticeScreenState extends State<PracticeScreen> {
         if (_comprehension != null)
           _ComprehensionCard(
             exercise: _comprehension!,
-            storySpans: _buildStorySpans(_comprehension!.storyText),
+            highlightedRange: _highlightedRange,
+            storyBlockRanges: _buildStoryBlockLineRanges(_comprehension!),
             showStoryChinese: _showStoryChinese,
             showKeyVocabularyChinese: _showKeyVocabularyChinese,
             revealedStoryBlockChinese: _revealedStoryBlockChinese,
+            autoRevealedStoryBlockChinese: _autoRevealedStoryBlockChinese,
             activeClueBlockIndex: _activeClueBlockIndex,
             onToggleStoryChinese: () {
               setState(() {
                 _showStoryChinese = !_showStoryChinese;
+                _autoRevealedStoryBlockChinese = null;
               });
             },
             onToggleKeyVocabularyChinese: () {
@@ -1648,6 +1723,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 _readMode = value;
                 _storyLineIndex = 0;
                 _highlightedRange = null;
+                _autoRevealedStoryBlockChinese = null;
               });
             },
             onReadLanguageChanged: (value) {
@@ -1656,6 +1732,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 _readLanguage = value;
                 _storyLineIndex = 0;
                 _highlightedRange = null;
+                _autoRevealedStoryBlockChinese = null;
               });
             },
             onListen: _startStoryReadAloud,
@@ -2081,12 +2158,21 @@ class _QuizPrompt {
   });
 }
 
+class _StoryBlockLineRange {
+  final _StoryHighlightRange? english;
+  final _StoryHighlightRange? chinese;
+
+  const _StoryBlockLineRange({this.english, this.chinese});
+}
+
 class _ComprehensionCard extends StatelessWidget {
   final ComprehensionExercise exercise;
-  final List<TextSpan> storySpans;
+  final _StoryHighlightRange? highlightedRange;
+  final List<_StoryBlockLineRange> storyBlockRanges;
   final bool showStoryChinese;
   final bool showKeyVocabularyChinese;
   final Set<int> revealedStoryBlockChinese;
+  final int? autoRevealedStoryBlockChinese;
   final int? activeClueBlockIndex;
   final VoidCallback onToggleStoryChinese;
   final VoidCallback onToggleKeyVocabularyChinese;
@@ -2107,10 +2193,12 @@ class _ComprehensionCard extends StatelessWidget {
 
   const _ComprehensionCard({
     required this.exercise,
-    required this.storySpans,
+    required this.highlightedRange,
+    required this.storyBlockRanges,
     required this.showStoryChinese,
     required this.showKeyVocabularyChinese,
     required this.revealedStoryBlockChinese,
+    required this.autoRevealedStoryBlockChinese,
     required this.activeClueBlockIndex,
     required this.onToggleStoryChinese,
     required this.onToggleKeyVocabularyChinese,
@@ -2157,6 +2245,50 @@ class _ComprehensionCard extends StatelessWidget {
         );
       },
     );
+  }
+
+  List<TextSpan> _buildHighlightedLineSpans({
+    required String text,
+    required _StoryHighlightRange? lineRange,
+  }) {
+    if (text.isEmpty) {
+      return const [TextSpan(text: '')];
+    }
+    final activeRange = highlightedRange;
+    if (activeRange == null || lineRange == null) {
+      return [TextSpan(text: text)];
+    }
+    final overlapStart = math.max(lineRange.start, activeRange.start);
+    final overlapEnd = math.min(lineRange.end, activeRange.end);
+    if (overlapStart >= overlapEnd) {
+      return [TextSpan(text: text)];
+    }
+
+    final localStart =
+        (overlapStart - lineRange.start).clamp(0, text.length).toInt();
+    final localEnd =
+        (overlapEnd - lineRange.start).clamp(0, text.length).toInt();
+    if (localStart >= localEnd) {
+      return [TextSpan(text: text)];
+    }
+    final spans = <TextSpan>[];
+    if (localStart > 0) {
+      spans.add(TextSpan(text: text.substring(0, localStart)));
+    }
+    spans.add(
+      TextSpan(
+        text: text.substring(localStart, localEnd),
+        style: const TextStyle(
+          backgroundColor: Color(0xFFFFF3B0),
+          color: Color(0xFFD97706),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+    if (localEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(localEnd)));
+    }
+    return spans;
   }
 
   @override
@@ -2349,8 +2481,13 @@ class _ComprehensionCard extends StatelessWidget {
               final index = entry.key;
               final block = entry.value;
               final showChinese =
-                  showStoryChinese || revealedStoryBlockChinese.contains(index);
+                  showStoryChinese ||
+                  revealedStoryBlockChinese.contains(index) ||
+                  autoRevealedStoryBlockChinese == index;
               final isClue = activeClueBlockIndex == index;
+              final lineRanges = index < storyBlockRanges.length
+                  ? storyBlockRanges[index]
+                  : const _StoryBlockLineRange();
               return Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 10),
@@ -2400,18 +2537,30 @@ class _ComprehensionCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      block.english,
-                      style: const TextStyle(fontSize: 16),
+                    RichText(
+                      text: TextSpan(
+                        style: DefaultTextStyle.of(context)
+                            .style
+                            .copyWith(fontSize: 16),
+                        children: _buildHighlightedLineSpans(
+                          text: block.english,
+                          lineRange: lineRanges.english,
+                        ),
+                      ),
                     ),
                     if (showChinese && block.chinese.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          block.chinese,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Color(0xFF374151),
+                        child: RichText(
+                          text: TextSpan(
+                            style: DefaultTextStyle.of(context).style.copyWith(
+                                  fontSize: 16,
+                                  color: const Color(0xFF374151),
+                                ),
+                            children: _buildHighlightedLineSpans(
+                              text: block.chinese,
+                              lineRange: lineRanges.chinese,
+                            ),
                           ),
                         ),
                       ),
@@ -2429,25 +2578,6 @@ class _ComprehensionCard extends StatelessWidget {
                 ),
               );
             }),
-            const SizedBox(height: 4),
-            ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              title: const Text('Read-aloud highlight view'),
-              subtitle: const Text('Shows live word highlight while reading'),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: RichText(
-                    text: TextSpan(
-                      style: DefaultTextStyle.of(context)
-                          .style
-                          .copyWith(fontSize: 18),
-                      children: storySpans,
-                    ),
-                  ),
-                ),
-              ],
-            ),
             if (exercise.source != null) ...[
               const SizedBox(height: 8),
               Text(
