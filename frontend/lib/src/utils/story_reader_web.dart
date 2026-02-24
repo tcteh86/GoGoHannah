@@ -18,6 +18,7 @@ class _WebStoryReader implements StoryReader {
   int _fallbackIndex = 0;
   int _nativeTokenAnchor = -1;
   int _pendingNativeCharIndex = -1;
+  DateTime? _lastNativeBoundaryAt;
   List<_WordInfo> _fallbackWords = [];
   double _fallbackRate = 1.0;
   ValueChanged<int>? _fallbackOnBoundary;
@@ -51,9 +52,10 @@ class _WebStoryReader implements StoryReader {
         final index = event.charIndex;
         if (index != null) {
           _boundarySeen = true;
+          _lastNativeBoundaryAt = DateTime.now();
+          onBoundary(index);
           if (!chineseUtterance) {
             _cancelFallback();
-            onBoundary(index);
             return;
           }
           if (_fallbackWords.isEmpty) {
@@ -132,6 +134,7 @@ class _WebStoryReader implements StoryReader {
     _isPaused = false;
     _isChineseUtterance = false;
     _utterance = null;
+    _lastNativeBoundaryAt = null;
     _cancelFallback();
   }
 
@@ -172,7 +175,9 @@ class _WebStoryReader implements StoryReader {
   }
 
   void _scheduleNextFallback(double rate, ValueChanged<int> onBoundary) {
-    final shouldStopForNativeBoundary = !_isChineseUtterance && _boundarySeen;
+    final shouldStopForNativeBoundary = !_isChineseUtterance
+        ? _boundarySeen
+        : _hasRecentNativeBoundary();
     if (shouldStopForNativeBoundary || !_isSpeaking || _isPaused) {
       return;
     }
@@ -202,7 +207,8 @@ class _WebStoryReader implements StoryReader {
     }
     final milliseconds = adjustedDuration.round().clamp(140, 4200);
     _fallbackTimer = Timer(Duration(milliseconds: milliseconds), () {
-      final shouldStop = (!_isChineseUtterance && _boundarySeen) ||
+      final shouldStop = ((!_isChineseUtterance && _boundarySeen) ||
+              (_isChineseUtterance && _hasRecentNativeBoundary())) ||
           !_isSpeaking ||
           _isPaused;
       if (shouldStop) {
@@ -230,6 +236,14 @@ class _WebStoryReader implements StoryReader {
     _nativeTokenAnchor = anchor;
   }
 
+  bool _hasRecentNativeBoundary() {
+    final last = _lastNativeBoundaryAt;
+    if (last == null) {
+      return false;
+    }
+    return DateTime.now().difference(last).inMilliseconds < 420;
+  }
+
   void _cancelFallback() {
     _fallbackTimer?.cancel();
     _fallbackTimer = null;
@@ -240,6 +254,7 @@ class _WebStoryReader implements StoryReader {
     _pendingNativeCharIndex = -1;
     _fallbackRate = 1.0;
     _fallbackOnBoundary = null;
+    _lastNativeBoundaryAt = null;
   }
 }
 

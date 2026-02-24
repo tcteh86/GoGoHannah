@@ -109,6 +109,153 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
+
+
+  Future<void> _runDataAction(
+    String successMessage,
+    Future<void> Function() action,
+  ) async {
+    try {
+      await action();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(successMessage)),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Action failed: $error')),
+      );
+    }
+  }
+
+  Future<void> _showDataToolsSheet() async {
+    final childName = (_childName.isNotEmpty
+            ? _childName
+            : _nameController.text.trim())
+        .trim();
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const ListTile(
+                title: Text(
+                  'Data Tools',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text('Backup/restore progress and import/export vocabulary.'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.download_outlined),
+                title: const Text('Export Progress Backup (.db)'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _runDataAction(
+                    'Progress backup downloaded.',
+                    () => widget.apiClient.exportProgressDb(),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.upload_file_outlined),
+                title: const Text('Import Progress Backup (.db)'),
+                subtitle: const Text('Replaces current database.'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _runDataAction(
+                    'Progress backup imported.',
+                    () => widget.apiClient.importProgressDbFromPicker(),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.table_view_outlined),
+                title: const Text('Export Progress Report (.csv)'),
+                enabled: childName.isNotEmpty,
+                subtitle: childName.isEmpty
+                    ? const Text('Enter child name first.')
+                    : Text('Child: $childName'),
+                onTap: childName.isEmpty
+                    ? null
+                    : () {
+                        Navigator.of(context).pop();
+                        _runDataAction(
+                          'Progress report downloaded.',
+                          () => widget.apiClient.exportProgressReportCsv(
+                            childName: childName,
+                          ),
+                        );
+                      },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.file_download_outlined),
+                title: const Text('Export Vocabulary (.csv)'),
+                enabled: childName.isNotEmpty,
+                subtitle: childName.isEmpty
+                    ? const Text('Enter child name first.')
+                    : Text('Child: $childName'),
+                onTap: childName.isEmpty
+                    ? null
+                    : () {
+                        Navigator.of(context).pop();
+                        _runDataAction(
+                          'Vocabulary exported.',
+                          () => widget.apiClient.exportCustomVocabCsv(
+                            childName: childName,
+                          ),
+                        );
+                      },
+              ),
+              ListTile(
+                leading: const Icon(Icons.file_upload_outlined),
+                title: const Text('Import Vocabulary (.csv, append)'),
+                enabled: childName.isNotEmpty,
+                onTap: childName.isEmpty
+                    ? null
+                    : () {
+                        Navigator.of(context).pop();
+                        _runDataAction(
+                          'Vocabulary imported (append).',
+                          () => widget.apiClient.importCustomVocabCsvFromPicker(
+                            childName: childName,
+                            mode: 'append',
+                          ),
+                        );
+                      },
+              ),
+              ListTile(
+                leading: const Icon(Icons.restore_page_outlined),
+                title: const Text('Import Vocabulary (.csv, replace)'),
+                subtitle: const Text('Replaces existing custom vocabulary.'),
+                enabled: childName.isNotEmpty,
+                onTap: childName.isEmpty
+                    ? null
+                    : () {
+                        Navigator.of(context).pop();
+                        _runDataAction(
+                          'Vocabulary imported (replace).',
+                          () => widget.apiClient.importCustomVocabCsvFromPicker(
+                            childName: childName,
+                            mode: 'replace',
+                          ),
+                        );
+                      },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   String _todayDate() {
     final now = DateTime.now();
     final year = now.year.toString().padLeft(4, '0');
@@ -177,6 +324,16 @@ class _HomeShellState extends State<HomeShell> {
     ];
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text('GoGoHannah - $_childName'),
+        actions: [
+          IconButton(
+            tooltip: 'Data Tools',
+            icon: const Icon(Icons.storage_outlined),
+            onPressed: _showDataToolsSheet,
+          ),
+        ],
+      ),
       body: screens[_currentIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,

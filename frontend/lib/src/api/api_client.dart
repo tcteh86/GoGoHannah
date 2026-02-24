@@ -80,6 +80,17 @@ abstract class ApiClient {
     String? date,
   });
 
+
+  Future<void> exportProgressDb({String? token});
+  Future<void> importProgressDbFromPicker({String? token});
+  Future<void> exportProgressReportCsv({required String childName});
+  Future<void> exportCustomVocabCsv({required String childName});
+  Future<void> importCustomVocabCsvFromPicker({
+    required String childName,
+    String mode,
+    String? listName,
+  });
+
   // Debug
   Future<RagDebugResult> fetchRagDebug({
     required String query,

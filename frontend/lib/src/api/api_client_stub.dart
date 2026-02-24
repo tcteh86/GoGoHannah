@@ -130,6 +130,37 @@ class _UnsupportedApiClient implements ApiClient {
   }) async =>
       _unsupported();
 
+
+
+  @override
+  Future<void> exportProgressDb({String? token}) async {
+    return _unsupported();
+  }
+
+  @override
+  Future<void> importProgressDbFromPicker({String? token}) async {
+    return _unsupported();
+  }
+
+  @override
+  Future<void> exportProgressReportCsv({required String childName}) async {
+    return _unsupported();
+  }
+
+  @override
+  Future<void> exportCustomVocabCsv({required String childName}) async {
+    return _unsupported();
+  }
+
+  @override
+  Future<void> importCustomVocabCsvFromPicker({
+    required String childName,
+    String mode = 'append',
+    String? listName,
+  }) async {
+    return _unsupported();
+  }
+
   @override
   Future<RagDebugResult> fetchRagDebug({
     required String query,
