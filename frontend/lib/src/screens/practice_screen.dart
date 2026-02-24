@@ -70,6 +70,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
   bool _loadingComprehension = false;
   String _storyLevel = 'beginner';
   bool _includeImage = false;
+  bool _showStoryChinese = false;
+  bool _showKeyVocabularyChinese = false;
+  int? _activeClueBlockIndex;
+  final Set<int> _revealedStoryBlockChinese = {};
   final String _outputStyleValue = 'bilingual';
   ReadMode _readMode = ReadMode.continuous;
   ReadLanguage _readLanguage = ReadLanguage.english;
@@ -77,6 +81,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   int _storyLineIndex = 0;
   final Map<int, String> _compChoices = {};
   final Map<int, bool> _compAnswered = {};
+  final Map<int, String> _compFeedback = {};
 
   AudioRecording? _recording;
   int? _pronunciationScore;
@@ -213,6 +218,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _comprehensionError = null;
     _compChoices.clear();
     _compAnswered.clear();
+    _compFeedback.clear();
+    _showStoryChinese = false;
+    _showKeyVocabularyChinese = false;
+    _activeClueBlockIndex = null;
+    _revealedStoryBlockChinese.clear();
     _highlightedRange = null;
     _storyLines = [];
     _storyTokens = [];
@@ -1142,6 +1152,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _comprehensionError = null;
       _compChoices.clear();
       _compAnswered.clear();
+      _compFeedback.clear();
+      _showStoryChinese = false;
+      _showKeyVocabularyChinese = false;
+      _activeClueBlockIndex = null;
+      _revealedStoryBlockChinese.clear();
     });
     try {
       final exercise = await widget.apiClient.generateComprehensionExercise(
@@ -1175,8 +1190,25 @@ class _PracticeScreenState extends State<PracticeScreen> {
     }
     final question = exercise.questions[index];
     final correct = choice == question.answer;
+    final explanationEn = (question.explanationEn ?? '').trim();
+    final explanationZh = (question.explanationZh ?? '').trim();
+    final clueIndex = question.evidenceBlockIndex;
+    final feedback = <String>[
+      if (correct) 'Correct! Great reading.',
+      if (!correct) 'Not quite yet.',
+      if (!correct && clueIndex != null)
+        'Clue: check story block ${clueIndex + 1}.',
+      if (explanationEn.isNotEmpty) 'Why (EN): $explanationEn',
+      if (explanationZh.isNotEmpty) '解释 (ZH): $explanationZh',
+    ].join('\n');
     setState(() {
       _compAnswered[index] = correct;
+      _compFeedback[index] = feedback;
+      if (!correct && clueIndex != null) {
+        _activeClueBlockIndex = clueIndex;
+      } else if (correct) {
+        _activeClueBlockIndex = null;
+      }
     });
     widget.sessionState.recordAnswer(correct: correct);
     await widget.apiClient.saveExercise(
@@ -1581,6 +1613,29 @@ class _PracticeScreenState extends State<PracticeScreen> {
           _ComprehensionCard(
             exercise: _comprehension!,
             storySpans: _buildStorySpans(_comprehension!.storyText),
+            showStoryChinese: _showStoryChinese,
+            showKeyVocabularyChinese: _showKeyVocabularyChinese,
+            revealedStoryBlockChinese: _revealedStoryBlockChinese,
+            activeClueBlockIndex: _activeClueBlockIndex,
+            onToggleStoryChinese: () {
+              setState(() {
+                _showStoryChinese = !_showStoryChinese;
+              });
+            },
+            onToggleKeyVocabularyChinese: () {
+              setState(() {
+                _showKeyVocabularyChinese = !_showKeyVocabularyChinese;
+              });
+            },
+            onToggleStoryBlockChinese: (index) {
+              setState(() {
+                if (_revealedStoryBlockChinese.contains(index)) {
+                  _revealedStoryBlockChinese.remove(index);
+                } else {
+                  _revealedStoryBlockChinese.add(index);
+                }
+              });
+            },
             isSpeaking: _storySpeaking,
             isPaused: _storyPaused,
             rate: _storyRate,
@@ -1621,6 +1676,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
             final question = entry.value;
             final selected = _compChoices[index];
             final answered = _compAnswered[index];
+            final feedback = _compFeedback[index];
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
               child: Padding(
@@ -1628,6 +1684,26 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if ((question.questionType ?? '').isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEDE9FE),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Type: ${question.questionType}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF5B21B6),
+                          ),
+                        ),
+                      ),
                     Text(
                       'Q${index + 1}. ${question.question}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -1654,11 +1730,25 @@ class _PracticeScreenState extends State<PracticeScreen> {
                           : () => _checkComprehensionAnswer(index),
                       child: const Text('Check'),
                     ),
-                    if (answered != null) ...[
+                    if (feedback != null) ...[
                       const SizedBox(height: 6),
                       Text(
-                        answered ? 'Correct!' : 'Not quite. Try again!',
+                        feedback,
                         style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                    if (answered == false && question.evidenceBlockIndex != null) ...[
+                      const SizedBox(height: 6),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          setState(
+                            () => _activeClueBlockIndex = question.evidenceBlockIndex,
+                          );
+                        },
+                        icon: const Icon(Icons.lightbulb_outline),
+                        label: Text(
+                          'Show clue block ${question.evidenceBlockIndex! + 1}',
+                        ),
                       ),
                     ],
                   ],
@@ -1994,6 +2084,13 @@ class _QuizPrompt {
 class _ComprehensionCard extends StatelessWidget {
   final ComprehensionExercise exercise;
   final List<TextSpan> storySpans;
+  final bool showStoryChinese;
+  final bool showKeyVocabularyChinese;
+  final Set<int> revealedStoryBlockChinese;
+  final int? activeClueBlockIndex;
+  final VoidCallback onToggleStoryChinese;
+  final VoidCallback onToggleKeyVocabularyChinese;
+  final ValueChanged<int> onToggleStoryBlockChinese;
   final bool isSpeaking;
   final bool isPaused;
   final double rate;
@@ -2011,6 +2108,13 @@ class _ComprehensionCard extends StatelessWidget {
   const _ComprehensionCard({
     required this.exercise,
     required this.storySpans,
+    required this.showStoryChinese,
+    required this.showKeyVocabularyChinese,
+    required this.revealedStoryBlockChinese,
+    required this.activeClueBlockIndex,
+    required this.onToggleStoryChinese,
+    required this.onToggleKeyVocabularyChinese,
+    required this.onToggleStoryBlockChinese,
     required this.isSpeaking,
     required this.isPaused,
     required this.rate,
@@ -2057,6 +2161,7 @@ class _ComprehensionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final storyBlocks = exercise.storyBlocks;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -2159,13 +2264,189 @@ class _ComprehensionCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            RichText(
-              text: TextSpan(
-                style: DefaultTextStyle.of(context)
-                    .style
-                    .copyWith(fontSize: 18),
-                children: storySpans,
+            if (exercise.keyVocabulary.isNotEmpty) ...[
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Pre-read key words',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: onToggleKeyVocabularyChinese,
+                    icon: Icon(
+                      showKeyVocabularyChinese
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    label: Text(
+                      showKeyVocabularyChinese
+                          ? 'Hide Chinese'
+                          : 'Reveal Chinese',
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 6),
+              ...exercise.keyVocabulary.map(
+                (item) => Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F3FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFDDD6FE)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.word,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text('EN: ${item.meaningEn}'),
+                      if (showKeyVocabularyChinese && item.meaningZh.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text('ZH: ${item.meaningZh}'),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Story blocks',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onToggleStoryChinese,
+                  icon: Icon(
+                    showStoryChinese ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  label: Text(
+                    showStoryChinese ? 'Hide all Chinese' : 'Reveal all Chinese',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ...storyBlocks.asMap().entries.map((entry) {
+              final index = entry.key;
+              final block = entry.value;
+              final showChinese =
+                  showStoryChinese || revealedStoryBlockChinese.contains(index);
+              final isClue = activeClueBlockIndex == index;
+              return Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isClue ? const Color(0xFFFFF7ED) : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isClue
+                        ? const Color(0xFFFB923C)
+                        : const Color(0xFFE5E7EB),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Block ${index + 1}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        if (isClue) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFEDD5),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text(
+                              'Clue',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF9A3412),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      block.english,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    if (showChinese && block.chinese.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          block.chinese,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Color(0xFF374151),
+                          ),
+                        ),
+                      ),
+                    if (!showStoryChinese && block.chinese.isNotEmpty)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () => onToggleStoryBlockChinese(index),
+                          child: Text(
+                            showChinese ? 'Hide Chinese' : 'Reveal Chinese',
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 4),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: const Text('Read-aloud highlight view'),
+              subtitle: const Text('Shows live word highlight while reading'),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: RichText(
+                    text: TextSpan(
+                      style: DefaultTextStyle.of(context)
+                          .style
+                          .copyWith(fontSize: 18),
+                      children: storySpans,
+                    ),
+                  ),
+                ),
+              ],
             ),
             if (exercise.source != null) ...[
               const SizedBox(height: 8),

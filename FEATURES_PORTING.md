@@ -146,20 +146,36 @@ Porting notes:
 ### 3.5 Comprehension practice (story + questions + illustration)
 Flow:
 1) User selects a difficulty level:
-   - beginner (100-150 words, very simple)
-   - intermediate (200-250 words)
-   - expert (250-350 words, advanced)
+   - beginner (50-90 words, very simple)
+   - intermediate (140-200 words)
+   - expert (220-300 words, advanced)
 2) On "Generate New Story":
-   - LLM returns JSON: title, story text, image description, 3 questions.
+   - LLM returns JSON with:
+     - title
+     - story blocks (`english`, `chinese`) for chunked reading
+     - optional combined `story_text`
+     - key vocabulary list (`word`, `meaning_en`, `meaning_zh`)
+     - image description
+     - 3 questions with `question_type`, `explanation_en`, `explanation_zh`,
+       and `evidence_block_index`
    - Optional image generation using DALL-E (URL stored in session).
-   - TTS audio prepared for the story text.
+   - TTS audio prepared from story text for read-aloud.
 3) User can click "Read Story Aloud" to play TTS.
-4) The user answers 3 multiple-choice questions.
-5) Each answer is saved as a `comprehension` exercise.
+4) Story UI uses English-first chunked blocks with optional Chinese reveal
+   (per-block and reveal-all controls).
+5) The user answers 3 scaffolded questions:
+   - Q1 literal
+   - Q2 vocabulary-in-context
+   - Q3 inference
+   If incorrect, the UI can highlight a clue block using `evidence_block_index`.
+6) Explanatory feedback is shown after each check in EN + ZH.
+7) Each answer is saved as a `comprehension` exercise.
 
 Porting notes:
 - Preserve the 3-question requirement and answer key format.
 - Story illustration is optional and should not block the story flow.
+- Keep story blocks as paired EN/ZH lines to support chunked progressive reveal.
+- Keep evidence-linked feedback fields (`explanation_*`, `evidence_block_index`) for guided remediation.
 
 ### 3.6 Progress summary and analytics
 Displayed metrics:

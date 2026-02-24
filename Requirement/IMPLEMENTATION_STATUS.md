@@ -21,7 +21,8 @@ issues so a new agent can continue work if the session ends.
 - Daily progress endpoint with persistent streak and goal-based history (`/v1/progress/daily`).
 - Study time tracking endpoints (daily, total, weekly/monthly summaries).
 - Recent practice endpoint (recent exercises history).
-- Comprehension story generation with level selection.
+- Comprehension story generation with level selection, chunked EN/ZH story blocks,
+  key-vocabulary cards, and scaffolded question metadata (type/explanations/evidence block).
 - Optional illustration generation hook.
 - Pronunciation scoring:
   - Text similarity scoring endpoint.
@@ -60,6 +61,9 @@ issues so a new agent can continue work if the session ends.
   - Optional image display when provided (supports inline data URIs).
   - Read-aloud word highlighting for web and mobile.
   - Adjustable reading speed (0.1x - 1.0x).
+  - English-first story blocks with progressive Chinese reveal (per block + reveal all).
+  - Pre-read key vocabulary cards (EN first, Chinese reveal on demand).
+  - Guided question feedback with EN/ZH explanation and clue block highlighting.
 - Custom vocab:
   - Manual word entry (comma/newline separated).
   - Word list selector (Default/Custom/Weak words).

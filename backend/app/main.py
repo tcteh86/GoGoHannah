@@ -352,6 +352,196 @@ def _repair_quiz_text(
     return repaired_question, repaired_choices
 
 
+def _split_story_text_to_blocks(text: str) -> list[dict]:
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    blocks = []
+    pending_english = None
+    for line in lines:
+        is_chinese = any("\u4e00" <= ch <= "\u9fff" for ch in line)
+        if is_chinese:
+            english = pending_english or line
+            blocks.append({"english": english, "chinese": line})
+            pending_english = None
+        else:
+            if pending_english is None:
+                pending_english = line
+            else:
+                blocks.append({"english": pending_english, "chinese": pending_english})
+                pending_english = line
+    if pending_english:
+        blocks.append({"english": pending_english, "chinese": pending_english})
+    return blocks
+
+
+def _normalize_story_blocks(
+    raw_blocks: list | None,
+    story_text: str,
+    fallback_blocks: list,
+    learning_direction: str | None,
+) -> tuple[list[dict], str]:
+    source_blocks = []
+    if isinstance(raw_blocks, list):
+        source_blocks = raw_blocks
+    if not source_blocks:
+        source_blocks = _split_story_text_to_blocks(story_text)
+    if not source_blocks:
+        source_blocks = fallback_blocks
+
+    normalized = []
+    for index, raw in enumerate(source_blocks):
+        fallback_item = (
+            fallback_blocks[index]
+            if index < len(fallback_blocks)
+            else {"english": "", "chinese": ""}
+        )
+        if isinstance(raw, dict):
+            english = str(raw.get("english", "")).strip()
+            chinese = str(raw.get("chinese", "")).strip()
+        else:
+            english, chinese = _split_bilingual_lines(str(raw))
+            english = english or ""
+            chinese = chinese or ""
+        merged = _ensure_bilingual_text(
+            f"{english}\n{chinese}".strip(),
+            f"{fallback_item.get('english', '')}\n{fallback_item.get('chinese', '')}".strip(),
+            learning_direction,
+        )
+        merged_en, merged_zh = _split_bilingual_lines(merged)
+        merged_en = (merged_en or "").strip()
+        merged_zh = (merged_zh or "").strip()
+        if not merged_en and not merged_zh:
+            continue
+        if not merged_en:
+            merged_en = merged_zh
+        if not merged_zh:
+            merged_zh = merged_en
+        normalized.append({"english": merged_en, "chinese": merged_zh})
+
+    text_lines = []
+    for block in normalized:
+        if learning_direction == "zh_to_en":
+            text_lines.extend([block["chinese"], block["english"]])
+        else:
+            text_lines.extend([block["english"], block["chinese"]])
+    return normalized, "\n".join(line for line in text_lines if line.strip())
+
+
+def _default_question_explanation(question_type: str) -> str:
+    if question_type == "vocabulary":
+        return "Look at how the key word is used in the story sentence."
+    if question_type == "inference":
+        return "Use clues from the story to think about the best answer."
+    return "Find the exact clue sentence in the story."
+
+
+def _normalize_comprehension_questions(
+    raw_questions: list | None,
+    fallback_questions: list,
+    learning_direction: str | None,
+    block_count: int,
+) -> list[dict]:
+    default_types = ["literal", "vocabulary", "inference"]
+    questions = raw_questions if isinstance(raw_questions, list) else []
+    normalized = []
+    for index in range(3):
+        fallback = fallback_questions[index] if index < len(fallback_questions) else {}
+        raw = questions[index] if index < len(questions) and isinstance(questions[index], dict) else {}
+        q_type = str(
+            raw.get(
+                "question_type",
+                fallback.get("question_type", default_types[min(index, len(default_types) - 1)]),
+            )
+        ).strip().lower()
+        if q_type not in {"literal", "vocabulary", "inference"}:
+            q_type = default_types[min(index, len(default_types) - 1)]
+
+        question_text = _ensure_bilingual_text(
+            str(raw.get("question", "")),
+            str(fallback.get("question", "")),
+            learning_direction,
+        )
+        raw_choices = raw.get("choices", {})
+        fallback_choices = fallback.get("choices", {})
+        choices = {}
+        for key in ["A", "B", "C"]:
+            choices[key] = _ensure_bilingual_text(
+                str(raw_choices.get(key, "")),
+                str(fallback_choices.get(key, "")),
+                learning_direction,
+            )
+
+        answer = str(raw.get("answer", fallback.get("answer", "A"))).strip().upper()
+        if answer not in {"A", "B", "C"}:
+            answer = "A"
+        explanation_en = str(raw.get("explanation_en", "")).strip()
+        if not explanation_en:
+            fallback_explanation = str(fallback.get("explanation_en", "")).strip()
+            explanation_en = fallback_explanation or _default_question_explanation(q_type)
+        explanation_zh = str(raw.get("explanation_zh", "")).strip()
+        if not explanation_zh:
+            fallback_zh = str(fallback.get("explanation_zh", "")).strip()
+            if fallback_zh:
+                explanation_zh = fallback_zh
+            else:
+                try:
+                    explanation_zh = translate_to_chinese(explanation_en)
+                except LLMUnavailable:
+                    explanation_zh = explanation_en
+
+        evidence = raw.get("evidence_block_index", fallback.get("evidence_block_index", index))
+        if isinstance(evidence, int):
+            if block_count > 0:
+                evidence = max(0, min(evidence, block_count - 1))
+            else:
+                evidence = 0
+        else:
+            evidence = min(index, max(0, block_count - 1))
+
+        normalized.append(
+            {
+                "question": question_text,
+                "choices": choices,
+                "answer": answer,
+                "question_type": q_type,
+                "explanation_en": explanation_en,
+                "explanation_zh": explanation_zh,
+                "evidence_block_index": evidence,
+            }
+        )
+    return normalized
+
+
+def _normalize_key_vocabulary(
+    raw_vocab: list | None,
+    fallback_vocab: list,
+) -> list[dict]:
+    source = raw_vocab if isinstance(raw_vocab, list) and raw_vocab else fallback_vocab
+    normalized = []
+    for item in source:
+        if not isinstance(item, dict):
+            continue
+        word = str(item.get("word", "")).strip()
+        meaning_en = str(item.get("meaning_en", "")).strip()
+        meaning_zh = str(item.get("meaning_zh", "")).strip()
+        if not word or not meaning_en:
+            continue
+        if not meaning_zh:
+            try:
+                meaning_zh = translate_to_chinese(meaning_en)
+            except LLMUnavailable:
+                meaning_zh = meaning_en
+        normalized.append(
+            {
+                "word": word,
+                "meaning_en": meaning_en,
+                "meaning_zh": meaning_zh,
+            }
+        )
+        if len(normalized) >= 5:
+            break
+    return normalized
+
+
 @app.get("/healthz")
 def healthz() -> dict:
     return {"status": "ok"}
@@ -516,6 +706,12 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
         )
         source = "fallback"
 
+    fallback_story = simple_comprehension_exercise(
+        level=payload.level,
+        learning_direction=payload.learning_direction,
+        output_style=payload.output_style,
+    )
+
     image_url = None
     if payload.include_image:
         try:
@@ -526,25 +722,37 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
         except LLMUnavailable:
             image_url = None
 
-    cleaned_story_text = _strip_language_labels(result["story_text"])
-    if payload.output_style == "bilingual" or payload.learning_direction == "both":
-        fallback_story = simple_comprehension_exercise(
-            level=payload.level,
-            learning_direction=payload.learning_direction,
-            output_style=payload.output_style,
-        )
-        cleaned_story_text = _ensure_bilingual_text(
-            cleaned_story_text,
-            str(fallback_story.get("story_text", "")),
-            payload.learning_direction,
-        )
+    cleaned_story_text = _strip_language_labels(result.get("story_text", ""))
+    cleaned_story_text = _ensure_bilingual_text(
+        cleaned_story_text,
+        str(fallback_story.get("story_text", "")),
+        payload.learning_direction,
+    )
+    story_blocks, composed_story_text = _normalize_story_blocks(
+        raw_blocks=result.get("story_blocks"),
+        story_text=cleaned_story_text,
+        fallback_blocks=fallback_story.get("story_blocks", []),
+        learning_direction=payload.learning_direction,
+    )
+    questions = _normalize_comprehension_questions(
+        raw_questions=result.get("questions"),
+        fallback_questions=fallback_story.get("questions", []),
+        learning_direction=payload.learning_direction,
+        block_count=len(story_blocks),
+    )
+    key_vocabulary = _normalize_key_vocabulary(
+        raw_vocab=result.get("key_vocabulary"),
+        fallback_vocab=fallback_story.get("key_vocabulary", []),
+    )
 
     response = {
         "story_title": result["story_title"],
-        "story_text": cleaned_story_text,
+        "story_text": composed_story_text or cleaned_story_text,
+        "story_blocks": story_blocks,
+        "key_vocabulary": key_vocabulary,
         "image_description": result["image_description"],
         "image_url": image_url,
-        "questions": result["questions"],
+        "questions": questions,
         "source": source,
     }
 

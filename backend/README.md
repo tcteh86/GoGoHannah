@@ -68,6 +68,14 @@ Debug:
 - `learning_direction` controls the target language.
 - `output_style` is currently set to bilingual output in the UI.
 
+### Comprehension response highlights
+`POST /v1/comprehension/exercise` now returns richer story guidance fields:
+- `story_blocks`: list of `{english, chinese}` chunked lines for early readers.
+- `key_vocabulary`: list of `{word, meaning_en, meaning_zh}` pre-read cards.
+- `questions[*].question_type`: `literal | vocabulary | inference`.
+- `questions[*].explanation_en` / `questions[*].explanation_zh`: short feedback rationale.
+- `questions[*].evidence_block_index`: clue link to a supporting story block.
+
 ## Deploy (Render)
 1) Create a new Web Service connected to the repo.
 2) Build command:

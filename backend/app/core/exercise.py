@@ -210,21 +210,57 @@ def simple_comprehension_exercise(
     ]
     story_text_en = " ".join(line[0] for line in story_lines)
     story_text_zh = "".join(line[1] for line in story_lines)
+    story_blocks = [
+        {"english": line_en, "chinese": line_zh} for (line_en, line_zh) in story_lines
+    ]
+    key_vocabulary = [
+        {
+            "word": "brave",
+            "meaning_en": "showing courage when something feels hard",
+            "meaning_zh": "在困难时表现出勇气",
+        },
+        {
+            "word": "slowly",
+            "meaning_en": "moving at a low speed",
+            "meaning_zh": "慢慢地移动",
+        },
+        {
+            "word": "proud",
+            "meaning_en": "feeling happy about doing something well",
+            "meaning_zh": "因做得好而感到自豪",
+        },
+    ]
     questions_en = [
         {
             "question": "Who is the story about?",
             "choices": {"A": "Tina the turtle", "B": "A big lion", "C": "A fast car"},
             "answer": "A",
+            "question_type": "literal",
+            "explanation_en": "The first line says Tina the turtle is the main character.",
+            "explanation_zh": "第一句写到主角是小乌龟蒂娜。",
+            "evidence_block_index": 0,
         },
         {
-            "question": "Where did Tina want to go?",
-            "choices": {"A": "The pond", "B": "The moon", "C": "The city"},
+            "question": "Which word best describes how Tina moved?",
+            "choices": {"A": "Slowly", "B": "Loudly", "C": "Angrily"},
             "answer": "A",
+            "question_type": "vocabulary",
+            "explanation_en": "The story says she moved slowly and safely.",
+            "explanation_zh": "故事写到她慢慢又安全地移动。",
+            "evidence_block_index": 1,
         },
         {
-            "question": "How did Tina feel at the end?",
-            "choices": {"A": "Proud", "B": "Angry", "C": "Sleepy"},
+            "question": "Why did Tina feel proud at the end?",
+            "choices": {
+                "A": "She reached the pond after trying hard",
+                "B": "She found a new toy",
+                "C": "She slept all day",
+            },
             "answer": "A",
+            "question_type": "inference",
+            "explanation_en": "Tina kept going and reached her goal, so she felt proud.",
+            "explanation_zh": "蒂娜坚持到达目标，所以她感到自豪。",
+            "evidence_block_index": 3,
         },
     ]
     questions_zh = [
@@ -232,16 +268,28 @@ def simple_comprehension_exercise(
             "question": "故事讲的是谁？",
             "choices": {"A": "小乌龟蒂娜", "B": "大狮子", "C": "快车"},
             "answer": "A",
+            "question_type": "literal",
+            "explanation_en": "The first line says Tina the turtle is the main character.",
+            "explanation_zh": "第一句写到主角是小乌龟蒂娜。",
+            "evidence_block_index": 0,
         },
         {
-            "question": "蒂娜想去哪里？",
-            "choices": {"A": "池塘", "B": "月亮", "C": "城市"},
+            "question": "哪个词最能描述蒂娜如何移动？",
+            "choices": {"A": "慢慢地", "B": "大声地", "C": "生气地"},
             "answer": "A",
+            "question_type": "vocabulary",
+            "explanation_en": "The story says she moved slowly and safely.",
+            "explanation_zh": "故事写到她慢慢又安全地移动。",
+            "evidence_block_index": 1,
         },
         {
-            "question": "最后蒂娜感觉如何？",
-            "choices": {"A": "自豪", "B": "生气", "C": "困了"},
+            "question": "为什么蒂娜最后感到自豪？",
+            "choices": {"A": "她努力后到达池塘", "B": "她找到新玩具", "C": "她睡了一整天"},
             "answer": "A",
+            "question_type": "inference",
+            "explanation_en": "Tina kept going and reached her goal, so she felt proud.",
+            "explanation_zh": "蒂娜坚持到达目标，所以她感到自豪。",
+            "evidence_block_index": 3,
         },
     ]
 
@@ -251,6 +299,8 @@ def simple_comprehension_exercise(
             "story_text": story_text_en,
             "image_description": "A small turtle walking through a sunny garden.",
             "questions": questions_en,
+            "story_blocks": story_blocks,
+            "key_vocabulary": key_vocabulary,
             "level": level,
         }
 
@@ -287,6 +337,10 @@ def simple_comprehension_exercise(
                         for key in pair[0]["choices"]
                     },
                     "answer": pair[0]["answer"],
+                    "question_type": pair[0]["question_type"],
+                    "explanation_en": pair[0]["explanation_en"],
+                    "explanation_zh": pair[0]["explanation_zh"],
+                    "evidence_block_index": pair[0]["evidence_block_index"],
                 }
                 for pair in source_pairs
             ]
@@ -301,6 +355,10 @@ def simple_comprehension_exercise(
                         for key in pair[0]["choices"]
                     },
                     "answer": pair[0]["answer"],
+                    "question_type": pair[0]["question_type"],
+                    "explanation_en": pair[0]["explanation_en"],
+                    "explanation_zh": pair[0]["explanation_zh"],
+                    "evidence_block_index": pair[0]["evidence_block_index"],
                 }
                 for pair in source_pairs
             ]
@@ -326,10 +384,24 @@ def simple_comprehension_exercise(
         else:
             story_text = target_only(story_text_en, story_text_zh)
 
+    story_text_lines = []
+    for block in story_blocks:
+        if style == "bilingual" or learning_direction == "both":
+            if learning_direction == "zh_to_en":
+                story_text_lines.extend([block["chinese"], block["english"]])
+            else:
+                story_text_lines.extend([block["english"], block["chinese"]])
+        elif target_language == "Chinese":
+            story_text_lines.append(block["chinese"])
+        else:
+            story_text_lines.append(block["english"])
+
     return {
         "story_title": story_title,
-        "story_text": story_text,
+        "story_text": "\n".join(line for line in story_text_lines if line.strip()),
         "image_description": "A small turtle walking through a sunny garden.",
         "questions": choose_questions(),
+        "story_blocks": story_blocks,
+        "key_vocabulary": key_vocabulary,
         "level": level,
     }

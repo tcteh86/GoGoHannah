@@ -290,6 +290,114 @@ Target word: {word}
         raise LLMUnavailable(f"Failed to generate example sentence: {str(exc)}")
 
 
+def _normalize_story_blocks(raw_blocks: Any) -> list[dict]:
+    blocks = []
+    if isinstance(raw_blocks, list):
+        for item in raw_blocks:
+            if not isinstance(item, dict):
+                continue
+            english = str(item.get("english", "")).strip()
+            chinese = str(item.get("chinese", "")).strip()
+            if english or chinese:
+                blocks.append({"english": english, "chinese": chinese})
+    return blocks
+
+
+def _normalize_key_vocabulary(raw_vocab: Any) -> list[dict]:
+    entries = []
+    if isinstance(raw_vocab, list):
+        for item in raw_vocab:
+            if not isinstance(item, dict):
+                continue
+            word = str(item.get("word", "")).strip()
+            meaning_en = str(item.get("meaning_en", "")).strip()
+            meaning_zh = str(item.get("meaning_zh", "")).strip()
+            if word and (meaning_en or meaning_zh):
+                entries.append(
+                    {"word": word, "meaning_en": meaning_en, "meaning_zh": meaning_zh}
+                )
+    return entries[:5]
+
+
+def _compose_story_text_from_blocks(
+    blocks: list[dict],
+    learning_direction: str | None,
+    output_style: str | None,
+) -> str:
+    lines = []
+    bilingual = (output_style or "immersion") == "bilingual" or learning_direction == "both"
+    for block in blocks:
+        english = str(block.get("english", "")).strip()
+        chinese = str(block.get("chinese", "")).strip()
+        if bilingual:
+            if learning_direction == "zh_to_en":
+                if chinese:
+                    lines.append(chinese)
+                if english:
+                    lines.append(english)
+            else:
+                if english:
+                    lines.append(english)
+                if chinese:
+                    lines.append(chinese)
+        else:
+            if learning_direction == "en_to_zh":
+                if chinese:
+                    lines.append(chinese)
+            elif learning_direction == "zh_to_en":
+                if english:
+                    lines.append(english)
+            else:
+                if english:
+                    lines.append(english)
+    return "\n".join(lines).strip()
+
+
+def _normalize_comprehension_questions(raw_questions: Any, block_count: int) -> list[dict]:
+    if not isinstance(raw_questions, list):
+        raise ValueError("questions must be a list.")
+    if len(raw_questions) != 3:
+        raise ValueError("Must have exactly 3 questions.")
+
+    normalized = []
+    default_types = ["literal", "vocabulary", "inference"]
+    for index, question in enumerate(raw_questions):
+        if not isinstance(question, dict):
+            raise ValueError("Invalid question format.")
+        if not all(k in question for k in ["question", "choices", "answer"]):
+            raise ValueError("Invalid question format.")
+        choices = question.get("choices")
+        if not isinstance(choices, dict) or set(choices.keys()) != {"A", "B", "C"}:
+            raise ValueError("Invalid choices format.")
+        answer = str(question.get("answer", "")).strip()
+        if answer not in {"A", "B", "C"}:
+            raise ValueError("Invalid answer.")
+        q_type = str(question.get("question_type", default_types[index])).strip().lower()
+        if q_type not in {"literal", "vocabulary", "inference"}:
+            q_type = default_types[index]
+        evidence_index = question.get("evidence_block_index")
+        if isinstance(evidence_index, int):
+            if block_count > 0:
+                evidence_index = max(0, min(evidence_index, block_count - 1))
+            else:
+                evidence_index = 0
+        else:
+            evidence_index = min(index, max(0, block_count - 1))
+
+        normalized.append(
+            {
+                "question": str(question.get("question", "")).strip(),
+                "choices": {key: str(value).strip() for key, value in choices.items()},
+                "answer": answer,
+                "question_type": q_type,
+                "explanation_en": str(question.get("explanation_en", "")).strip(),
+                "explanation_zh": str(question.get("explanation_zh", "")).strip(),
+                "evidence_block_index": evidence_index,
+            }
+        )
+    return normalized
+
+
 def generate_comprehension_exercise(
     theme: str = None,
     level: str = "intermediate",
@@ -300,19 +408,19 @@ def generate_comprehension_exercise(
     """Generate a comprehension exercise with a short story and questions."""
     level_configs = {
         "beginner": {
-            "word_count": "100-150",
-            "complexity": "very simple words, short sentences, basic concepts",
-            "question_complexity": "simple questions testing basic understanding",
+            "word_count": "50-90",
+            "complexity": "very simple words, short sentences, clear events",
+            "question_complexity": "Q1 literal, Q2 vocabulary-in-context, Q3 simple inference",
         },
         "intermediate": {
-            "word_count": "200-250",
+            "word_count": "140-200",
             "complexity": "moderate vocabulary, varied sentence structure, some descriptive language",
-            "question_complexity": "questions testing comprehension and inference",
+            "question_complexity": "Q1 literal, Q2 vocabulary-in-context, Q3 inference",
         },
         "expert": {
-            "word_count": "250-350",
+            "word_count": "220-300",
             "complexity": "advanced vocabulary, complex sentences, rich descriptions",
-            "question_complexity": "questions requiring analysis and critical thinking",
+            "question_complexity": "Q1 literal, Q2 vocabulary-in-context, Q3 deeper inference",
         },
     }
 
@@ -327,13 +435,22 @@ def generate_comprehension_exercise(
                 f"{context_lines}\n"
             )
 
-        prompt = f"""Generate a short, engaging children's storybook suitable for ages 5-9, followed by 3 multiple-choice comprehension questions.
+        prompt = f"""Generate a short, engaging children's story for ages 5-9, followed by 3 multiple-choice comprehension questions.
 
 Requirements:
 - Story should be {config['word_count']} words, {config['complexity']}
-- Include vocabulary appropriate for the level
+- Story should be split into 4-6 short blocks for early readers
+- Each story block must have:
+  - "english": one short English line
+  - "chinese": one direct Chinese translation line
+- Include 3 key vocabulary words from the story with EN/ZH meaning
 - Questions: {config['question_complexity']}
 - Each question has 3 choices (A, B, C)
+- Each question must include:
+  - "question_type": literal | vocabulary | inference
+  - "explanation_en": one short reason for the answer
+  - "explanation_zh": Chinese translation of the reason
+  - "evidence_block_index": integer index pointing to supporting story block
 - Provide a detailed image description for an illustration of the main scene
 {context_block}
 
@@ -342,13 +459,26 @@ Requirements:
 Return JSON with:
 {{
   "story_title": "Story Title",
-  "story_text": "Full story text...",
+  "story_text": "Optional full story text...",
+  "story_blocks": [
+    {{"english": "Line 1", "chinese": "第1句翻译"}},
+    {{"english": "Line 2", "chinese": "第2句翻译"}}
+  ],
+  "key_vocabulary": [
+    {{"word": "brave", "meaning_en": "showing courage", "meaning_zh": "有勇气的"}},
+    {{"word": "pond", "meaning_en": "a small body of water", "meaning_zh": "池塘"}},
+    {{"word": "proud", "meaning_en": "happy about doing well", "meaning_zh": "自豪的"}}
+  ],
   "image_description": "Detailed description for illustration...",
   "questions": [
     {{
       "question": "Question 1?",
       "choices": {{"A": "Option A", "B": "Option B", "C": "Option C"}},
-      "answer": "A"
+      "answer": "A",
+      "question_type": "literal",
+      "explanation_en": "Short reason",
+      "explanation_zh": "中文原因",
+      "evidence_block_index": 0
     }},
     ...
   ]
@@ -373,20 +503,36 @@ Return JSON with:
 
         result = json.loads(response.choices[0].message.content.strip())
 
-        required_keys = ["story_title", "story_text", "image_description", "questions"]
+        required_keys = ["story_title", "image_description", "questions"]
         if not all(key in result for key in required_keys):
             raise ValueError("Incomplete response from LLM.")
 
-        if not isinstance(result["questions"], list) or len(result["questions"]) != 3:
-            raise ValueError("Must have exactly 3 questions.")
+        story_blocks = _normalize_story_blocks(result.get("story_blocks"))
+        story_text = str(result.get("story_text", "")).strip()
+        if not story_blocks and story_text:
+            # Fallback for older prompts: treat each line as an English block.
+            lines = [line.strip() for line in story_text.splitlines() if line.strip()]
+            story_blocks = [
+                {"english": line, "chinese": ""}
+                for line in lines
+            ]
+        if not story_blocks:
+            raise ValueError("Missing story blocks.")
+        key_vocabulary = _normalize_key_vocabulary(result.get("key_vocabulary"))
+        questions = _normalize_comprehension_questions(
+            result.get("questions"), block_count=len(story_blocks)
+        )
+        if not story_text:
+            story_text = _compose_story_text_from_blocks(
+                story_blocks,
+                learning_direction=learning_direction,
+                output_style=output_style,
+            )
 
-        for question in result["questions"]:
-            if not all(k in question for k in ["question", "choices", "answer"]):
-                raise ValueError("Invalid question format.")
-            if set(question["choices"].keys()) != {"A", "B", "C"}:
-                raise ValueError("Invalid choices format.")
-            if question["answer"] not in ["A", "B", "C"]:
-                raise ValueError("Invalid answer.")
+        result["story_blocks"] = story_blocks
+        result["key_vocabulary"] = key_vocabulary
+        result["questions"] = questions
+        result["story_text"] = story_text
 
         return result
 

@@ -61,6 +61,10 @@ Completed:
   - Persistent streak counter based on daily goal completion.
 - Phase B (GenAI depth) shipped:
   - Comprehension story mode with level selection.
+  - Chunked bilingual story blocks with English-first reveal flow.
+  - Pre-read key vocabulary cards (EN meaning + optional ZH reveal).
+  - Scaffolded comprehension questions (literal/vocabulary/inference).
+  - Explanation feedback and clue-block highlight for wrong answers.
   - Optional illustration generation hook.
   - Per-question saving for comprehension practice.
   - Phonics hints added to vocab exercises.
@@ -76,6 +80,7 @@ Completed:
   - English → Chinese bilingual output.
 - Bilingual story exercise options:
   - English → Chinese bilingual output.
+  - Story-block response schema for EN/ZH paired chunks.
 - Progress insights:
   - Recent practice history endpoint + UI list.
   - Weak-word suggestions highlighted for review.
@@ -95,6 +100,7 @@ Completed:
   - Compact date ranges for week/month on small screens.
 - Story visuals:
   - Inline illustration handling (data URIs + network fallback).
+  - Story block clue highlighting for guided re-reading.
 
 In progress:
 - RAG + embeddings enablement and QA (approved plan).
@@ -114,6 +120,8 @@ Done:
 - Flutter web UI for practice, results, and quick check.
 - Pronunciation analysis flow (audio + transcription).
 - Comprehension story flow (story + questions + illustration).
+- Comprehension UX upgrades (chunked EN/ZH blocks, key-vocab pre-read,
+  scaffolded question feedback + evidence clues).
 - Custom vocab manual entry + per-child storage flow.
 - Custom vocab typo correction suggestions.
 - Recent practice history view + weak-word highlighting.

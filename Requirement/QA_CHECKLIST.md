@@ -49,7 +49,20 @@ Use this checklist to validate the live prototype before new feature work.
 
 ### Comprehension Mode
 - [ ] Generate story at each level
+- [ ] Story renders as short blocks (not one long paragraph)
+- [ ] English line is visible first for each block
+- [ ] Chinese reveal works:
+  - [ ] per block
+  - [ ] reveal all / hide all
+- [ ] Pre-read key vocabulary appears before questions
+- [ ] Key vocabulary Chinese reveal toggles correctly
 - [ ] Answer each question and save results
+- [ ] Questions include scaffold mix:
+  - [ ] literal
+  - [ ] vocabulary-in-context
+  - [ ] inference
+- [ ] After checking, feedback shows EN/ZH explanation
+- [ ] Wrong answer can highlight a clue story block
 - [ ] Optional image generation loads (or handles fallback)
 
 ### Results + Progress

@@ -14,6 +14,7 @@ the learning experience engaging while showcasing GenAI techniques.
 - Rotating vocabulary checks (meaning match, context choice, fill-in-the-blank) plus EN↔ZH meaning checks
 - Meaning quality guardrails to reduce template outputs in definition/example/quiz Chinese content
 - Bilingual vocab + story practice (English ↔ Chinese) with bilingual output
+- Story UX for early readers: chunked EN-first blocks, optional Chinese reveal, key-vocabulary preview, and clue-based question feedback
 - Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
 - Progress tracking with personalized recommendations, weak-word insights, and recent practice history
 - Study time tracking (daily, weekly/monthly, and total summaries)

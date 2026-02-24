@@ -49,10 +49,25 @@ class ComprehensionExerciseRequest(BaseModel):
     output_style: Optional[Literal["immersion", "bilingual"]] = None
 
 
+class ComprehensionStoryBlock(BaseModel):
+    english: str
+    chinese: str
+
+
+class ComprehensionKeyVocabularyItem(BaseModel):
+    word: str
+    meaning_en: str
+    meaning_zh: str
+
+
 class ComprehensionQuestion(BaseModel):
     question: str
     choices: Dict[str, str]
     answer: str
+    question_type: Optional[Literal["literal", "vocabulary", "inference"]] = None
+    explanation_en: Optional[str] = None
+    explanation_zh: Optional[str] = None
+    evidence_block_index: Optional[int] = None
 
 
 class ComprehensionExerciseResponse(BaseModel):
@@ -61,6 +76,8 @@ class ComprehensionExerciseResponse(BaseModel):
     image_description: str
     image_url: Optional[str] = None
     questions: list[ComprehensionQuestion]
+    story_blocks: list[ComprehensionStoryBlock] = Field(default_factory=list)
+    key_vocabulary: list[ComprehensionKeyVocabularyItem] = Field(default_factory=list)
     source: Optional[str] = None
 
 
