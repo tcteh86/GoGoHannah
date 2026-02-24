@@ -260,6 +260,37 @@ class _IoApiClient implements ApiClient {
     return StudyTimeSummaryOverview.fromJson(data);
   }
 
+
+
+  @override
+  Future<void> exportProgressDb({String? token}) async {
+    throw ApiException('DB export/import UI is currently supported on web only.');
+  }
+
+  @override
+  Future<void> importProgressDbFromPicker({String? token}) async {
+    throw ApiException('DB export/import UI is currently supported on web only.');
+  }
+
+  @override
+  Future<void> exportProgressReportCsv({required String childName}) async {
+    throw ApiException('CSV export UI is currently supported on web only.');
+  }
+
+  @override
+  Future<void> exportCustomVocabCsv({required String childName}) async {
+    throw ApiException('CSV export UI is currently supported on web only.');
+  }
+
+  @override
+  Future<void> importCustomVocabCsvFromPicker({
+    required String childName,
+    String mode = 'append',
+    String? listName,
+  }) async {
+    throw ApiException('CSV import UI is currently supported on web only.');
+  }
+
   @override
   Future<RagDebugResult> fetchRagDebug({
     required String query,

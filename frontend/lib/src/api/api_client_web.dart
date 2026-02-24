@@ -275,6 +275,64 @@ class _WebApiClient implements ApiClient {
     return StudyTimeSummaryOverview.fromJson(data);
   }
 
+
+
+  @override
+  Future<void> exportProgressDb({String? token}) async {
+    await _downloadFile(
+      '/v1/progress/db-export',
+      fallbackFilename: 'progress.db',
+      token: token,
+    );
+  }
+
+  @override
+  Future<void> importProgressDbFromPicker({String? token}) async {
+    final file = await _pickFile('.db,application/x-sqlite3');
+    if (file == null) {
+      return;
+    }
+    final formData = FormData();
+    formData.appendBlob('file', file, file.name);
+    await _postForm('/v1/progress/db-import', formData, token: token);
+  }
+
+  @override
+  Future<void> exportProgressReportCsv({required String childName}) async {
+    await _downloadFile(
+      '/v1/progress/report.csv?child_name=${Uri.encodeComponent(childName)}',
+      fallbackFilename: 'progress-report-$childName.csv',
+    );
+  }
+
+  @override
+  Future<void> exportCustomVocabCsv({required String childName}) async {
+    await _downloadFile(
+      '/v1/vocab/custom/export?child_name=${Uri.encodeComponent(childName)}',
+      fallbackFilename: 'vocabulary-$childName.csv',
+    );
+  }
+
+  @override
+  Future<void> importCustomVocabCsvFromPicker({
+    required String childName,
+    String mode = 'append',
+    String? listName,
+  }) async {
+    final file = await _pickFile('.csv,text/csv');
+    if (file == null) {
+      return;
+    }
+    final formData = FormData();
+    formData.append('child_name', childName);
+    formData.append('mode', mode);
+    if (listName != null && listName.trim().isNotEmpty) {
+      formData.append('list_name', listName.trim());
+    }
+    formData.appendBlob('file', file, file.name);
+    await _postForm('/v1/vocab/custom/import', formData);
+  }
+
   @override
   Future<RagDebugResult> fetchRagDebug({
     required String query,
@@ -313,6 +371,81 @@ class _WebApiClient implements ApiClient {
       throw ApiException(_formatError(request.status, request.responseText));
     }
     return _decodeJson(request.responseText);
+  }
+
+
+
+  Future<void> _downloadFile(
+    String path, {
+    required String fallbackFilename,
+    String? token,
+  }) async {
+    final headers = <String, String>{};
+    if (token != null && token.trim().isNotEmpty) {
+      headers['X-DB-Export-Token'] = token.trim();
+    }
+    final request = await HttpRequest.request(
+      '$_baseUrl$path',
+      method: 'GET',
+      requestHeaders: headers,
+      responseType: 'blob',
+    );
+    if (request.status != null && request.status! >= 400) {
+      throw ApiException(_formatError(request.status, request.responseText));
+    }
+    final blob = request.response as Blob?;
+    if (blob == null) {
+      throw ApiException('Download failed: empty response body.');
+    }
+    final filename = _filenameFromDisposition(
+          request.getResponseHeader('content-disposition'),
+        ) ??
+        fallbackFilename;
+    final url = Url.createObjectUrlFromBlob(blob);
+    try {
+      final anchor = AnchorElement(href: url)
+        ..download = filename
+        ..style.display = 'none';
+      document.body?.append(anchor);
+      anchor.click();
+      anchor.remove();
+    } finally {
+      Url.revokeObjectUrl(url);
+    }
+  }
+
+  Future<void> _postForm(String path, FormData data, {String? token}) async {
+    final headers = <String, String>{};
+    if (token != null && token.trim().isNotEmpty) {
+      headers['X-DB-Export-Token'] = token.trim();
+    }
+    final request = await HttpRequest.request(
+      '$_baseUrl$path',
+      method: 'POST',
+      sendData: data,
+      requestHeaders: headers,
+    );
+    if (request.status != null && request.status! >= 400) {
+      throw ApiException(_formatError(request.status, request.responseText));
+    }
+  }
+
+  Future<File?> _pickFile(String accept) async {
+    final input = FileUploadInputElement()..accept = accept;
+    input.click();
+    await input.onChange.first;
+    if (input.files == null || input.files!.isEmpty) {
+      return null;
+    }
+    return input.files!.first;
+  }
+
+  String? _filenameFromDisposition(String? header) {
+    if (header == null || header.isEmpty) {
+      return null;
+    }
+    final match = RegExp(r'filename="?([^";]+)"?').firstMatch(header);
+    return match?.group(1);
   }
 
   Map<String, dynamic> _decodeJson(String? responseText) {

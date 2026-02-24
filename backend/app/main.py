@@ -1,9 +1,13 @@
 import base64
+import csv
 import os
+import tempfile
 import urllib.request
-from datetime import date
+from io import StringIO
+from datetime import date, datetime
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.exercise import (
@@ -36,6 +40,7 @@ from .core.study_time import (
 from .core.rag import debug_enabled, rag_enabled, retrieve_context, store_document
 from .core.safety import sanitize_word
 from .core.scoring import calculate_pronunciation_score
+from .core.db import DB_PATH, DEFAULT_DB_PATH
 from .llm.client import (
     LLMUnavailable,
     generate_comprehension_exercise,
@@ -69,7 +74,7 @@ from .schemas import (
     VocabImageHintRequest,
     VocabImageHintResponse,
 )
-from .vocab.loader import load_default_vocab
+from .vocab.loader import load_default_vocab, load_vocab_from_csv
 
 app = FastAPI(title="GoGoHannah API", version="0.1.0")
 
@@ -88,6 +93,43 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _resolve_db_export_path() -> str:
+    preferred = DB_PATH
+    if preferred.exists():
+        return str(preferred)
+    fallback = DEFAULT_DB_PATH
+    if fallback.exists():
+        return str(fallback)
+    raise HTTPException(status_code=404, detail="Progress database file not found.")
+
+
+def _validate_db_export_token(token_header: str | None) -> None:
+    expected = os.getenv("GOGOHANNAH_DB_EXPORT_TOKEN", "").strip()
+    if not expected:
+        return
+    if token_header != expected:
+        raise HTTPException(status_code=401, detail="Invalid export token.")
+
+
+def _resolve_db_write_path() -> str:
+    path = DB_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return str(path)
+
+
+def _replace_db_file_atomic(upload: UploadFile) -> None:
+    target = _resolve_db_write_path()
+    payload = upload.file.read()
+    if not payload:
+        raise HTTPException(status_code=400, detail="Uploaded DB file is empty.")
+
+    target_dir = os.path.dirname(target) or "."
+    with tempfile.NamedTemporaryFile(delete=False, dir=target_dir, suffix=".db") as tmp:
+        tmp.write(payload)
+        tmp_path = tmp.name
+    os.replace(tmp_path, target)
 
 
 def _generate_vocab_result(
@@ -651,6 +693,46 @@ def vocab_custom_add(payload: CustomVocabAddRequest) -> dict:
     return {"words": saved, "count": len(saved)}
 
 
+
+
+@app.get("/v1/vocab/custom/export")
+def vocab_custom_export(child_name: str):
+    child_id = get_or_create_child(child_name.strip())
+    words = get_custom_vocab(child_id)
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["word"])
+    for word in words:
+        writer.writerow([word])
+    content = buffer.getvalue()
+    filename = f"vocabulary-{child_name.strip() or 'child'}.csv"
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=\"{filename}\""},
+    )
+
+
+@app.post("/v1/vocab/custom/import", response_model=CustomVocabResponse)
+def vocab_custom_import(
+    child_name: str = Form(...),
+    mode: str = Form("append"),
+    list_name: str | None = Form(default=None),
+    file: UploadFile = File(...),
+) -> dict:
+    child_id = get_or_create_child(child_name.strip())
+    try:
+        words = load_vocab_from_csv(file.file)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    normalized_mode = (mode or "append").lower()
+    if normalized_mode == "replace":
+        saved = replace_custom_vocab(child_id, words, list_name)
+    else:
+        saved = save_custom_vocab(child_id, words, list_name)
+    return {"words": saved, "count": len(saved)}
+
 @app.post("/v1/vocab/custom/suggest", response_model=CustomVocabSuggestResponse)
 def vocab_custom_suggest(payload: CustomVocabSuggestRequest) -> dict:
     words = [word.strip() for word in payload.words if word.strip()]
@@ -1023,6 +1105,66 @@ def progress_recommended(child_name: str, limit: int = 10) -> dict:
     words = load_default_vocab()
     return {"words": get_recommended_words(child_id, words, limit)}
 
+
+
+
+
+
+@app.get("/v1/progress/report.csv")
+def progress_report_csv(child_name: str, limit: int = 500) -> Response:
+    if limit < 1 or limit > 5000:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 5000.")
+    child_id = get_or_create_child(child_name.strip())
+    summary = get_child_progress(child_id)
+    recent = get_recent_exercises(child_id, limit)
+
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["metric", "value"])
+    writer.writerow(["child_name", child_name.strip()])
+    writer.writerow(["total_exercises", summary.get("total_exercises", 0)])
+    writer.writerow(["correct_count", summary.get("correct_count", 0)])
+    writer.writerow(["accuracy", summary.get("accuracy", 0)])
+    writer.writerow([])
+    writer.writerow(["word", "exercise_type", "score", "correct", "created_at"])
+    for row in recent:
+        writer.writerow([
+            row.get("word", ""),
+            row.get("exercise_type", ""),
+            row.get("score", ""),
+            row.get("correct", ""),
+            row.get("created_at", ""),
+        ])
+
+    content = buffer.getvalue()
+    filename = f"progress-report-{child_name.strip() or 'child'}.csv"
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=\"{filename}\""},
+    )
+
+@app.get("/v1/progress/db-export")
+def progress_db_export(x_db_export_token: str | None = Header(default=None)) -> FileResponse:
+    _validate_db_export_token(x_db_export_token)
+    path = _resolve_db_export_path()
+    suffix = datetime.now().strftime("%Y%m%d")
+    return FileResponse(
+        path=path,
+        media_type="application/x-sqlite3",
+        filename=f"progress-{suffix}.db",
+    )
+
+
+
+@app.post("/v1/progress/db-import")
+def progress_db_import(
+    file: UploadFile = File(...),
+    x_db_export_token: str | None = Header(default=None),
+) -> dict:
+    _validate_db_export_token(x_db_export_token)
+    _replace_db_file_atomic(file)
+    return {"status": "imported"}
 
 @app.post("/v1/pronunciation/score", response_model=PronunciationScoreResponse)
 def pronunciation_score(payload: PronunciationScoreRequest) -> dict:
