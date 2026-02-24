@@ -2284,6 +2284,88 @@ class _ExerciseCard extends StatelessWidget {
     required this.onListenExampleChinese,
   });
 
+  Widget _buildBilingualSection({
+    required String title,
+    required String englishLabel,
+    required String englishText,
+    required VoidCallback onListenEnglish,
+    String? chineseLabel,
+    String? chineseText,
+    required bool showChinese,
+    required VoidCallback onToggleChinese,
+    required VoidCallback onListenChinese,
+    required String revealText,
+    required String hideText,
+    required String englishTooltip,
+    required String chineseTooltip,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$englishLabel: $englishText',
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+              IconButton(
+                onPressed: onListenEnglish,
+                icon: const Icon(Icons.volume_up),
+                tooltip: englishTooltip,
+              ),
+            ],
+          ),
+          if (chineseText != null && chineseText.isNotEmpty) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: onToggleChinese,
+                icon: Icon(
+                  showChinese ? Icons.visibility_off : Icons.visibility,
+                ),
+                label: Text(showChinese ? hideText : revealText),
+              ),
+            ),
+            if (showChinese) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${chineseLabel ?? 'Chinese'}: $chineseText',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: onListenChinese,
+                    icon: const Icon(Icons.volume_up),
+                    tooltip: chineseTooltip,
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildHintImage() {
     final imageUrl = imageHintUrl;
     if (imageUrl == null || imageUrl.isEmpty) {
@@ -2347,106 +2429,36 @@ class _ExerciseCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Definition (English): ${definitionLines.english ?? exercise.definition}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ),
-                IconButton(
-                  onPressed: onListenDefinitionEnglish,
-                  icon: const Icon(Icons.volume_up),
-                  tooltip: 'Listen to the English definition',
-                ),
-              ],
+            _buildBilingualSection(
+              title: 'Definition',
+              englishLabel: 'Definition (English)',
+              englishText: definitionLines.english ?? exercise.definition,
+              onListenEnglish: onListenDefinitionEnglish,
+              chineseLabel: 'Definition (Chinese)',
+              chineseText: definitionLines.chinese,
+              showChinese: showDefinitionChinese,
+              onToggleChinese: onToggleDefinitionChinese,
+              onListenChinese: onListenDefinitionChinese,
+              revealText: 'Reveal Chinese meaning',
+              hideText: 'Hide Chinese meaning',
+              englishTooltip: 'Listen to the English definition',
+              chineseTooltip: 'Listen to the Chinese definition',
             ),
-            if (definitionLines.chinese != null) ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: onToggleDefinitionChinese,
-                  icon: Icon(
-                    showDefinitionChinese ? Icons.visibility_off : Icons.visibility,
-                  ),
-                  label: Text(
-                    showDefinitionChinese
-                        ? 'Hide Chinese meaning'
-                        : 'Reveal Chinese meaning',
-                  ),
-                ),
-              ),
-            ],
-            if (showDefinitionChinese && definitionLines.chinese != null) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Definition (Chinese): ${definitionLines.chinese}',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: onListenDefinitionChinese,
-                    icon: const Icon(Icons.volume_up),
-                    tooltip: 'Listen to the Chinese definition',
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Example (English): ${exampleLines.english ?? exercise.exampleSentence}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ),
-                IconButton(
-                  onPressed: onListenExampleEnglish,
-                  icon: const Icon(Icons.volume_up),
-                  tooltip: 'Listen to the English example',
-                ),
-              ],
+            _buildBilingualSection(
+              title: 'Example',
+              englishLabel: 'Example (English)',
+              englishText: exampleLines.english ?? exercise.exampleSentence,
+              onListenEnglish: onListenExampleEnglish,
+              chineseLabel: 'Example (Chinese)',
+              chineseText: exampleLines.chinese,
+              showChinese: showExampleChinese,
+              onToggleChinese: onToggleExampleChinese,
+              onListenChinese: onListenExampleChinese,
+              revealText: 'Reveal Chinese example',
+              hideText: 'Hide Chinese example',
+              englishTooltip: 'Listen to the English example',
+              chineseTooltip: 'Listen to the Chinese example',
             ),
-            if (exampleLines.chinese != null) ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: onToggleExampleChinese,
-                  icon: Icon(
-                    showExampleChinese ? Icons.visibility_off : Icons.visibility,
-                  ),
-                  label: Text(
-                    showExampleChinese
-                        ? 'Hide Chinese example'
-                        : 'Reveal Chinese example',
-                  ),
-                ),
-              ),
-            ],
-            if (showExampleChinese && exampleLines.chinese != null) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Example (Chinese): ${exampleLines.chinese}',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: onListenExampleChinese,
-                    icon: const Icon(Icons.volume_up),
-                    tooltip: 'Listen to the Chinese example',
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 8),
             const Text(
               'Tip: Guess in English first, then reveal Chinese.',
               style: TextStyle(fontSize: 14, color: Colors.black54),
@@ -2536,7 +2548,7 @@ class _QuizPromptCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Check ${index + 1}: ${prompt.label}',
+              'Type ${index + 1}: ${prompt.label}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
