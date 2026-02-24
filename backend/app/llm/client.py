@@ -255,6 +255,39 @@ Sentence:
         raise LLMUnavailable(f"Failed to translate definition: {str(exc)}")
 
 
+def translate_to_english(text: str) -> str:
+    """Translate a short sentence into natural child-friendly English."""
+    if not text.strip():
+        raise LLMUnavailable("Empty text for translation.")
+    try:
+        prompt = f"""Translate this short sentence into natural, child-friendly English.
+Return plain English text only.
+Do not include labels, notes, or quotes.
+
+Sentence:
+{text}
+"""
+        response = get_client().chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a precise Chinese-to-English translator for children.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+            max_tokens=120,
+        )
+        translated = response.choices[0].message.content.strip()
+        translated = re.split(r"\r?\n", translated)[0].strip()
+        if not translated:
+            raise ValueError("Empty translation result.")
+        return translated
+    except Exception as exc:
+        raise LLMUnavailable(f"Failed to translate sentence: {str(exc)}")
+
+
 def generate_example_sentence(word: str, definition: str) -> str:
     """Generate one natural example sentence for a target word."""
     if not word.strip():

@@ -16,6 +16,9 @@ class _WebStoryReader implements StoryReader {
   bool _fallbackActive = false;
   int _fallbackIndex = 0;
   List<_WordInfo> _fallbackWords = [];
+  String _fallbackText = '';
+  double _fallbackRate = 1.0;
+  ValueChanged<int>? _fallbackOnBoundary;
 
   @override
   bool get isSpeaking => _isSpeaking;
@@ -80,6 +83,8 @@ class _WebStoryReader implements StoryReader {
       return;
     }
     html.window.speechSynthesis?.pause();
+    _fallbackTimer?.cancel();
+    _fallbackTimer = null;
     _isPaused = true;
   }
 
@@ -90,6 +95,13 @@ class _WebStoryReader implements StoryReader {
     }
     html.window.speechSynthesis?.resume();
     _isPaused = false;
+    final onBoundary = _fallbackOnBoundary;
+    if (_fallbackActive &&
+        !_boundarySeen &&
+        _fallbackWords.isNotEmpty &&
+        onBoundary != null) {
+      _scheduleNextFallback(_fallbackText, _fallbackRate, onBoundary);
+    }
   }
 
   @override
@@ -110,11 +122,23 @@ class _WebStoryReader implements StoryReader {
       return;
     }
     _fallbackActive = true;
-    _fallbackWords = RegExp(r"[A-Za-z']+|[\u4e00-\u9fff]")
+    _fallbackText = text;
+    _fallbackRate = rate;
+    _fallbackOnBoundary = onBoundary;
+    _fallbackWords = RegExp(r"[A-Za-z']+|[\u4e00-\u9fff]|[,.!?;:]")
         .allMatches(text)
-        .map((match) => _WordInfo(match.start, match.group(0)?.length ?? 0))
+        .map((match) {
+          final token = match.group(0) ?? '';
+          final isPause = RegExp(r'[,.!?;:]').hasMatch(token);
+          return _WordInfo(
+            start: match.start,
+            length: token.length,
+            isPause: isPause,
+          );
+        })
         .toList();
     if (_fallbackWords.isEmpty) {
+      _fallbackActive = false;
       return;
     }
     _fallbackIndex = 0;
@@ -127,20 +151,21 @@ class _WebStoryReader implements StoryReader {
     double rate,
     ValueChanged<int> onBoundary,
   ) {
-    if (_boundarySeen || !_isSpeaking) {
+    if (_boundarySeen || !_isSpeaking || _isPaused) {
       return;
     }
     final nextIndex = _fallbackIndex + 1;
     if (nextIndex >= _fallbackWords.length) {
       return;
     }
-    final currentLength = _fallbackWords[_fallbackIndex].length;
-    final milliseconds =
-        ((160 + currentLength * 35) / rate.clamp(0.1, 1.0))
-            .round()
-            .clamp(140, 700);
+    final currentWord = _fallbackWords[_fallbackIndex];
+    final safeRate = rate.clamp(0.1, 1.0);
+    final baseDuration = currentWord.isPause
+        ? (420 / safeRate).round()
+        : ((240 + currentWord.length * 70) / safeRate).round();
+    final milliseconds = baseDuration.clamp(220, 2600);
     _fallbackTimer = Timer(Duration(milliseconds: milliseconds), () {
-      if (_boundarySeen || !_isSpeaking) {
+      if (_boundarySeen || !_isSpeaking || _isPaused) {
         return;
       }
       _fallbackIndex = nextIndex;
@@ -155,12 +180,20 @@ class _WebStoryReader implements StoryReader {
     _fallbackActive = false;
     _fallbackWords = [];
     _fallbackIndex = 0;
+    _fallbackText = '';
+    _fallbackRate = 1.0;
+    _fallbackOnBoundary = null;
   }
 }
 
 class _WordInfo {
   final int start;
   final int length;
+  final bool isPause;
 
-  _WordInfo(this.start, this.length);
+  _WordInfo({
+    required this.start,
+    required this.length,
+    required this.isPause,
+  });
 }

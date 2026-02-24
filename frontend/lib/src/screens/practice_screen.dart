@@ -73,7 +73,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
   String _storyLevel = 'beginner';
   bool _includeImage = false;
   bool _showStoryChinese = false;
-  bool _showKeyVocabularyChinese = false;
   int? _activeClueBlockIndex;
   final Set<int> _revealedStoryBlockChinese = {};
   int? _autoRevealedStoryBlockChinese;
@@ -223,7 +222,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _compAnswered.clear();
     _compFeedback.clear();
     _showStoryChinese = false;
-    _showKeyVocabularyChinese = false;
     _activeClueBlockIndex = null;
     _revealedStoryBlockChinese.clear();
     _autoRevealedStoryBlockChinese = null;
@@ -1221,7 +1219,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _compAnswered.clear();
       _compFeedback.clear();
       _showStoryChinese = false;
-      _showKeyVocabularyChinese = false;
       _activeClueBlockIndex = null;
       _revealedStoryBlockChinese.clear();
       _autoRevealedStoryBlockChinese = null;
@@ -1687,7 +1684,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
             highlightedRange: _highlightedRange,
             storyBlockRanges: _buildStoryBlockLineRanges(_comprehension!),
             showStoryChinese: _showStoryChinese,
-            showKeyVocabularyChinese: _showKeyVocabularyChinese,
             revealedStoryBlockChinese: _revealedStoryBlockChinese,
             autoRevealedStoryBlockChinese: _autoRevealedStoryBlockChinese,
             activeClueBlockIndex: _activeClueBlockIndex,
@@ -1695,11 +1691,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
               setState(() {
                 _showStoryChinese = !_showStoryChinese;
                 _autoRevealedStoryBlockChinese = null;
-              });
-            },
-            onToggleKeyVocabularyChinese: () {
-              setState(() {
-                _showKeyVocabularyChinese = !_showKeyVocabularyChinese;
               });
             },
             onToggleStoryBlockChinese: (index) {
@@ -2170,12 +2161,10 @@ class _ComprehensionCard extends StatelessWidget {
   final _StoryHighlightRange? highlightedRange;
   final List<_StoryBlockLineRange> storyBlockRanges;
   final bool showStoryChinese;
-  final bool showKeyVocabularyChinese;
   final Set<int> revealedStoryBlockChinese;
   final int? autoRevealedStoryBlockChinese;
   final int? activeClueBlockIndex;
   final VoidCallback onToggleStoryChinese;
-  final VoidCallback onToggleKeyVocabularyChinese;
   final ValueChanged<int> onToggleStoryBlockChinese;
   final bool isSpeaking;
   final bool isPaused;
@@ -2196,12 +2185,10 @@ class _ComprehensionCard extends StatelessWidget {
     required this.highlightedRange,
     required this.storyBlockRanges,
     required this.showStoryChinese,
-    required this.showKeyVocabularyChinese,
     required this.revealedStoryBlockChinese,
     required this.autoRevealedStoryBlockChinese,
     required this.activeClueBlockIndex,
     required this.onToggleStoryChinese,
-    required this.onToggleKeyVocabularyChinese,
     required this.onToggleStoryBlockChinese,
     required this.isSpeaking,
     required this.isPaused,
@@ -2393,67 +2380,6 @@ class _ComprehensionCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: _buildStoryImage(),
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (exercise.keyVocabulary.isNotEmpty) ...[
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Pre-read key words',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: onToggleKeyVocabularyChinese,
-                    icon: Icon(
-                      showKeyVocabularyChinese
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                    ),
-                    label: Text(
-                      showKeyVocabularyChinese
-                          ? 'Hide Chinese'
-                          : 'Reveal Chinese',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              ...exercise.keyVocabulary.map(
-                (item) => Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5F3FF),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFDDD6FE)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.word,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text('EN: ${item.meaningEn}'),
-                      if (showKeyVocabularyChinese && item.meaningZh.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text('ZH: ${item.meaningZh}'),
-                        ),
-                    ],
-                  ),
-                ),
               ),
               const SizedBox(height: 8),
             ],

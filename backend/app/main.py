@@ -40,6 +40,7 @@ from .llm.client import (
     generate_vocab_exercise,
     suggest_vocab_corrections,
     translate_to_chinese,
+    translate_to_english,
     transcribe_audio,
 )
 from .schemas import (
@@ -373,6 +374,43 @@ def _split_story_text_to_blocks(text: str) -> list[dict]:
     return blocks
 
 
+def _normalize_bilingual_line(
+    text: str,
+    learning_direction: str | None,
+    fallback_text: str = "",
+) -> str:
+    cleaned = _strip_language_labels(text)
+    english, chinese = _split_bilingual_lines(cleaned)
+    english = (english or "").strip()
+    chinese = (chinese or "").strip()
+
+    if not english and not chinese and fallback_text:
+        fallback_cleaned = _strip_language_labels(fallback_text)
+        fallback_en, fallback_zh = _split_bilingual_lines(fallback_cleaned)
+        english = (fallback_en or "").strip()
+        chinese = (fallback_zh or "").strip()
+
+    if not english and chinese:
+        try:
+            english = translate_to_english(chinese)
+        except LLMUnavailable:
+            english = chinese
+    if english and not chinese:
+        try:
+            chinese = translate_to_chinese(english)
+        except LLMUnavailable:
+            chinese = english
+
+    if not english and not chinese:
+        return cleaned
+
+    if not english:
+        english = chinese
+    if not chinese:
+        chinese = english
+    return _format_bilingual_output(english, chinese, learning_direction)
+
+
 def _normalize_story_blocks(
     raw_blocks: list | None,
     story_text: str,
@@ -401,10 +439,16 @@ def _normalize_story_blocks(
             english, chinese = _split_bilingual_lines(str(raw))
             english = english or ""
             chinese = chinese or ""
-        merged = _ensure_bilingual_text(
-            f"{english}\n{chinese}".strip(),
-            f"{fallback_item.get('english', '')}\n{fallback_item.get('chinese', '')}".strip(),
-            learning_direction,
+        raw_text = f"{english}\n{chinese}".strip()
+        fallback_text = (
+            f"{fallback_item.get('english', '')}\n{fallback_item.get('chinese', '')}".strip()
+            if not raw_text
+            else ""
+        )
+        merged = _normalize_bilingual_line(
+            raw_text,
+            learning_direction=learning_direction,
+            fallback_text=fallback_text,
         )
         merged_en, merged_zh = _split_bilingual_lines(merged)
         merged_en = (merged_en or "").strip()
@@ -445,9 +489,16 @@ def _normalize_comprehension_questions(
     normalized = []
     for index in range(3):
         fallback = fallback_questions[index] if index < len(fallback_questions) else {}
-        raw = questions[index] if index < len(questions) and isinstance(questions[index], dict) else {}
+        raw = (
+            questions[index]
+            if index < len(questions) and isinstance(questions[index], dict)
+            else {}
+        )
+        use_fallback_question = not raw
+        source = fallback if use_fallback_question else raw
+
         q_type = str(
-            raw.get(
+            source.get(
                 "question_type",
                 fallback.get("question_type", default_types[min(index, len(default_types) - 1)]),
             )
@@ -455,32 +506,47 @@ def _normalize_comprehension_questions(
         if q_type not in {"literal", "vocabulary", "inference"}:
             q_type = default_types[min(index, len(default_types) - 1)]
 
-        question_text = _ensure_bilingual_text(
-            str(raw.get("question", "")),
-            str(fallback.get("question", "")),
-            learning_direction,
+        question_text = _normalize_bilingual_line(
+            str(source.get("question", "")),
+            learning_direction=learning_direction,
+            fallback_text=str(fallback.get("question", "")) if use_fallback_question else "",
         )
-        raw_choices = raw.get("choices", {})
+        raw_choices = source.get("choices", {})
         fallback_choices = fallback.get("choices", {})
         choices = {}
         for key in ["A", "B", "C"]:
-            choices[key] = _ensure_bilingual_text(
+            choices[key] = _normalize_bilingual_line(
                 str(raw_choices.get(key, "")),
-                str(fallback_choices.get(key, "")),
-                learning_direction,
+                learning_direction=learning_direction,
+                fallback_text=(
+                    str(fallback_choices.get(key, "")) if use_fallback_question else ""
+                ),
             )
+            if not choices[key].strip():
+                seed_text = str(fallback_choices.get(key, "")).strip() or f"Option {key}"
+                choices[key] = _normalize_bilingual_line(
+                    seed_text,
+                    learning_direction=learning_direction,
+                )
 
-        answer = str(raw.get("answer", fallback.get("answer", "A"))).strip().upper()
+        answer = str(source.get("answer", fallback.get("answer", "A"))).strip().upper()
         if answer not in {"A", "B", "C"}:
             answer = "A"
-        explanation_en = str(raw.get("explanation_en", "")).strip()
+        explanation_en = str(source.get("explanation_en", "")).strip()
         if not explanation_en:
-            fallback_explanation = str(fallback.get("explanation_en", "")).strip()
-            explanation_en = fallback_explanation or _default_question_explanation(q_type)
-        explanation_zh = str(raw.get("explanation_zh", "")).strip()
+            if use_fallback_question:
+                fallback_explanation = str(fallback.get("explanation_en", "")).strip()
+                explanation_en = fallback_explanation or _default_question_explanation(q_type)
+            else:
+                explanation_en = _default_question_explanation(q_type)
+        explanation_zh = str(source.get("explanation_zh", "")).strip()
         if not explanation_zh:
-            fallback_zh = str(fallback.get("explanation_zh", "")).strip()
-            if fallback_zh:
+            fallback_zh = (
+                str(fallback.get("explanation_zh", "")).strip()
+                if use_fallback_question
+                else ""
+            )
+            if fallback_zh and use_fallback_question:
                 explanation_zh = fallback_zh
             else:
                 try:
@@ -488,7 +554,10 @@ def _normalize_comprehension_questions(
                 except LLMUnavailable:
                     explanation_zh = explanation_en
 
-        evidence = raw.get("evidence_block_index", fallback.get("evidence_block_index", index))
+        evidence = source.get(
+            "evidence_block_index",
+            fallback.get("evidence_block_index", index),
+        )
         if isinstance(evidence, int):
             if block_count > 0:
                 evidence = max(0, min(evidence, block_count - 1))
@@ -723,11 +792,6 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
             image_url = None
 
     cleaned_story_text = _strip_language_labels(result.get("story_text", ""))
-    cleaned_story_text = _ensure_bilingual_text(
-        cleaned_story_text,
-        str(fallback_story.get("story_text", "")),
-        payload.learning_direction,
-    )
     story_blocks, composed_story_text = _normalize_story_blocks(
         raw_blocks=result.get("story_blocks"),
         story_text=cleaned_story_text,

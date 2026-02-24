@@ -62,7 +62,6 @@ Completed:
 - Phase B (GenAI depth) shipped:
   - Comprehension story mode with level selection.
   - Chunked bilingual story blocks with English-first reveal flow.
-  - Pre-read key vocabulary cards (EN meaning + optional ZH reveal).
   - Scaffolded comprehension questions (literal/vocabulary/inference).
   - Explanation feedback and clue-block highlight for wrong answers.
   - Optional illustration generation hook.
@@ -120,7 +119,7 @@ Done:
 - Flutter web UI for practice, results, and quick check.
 - Pronunciation analysis flow (audio + transcription).
 - Comprehension story flow (story + questions + illustration).
-- Comprehension UX upgrades (chunked EN/ZH blocks, key-vocab pre-read,
+- Comprehension UX upgrades (chunked EN/ZH blocks,
   scaffolded question feedback + evidence clues).
 - Custom vocab manual entry + per-child storage flow.
 - Custom vocab typo correction suggestions.

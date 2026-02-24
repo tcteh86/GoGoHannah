@@ -55,8 +55,6 @@ Use this checklist to validate the live prototype before new feature work.
 - [ ] Chinese reveal works:
   - [ ] per block
   - [ ] reveal all / hide all
-- [ ] Pre-read key vocabulary appears before questions
-- [ ] Key vocabulary Chinese reveal toggles correctly
 - [ ] Answer each question and save results
 - [ ] Questions include scaffold mix:
   - [ ] literal

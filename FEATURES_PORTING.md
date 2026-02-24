@@ -154,7 +154,7 @@ Flow:
      - title
      - story blocks (`english`, `chinese`) for chunked reading
      - optional combined `story_text`
-     - key vocabulary list (`word`, `meaning_en`, `meaning_zh`)
+     - key vocabulary list (`word`, `meaning_en`, `meaning_zh`) as optional support metadata
      - image description
      - 3 questions with `question_type`, `explanation_en`, `explanation_zh`,
        and `evidence_block_index`
