@@ -59,6 +59,44 @@ _DISTRACTOR_POOL = [
     ("about a place to play", "和玩耍的地点有关"),
 ]
 
+_ABSTRACT_WORDS = {
+    "freedom",
+    "honesty",
+    "justice",
+    "peace",
+    "love",
+    "friendship",
+    "hope",
+    "truth",
+    "idea",
+    "thought",
+    "knowledge",
+    "wisdom",
+    "faith",
+    "belief",
+    "memory",
+    "dream",
+    "emotion",
+    "happiness",
+    "sadness",
+    "anger",
+    "fear",
+    "courage",
+    "patience",
+    "kindness",
+}
+
+_ABSTRACT_DEFINITION_MARKERS = (
+    "a feeling",
+    "feeling of",
+    "an emotion",
+    "a quality",
+    "a concept",
+    "an idea",
+    "a belief",
+    "a state of mind",
+)
+
 
 def _fallback_definition(word: str) -> tuple[str, str]:
     meaning = _FALLBACK_MEANINGS.get(word.lower())
@@ -68,6 +106,17 @@ def _fallback_definition(word: str) -> tuple[str, str]:
         f'"{word}" has a specific meaning used in daily life.',
         f'“{word}” 在日常生活中有具体含义。',
     )
+
+
+def vocab_image_hint_status(word: str, definition: str = "") -> tuple[bool, str | None]:
+    """Return whether a vocabulary hint image should be enabled."""
+    normalized_word = word.strip().lower()
+    if normalized_word in _ABSTRACT_WORDS:
+        return False, "abstract_word"
+    normalized_definition = definition.strip().lower()
+    if any(marker in normalized_definition for marker in _ABSTRACT_DEFINITION_MARKERS):
+        return False, "abstract_word"
+    return True, None
 
 
 def _fallback_example(word: str) -> tuple[str, str]:

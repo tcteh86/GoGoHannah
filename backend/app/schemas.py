@@ -15,8 +15,21 @@ class VocabExerciseResponse(BaseModel):
     quiz_question: str
     quiz_choices: Dict[str, str]
     quiz_answer: str
+    image_hint_enabled: bool = False
+    image_hint_reason: Optional[str] = None
     phonics: Optional[str] = None
     source: Optional[str] = None
+
+
+class VocabImageHintRequest(BaseModel):
+    word: str = Field(..., min_length=1, max_length=32)
+    definition: Optional[str] = Field(None, max_length=400)
+
+
+class VocabImageHintResponse(BaseModel):
+    image_hint_enabled: bool
+    image_hint_reason: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class CustomVocabResponse(BaseModel):
@@ -44,7 +57,6 @@ class CustomVocabSuggestResponse(BaseModel):
 class ComprehensionExerciseRequest(BaseModel):
     level: str = Field("intermediate", min_length=3, max_length=16)
     theme: Optional[str] = Field(None, max_length=64)
-    include_image: bool = False
     learning_direction: Optional[Literal["en_to_zh", "zh_to_en", "both"]] = None
     output_style: Optional[Literal["immersion", "bilingual"]] = None
 

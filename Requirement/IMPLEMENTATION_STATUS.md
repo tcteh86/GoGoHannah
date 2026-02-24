@@ -23,7 +23,7 @@ issues so a new agent can continue work if the session ends.
 - Recent practice endpoint (recent exercises history).
 - Comprehension story generation with level selection, chunked EN/ZH story blocks,
   and scaffolded question metadata (type/explanations/evidence block).
-- Optional illustration generation hook.
+- Vocab image hint endpoint with abstract-word gating (`/v1/vocab/image-hint`).
 - Pronunciation scoring:
   - Text similarity scoring endpoint.
   - Audio upload endpoint (Whisper transcription + scoring).
@@ -58,12 +58,14 @@ issues so a new agent can continue work if the session ends.
   - Playback button for recorded audio.
 - Comprehension:
   - Per-question save to backend.
-  - Optional image display when provided (supports inline data URIs).
   - Read-aloud word highlighting for web and mobile (rendered directly inside story blocks).
   - Chinese read-aloud highlight sync improved with hybrid fallback pacing + native anchor timing on web.
   - Adjustable reading speed (0.1x - 1.0x).
   - English-first story blocks with progressive Chinese reveal (per block + reveal all).
   - Guided question feedback with EN/ZH explanation and clue block highlighting.
+- Vocabulary image hint:
+  - Generate-on-demand image hint button in vocab exercise card.
+  - Disabled button and message for abstract words (no image generation).
 - Custom vocab:
   - Manual word entry (comma/newline separated).
   - Word list selector (Default/Custom/Weak words).
@@ -73,7 +75,7 @@ issues so a new agent can continue work if the session ends.
 ## 3) QA Artifacts
 - QA checklist: Requirement/QA_CHECKLIST.md
 - API smoke checks (manual):
-  - /healthz, /v1/vocab/default, /v1/vocab/exercise
+  - /healthz, /v1/vocab/default, /v1/vocab/exercise, /v1/vocab/image-hint
   - /v1/progress/exercise + /v1/progress/summary
   - /v1/progress/daily
   - /v1/comprehension/exercise

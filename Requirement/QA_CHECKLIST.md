@@ -15,8 +15,9 @@ Use this checklist to validate the live prototype before new feature work.
 - [ ] POST /v1/vocab/exercise (invalid word) returns 400
 - [ ] POST /v1/progress/exercise saves result
 - [ ] GET /v1/progress/summary reflects saved result
-- [ ] POST /v1/comprehension/exercise (include_image=false) returns story + questions
-- [ ] POST /v1/comprehension/exercise (include_image=true) returns image_url or fallback
+- [ ] POST /v1/comprehension/exercise returns story + questions
+- [ ] POST /v1/vocab/image-hint returns image_url for visualizable words
+- [ ] POST /v1/vocab/image-hint returns abstract_word flag for abstract words
 - [ ] POST /v1/pronunciation/score returns numeric score
 - [ ] POST /v1/pronunciation/assess accepts non-empty audio upload
 - [ ] POST /v1/pronunciation/assess with empty audio returns 400
@@ -40,6 +41,9 @@ Use this checklist to validate the live prototype before new feature work.
   - [ ] wrong-choice explanation
 - [ ] Mascot reaction updates for correct/incorrect
 - [ ] Result saves and appears in Results summary
+- [ ] Image hint button behavior:
+  - [ ] enabled for concrete words and can render image
+  - [ ] disabled/grayed out for abstract words with clear message
 
 ### Pronunciation Practice
 - [ ] Record audio and stop recording
@@ -63,7 +67,6 @@ Use this checklist to validate the live prototype before new feature work.
   - [ ] inference
 - [ ] After checking, feedback shows EN/ZH explanation
 - [ ] Wrong answer can highlight a clue story block
-- [ ] Optional image generation loads (or handles fallback)
 
 ### Results + Progress
 - [ ] Results refresh shows total exercises + accuracy

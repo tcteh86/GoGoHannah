@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import '../models/progress_summary.dart';
 import '../models/save_exercise.dart';
 import '../models/vocab_exercise.dart';
+import '../models/vocab_image_hint.dart';
 import '../models/comprehension_exercise.dart';
 import '../models/pronunciation_assessment.dart';
 import '../models/rag_debug_result.dart';
@@ -56,17 +57,27 @@ class _IoApiClient implements ApiClient {
   }
 
   @override
+  Future<VocabImageHint> generateVocabImageHint({
+    required String word,
+    required String definition,
+  }) async {
+    final data = await _postJson('/v1/vocab/image-hint', {
+      'word': word,
+      'definition': definition,
+    });
+    return VocabImageHint.fromJson(data);
+  }
+
+  @override
   Future<ComprehensionExercise> generateComprehensionExercise({
     required String level,
     String? theme,
-    bool includeImage = false,
     String? learningDirection,
     String? outputStyle,
   }) async {
     final payload = {
       'level': level,
       'theme': theme,
-      'include_image': includeImage,
     };
     if (learningDirection != null) {
       payload['learning_direction'] = learningDirection;

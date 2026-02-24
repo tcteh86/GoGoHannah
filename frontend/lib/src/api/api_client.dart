@@ -6,6 +6,7 @@ import 'api_client_stub.dart'
 import '../models/progress_summary.dart';
 import '../models/save_exercise.dart';
 import '../models/vocab_exercise.dart';
+import '../models/vocab_image_hint.dart';
 import '../models/comprehension_exercise.dart';
 import '../models/pronunciation_assessment.dart';
 import '../models/rag_debug_result.dart';
@@ -20,6 +21,10 @@ abstract class ApiClient {
     String word, {
     String? learningDirection,
     String? outputStyle,
+  });
+  Future<VocabImageHint> generateVocabImageHint({
+    required String word,
+    required String definition,
   });
   Future<List<String>> fetchRecommendedWords(String childName, int limit);
   Future<List<String>> fetchCustomVocab(String childName);
@@ -37,7 +42,6 @@ abstract class ApiClient {
   Future<ComprehensionExercise> generateComprehensionExercise({
     required String level,
     String? theme,
-    bool includeImage = false,
     String? learningDirection,
     String? outputStyle,
   });

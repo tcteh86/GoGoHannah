@@ -4,6 +4,8 @@ class VocabExercise {
   final String quizQuestion;
   final Map<String, String> quizChoices;
   final String quizAnswer;
+  final bool imageHintEnabled;
+  final String? imageHintReason;
   final String? phonics;
   final String? source;
 
@@ -13,6 +15,8 @@ class VocabExercise {
     required this.quizQuestion,
     required this.quizChoices,
     required this.quizAnswer,
+    required this.imageHintEnabled,
+    this.imageHintReason,
     this.phonics,
     this.source,
   });
@@ -31,6 +35,8 @@ class VocabExercise {
       quizQuestion: json['quiz_question']?.toString() ?? '',
       quizChoices: choices,
       quizAnswer: json['quiz_answer']?.toString() ?? '',
+      imageHintEnabled: json['image_hint_enabled'] == true,
+      imageHintReason: json['image_hint_reason']?.toString(),
       phonics: json['phonics']?.toString(),
       source: json['source']?.toString(),
     );

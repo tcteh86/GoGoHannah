@@ -108,7 +108,11 @@ Flow:
      - ZH → EN meaning
 6) On each check:
    - Show instructional feedback (correct EN/ZH meaning + wrong-choice explanation).
-7) After all checks are completed:
+7) Optional image hint:
+   - "Generate Image Hint" button is enabled only for visualizable words.
+   - Abstract words are flagged and keep the button disabled.
+   - On click, backend generates and returns an image hint URL.
+8) After all checks are completed:
    - Save one `quiz` exercise using aggregated score across checks.
 
 LLM output requirements:
@@ -143,7 +147,7 @@ Porting notes:
 - Keep "auto-play once, replay on demand" for pronunciation practice.
 - Keep the same scoring threshold for "correct" (score >= 80).
 
-### 3.5 Comprehension practice (story + questions + illustration)
+### 3.5 Comprehension practice (story + questions)
 Flow:
 1) User selects a difficulty level:
    - beginner (50-90 words, very simple)
@@ -155,10 +159,9 @@ Flow:
      - story blocks (`english`, `chinese`) for chunked reading
      - optional combined `story_text`
      - key vocabulary list (`word`, `meaning_en`, `meaning_zh`) as optional support metadata
-     - image description
+     - image description (metadata only; no story image generation in current UI)
      - 3 questions with `question_type`, `explanation_en`, `explanation_zh`,
        and `evidence_block_index`
-   - Optional image generation using DALL-E (URL stored in session).
    - TTS audio prepared from story text for read-aloud.
 3) User can click "Read Story Aloud" to play TTS.
 4) Story UI uses English-first chunked blocks with optional Chinese reveal
@@ -173,7 +176,6 @@ Flow:
 
 Porting notes:
 - Preserve the 3-question requirement and answer key format.
-- Story illustration is optional and should not block the story flow.
 - Keep story blocks as paired EN/ZH lines to support chunked progressive reveal.
 - Keep evidence-linked feedback fields (`explanation_*`, `evidence_block_index`) for guided remediation.
 

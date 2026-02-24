@@ -15,6 +15,7 @@ the learning experience engaging while showcasing GenAI techniques.
 - Meaning quality guardrails to reduce template outputs in definition/example/quiz Chinese content
 - Bilingual vocab + story practice (English ↔ Chinese) with bilingual output
 - Story UX for early readers: chunked EN-first blocks, optional Chinese reveal, and clue-based question feedback
+- Vocabulary image hint button with abstract-word detection (disabled when non-visualizable)
 - Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
 - Progress tracking with personalized recommendations, weak-word insights, and recent practice history
 - Study time tracking (daily, weekly/monthly, and total summaries)
@@ -80,7 +81,8 @@ From `frontend/`:
 - ✅ Progress tracking endpoints
 - ✅ Flutter web UI (practice, results, quick check)
 - ✅ Pronunciation (audio + transcription)
-- ✅ Comprehension stories + illustration
+- ✅ Comprehension stories
+- ✅ Vocabulary image hint tool (abstract words are flagged and disabled)
 - ⏳ RAG + embeddings + multi-agent workflow
 
 ## Notes on GenAI Safety (future)

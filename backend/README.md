@@ -26,6 +26,7 @@ Vocabulary:
 - `POST /v1/vocab/custom/add`
 - `POST /v1/vocab/custom/suggest`
 - `POST /v1/vocab/exercise`
+- `POST /v1/vocab/image-hint`
 
 Comprehension:
 - `POST /v1/comprehension/exercise`
@@ -75,6 +76,14 @@ Debug:
 - `questions[*].question_type`: `literal | vocabulary | inference`.
 - `questions[*].explanation_en` / `questions[*].explanation_zh`: short feedback rationale.
 - `questions[*].evidence_block_index`: clue link to a supporting story block.
+- Story image generation is currently disabled in this branch; `image_url` is `null`.
+
+### Vocabulary image hint endpoint
+`POST /v1/vocab/image-hint` supports image hints for concrete words.
+
+Response behavior:
+- `image_hint_enabled=true` + `image_url` when image can be generated.
+- `image_hint_enabled=false` + `image_hint_reason=abstract_word` for abstract words.
 
 ## Deploy (Render)
 1) Create a new Web Service connected to the repo.

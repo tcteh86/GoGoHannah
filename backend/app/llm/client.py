@@ -619,3 +619,24 @@ def generate_story_image(description: str) -> str:
         return response.data[0].url
     except Exception as exc:
         raise LLMUnavailable(f"Failed to generate image: {str(exc)}")
+
+
+def generate_vocab_image(word: str, definition: str) -> str:
+    """Generate an educational hint image for a vocabulary word."""
+    try:
+        response = get_client().images.generate(
+            model=IMAGE_MODEL,
+            prompt=(
+                "Create a clear, child-friendly picture that helps explain a vocabulary word. "
+                f'Word: "{word}". Meaning: "{definition}". '
+                "Show a concrete scene that represents the meaning. "
+                "Use bright colors and simple composition for ages 5-9. "
+                "Do not include letters, labels, or text in the image."
+            ),
+            size="1024x1024",
+            quality="standard",
+            n=1,
+        )
+        return response.data[0].url
+    except Exception as exc:
+        raise LLMUnavailable(f"Failed to generate vocab image: {str(exc)}")

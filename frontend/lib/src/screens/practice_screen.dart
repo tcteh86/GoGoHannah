@@ -65,13 +65,15 @@ class _PracticeScreenState extends State<PracticeScreen> {
   final Map<int, String> _quizSelections = {};
   final Map<int, bool> _quizResults = {};
   final Map<int, String> _quizFeedback = {};
+  String? _vocabHintImageUrl;
+  String? _vocabHintError;
+  bool _vocabHintLoading = false;
 
   PracticeMode _mode = PracticeMode.vocabulary;
   ComprehensionExercise? _comprehension;
   String? _comprehensionError;
   bool _loadingComprehension = false;
   String _storyLevel = 'beginner';
-  bool _includeImage = false;
   bool _showStoryChinese = false;
   int? _activeClueBlockIndex;
   final Set<int> _revealedStoryBlockChinese = {};
@@ -141,6 +143,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _loading = true;
       _exercise = null;
       _feedback = null;
+      _vocabHintImageUrl = null;
+      _vocabHintError = null;
+      _vocabHintLoading = false;
       _showDefinitionChinese = false;
       _showExampleChinese = false;
       _exerciseSaved = false;
@@ -178,6 +183,54 @@ class _PracticeScreenState extends State<PracticeScreen> {
     }
   }
 
+  Future<void> _generateVocabImageHint() async {
+    final exercise = _exercise;
+    final word = _selectedWord;
+    if (exercise == null || word == null || word.isEmpty || _vocabHintLoading) {
+      return;
+    }
+    if (!exercise.imageHintEnabled) {
+      setState(() {
+        _vocabHintError = 'Abstract word cannot generate image hint.';
+      });
+      return;
+    }
+    setState(() {
+      _vocabHintLoading = true;
+      _vocabHintError = null;
+    });
+    try {
+      final result = await widget.apiClient.generateVocabImageHint(
+        word: word,
+        definition: exercise.definition,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _vocabHintImageUrl = result.imageUrl;
+        if (result.imageHintReason == 'abstract_word') {
+          _vocabHintError = 'Abstract word cannot generate image hint.';
+        } else if ((result.imageUrl ?? '').isEmpty) {
+          _vocabHintError = 'Image hint is unavailable right now. Please retry.';
+        } else {
+          _vocabHintError = null;
+        }
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _vocabHintError = 'Image hint is unavailable right now. Please retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _vocabHintLoading = false);
+      }
+    }
+  }
+
   Future<List<String>> _fetchWordList() async {
     switch (_vocabSource) {
       case VocabListSource.customList:
@@ -202,6 +255,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
   void _resetPracticeState() {
     _exercise = null;
     _feedback = null;
+    _vocabHintImageUrl = null;
+    _vocabHintError = null;
+    _vocabHintLoading = false;
     _showDefinitionChinese = false;
     _showExampleChinese = false;
     _exerciseSaved = false;
@@ -1226,7 +1282,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
     try {
       final exercise = await widget.apiClient.generateComprehensionExercise(
         level: _storyLevel,
-        includeImage: _includeImage,
         learningDirection: _learningDirectionValue,
         outputStyle: _outputStyleValue,
       );
@@ -1491,6 +1546,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   word: word,
                   definitionLines: definitionLines,
                   exampleLines: exampleLines,
+                  imageHintUrl: _vocabHintImageUrl,
+                  imageHintError: _vocabHintError,
+                  imageHintLoading: _vocabHintLoading,
+                  onGenerateImageHint: _generateVocabImageHint,
                   showDefinitionChinese: _showDefinitionChinese,
                   showExampleChinese: _showExampleChinese,
                   onToggleDefinitionChinese: () => setState(
@@ -1654,13 +1713,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
             _storyLevel = value ?? 'beginner';
           }),
           decoration: const InputDecoration(border: OutlineInputBorder()),
-        ),
-        const SizedBox(height: 8),
-        SwitchListTile(
-          value: _includeImage,
-          onChanged: (value) => setState(() => _includeImage = value),
-          title: const Text('Include illustration'),
-          subtitle: const Text('Uses image generation credits.'),
         ),
         const SizedBox(height: 8),
         FilledButton.icon(
@@ -1892,6 +1944,10 @@ class _ExerciseCard extends StatelessWidget {
   final String word;
   final _BilingualLines definitionLines;
   final _BilingualLines exampleLines;
+  final String? imageHintUrl;
+  final String? imageHintError;
+  final bool imageHintLoading;
+  final VoidCallback onGenerateImageHint;
   final bool showDefinitionChinese;
   final bool showExampleChinese;
   final VoidCallback onToggleDefinitionChinese;
@@ -1907,6 +1963,10 @@ class _ExerciseCard extends StatelessWidget {
     required this.word,
     required this.definitionLines,
     required this.exampleLines,
+    required this.imageHintUrl,
+    required this.imageHintError,
+    required this.imageHintLoading,
+    required this.onGenerateImageHint,
     required this.showDefinitionChinese,
     required this.showExampleChinese,
     required this.onToggleDefinitionChinese,
@@ -1917,6 +1977,35 @@ class _ExerciseCard extends StatelessWidget {
     required this.onListenExampleEnglish,
     required this.onListenExampleChinese,
   });
+
+  Widget _buildHintImage() {
+    final imageUrl = imageHintUrl;
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (imageUrl.startsWith('data:image')) {
+      final data = UriData.parse(imageUrl).contentAsBytes();
+      return Image.memory(
+        data,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      );
+    }
+    return Image.network(
+      imageUrl,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            'Vocabulary hint image unavailable.',
+            style: TextStyle(color: Colors.grey),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2056,6 +2145,45 @@ class _ExerciseCard extends StatelessWidget {
               'Tip: Guess in English first, then reveal Chinese.',
               style: TextStyle(fontSize: 14, color: Colors.black54),
             ),
+            const SizedBox(height: 10),
+            const Text(
+              'Image hint:',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            FilledButton.icon(
+              onPressed: exercise.imageHintEnabled && !imageHintLoading
+                  ? onGenerateImageHint
+                  : null,
+              icon: const Icon(Icons.image),
+              label: Text(
+                imageHintLoading
+                    ? 'Generating image hint...'
+                    : 'Generate Image Hint',
+              ),
+            ),
+            if (!exercise.imageHintEnabled &&
+                exercise.imageHintReason == 'abstract_word') ...[
+              const SizedBox(height: 6),
+              const Text(
+                'Abstract word cannot generate image hint.',
+                style: TextStyle(color: Colors.black54),
+              ),
+            ],
+            if (imageHintError != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                imageHintError!,
+                style: const TextStyle(color: Colors.red),
+              ),
+            ],
+            if (imageHintUrl != null && imageHintUrl!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _buildHintImage(),
+              ),
+            ],
             if (exercise.source != null) ...[
               const SizedBox(height: 6),
               Text(

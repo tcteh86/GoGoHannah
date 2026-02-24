@@ -6,7 +6,11 @@ from datetime import date
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from .core.exercise import simple_comprehension_exercise, simple_exercise
+from .core.exercise import (
+    simple_comprehension_exercise,
+    simple_exercise,
+    vocab_image_hint_status,
+)
 from .core.phonics import phonics_hint
 from .core.custom_vocab import (
     get_custom_vocab,
@@ -36,7 +40,7 @@ from .llm.client import (
     LLMUnavailable,
     generate_comprehension_exercise,
     generate_example_sentence,
-    generate_story_image,
+    generate_vocab_image,
     generate_vocab_exercise,
     suggest_vocab_corrections,
     translate_to_chinese,
@@ -62,6 +66,8 @@ from .schemas import (
     SaveExerciseRequest,
     VocabExerciseRequest,
     VocabExerciseResponse,
+    VocabImageHintRequest,
+    VocabImageHintResponse,
 )
 from .vocab.loader import load_default_vocab
 
@@ -730,12 +736,24 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
             source=source,
             learning_direction=payload.learning_direction,
         )
+    definition_for_image, _ = _split_bilingual_lines(cleaned_definition)
+    definition_seed = (
+        definition_for_image.strip()
+        if definition_for_image and definition_for_image.strip()
+        else cleaned_definition.strip()
+    )
+    image_hint_enabled, image_hint_reason = vocab_image_hint_status(
+        word=word,
+        definition=definition_seed,
+    )
     response = {
         "definition": cleaned_definition,
         "example_sentence": cleaned_example,
         "quiz_question": cleaned_question,
         "quiz_choices": cleaned_choices,
         "quiz_answer": result["quiz_answer"],
+        "image_hint_enabled": image_hint_enabled,
+        "image_hint_reason": image_hint_reason,
         "phonics": phonics_hint(word),
         "source": source,
     }
@@ -752,6 +770,53 @@ def vocab_exercise(payload: VocabExerciseRequest) -> dict:
     )
 
     return response
+
+
+@app.post("/v1/vocab/image-hint", response_model=VocabImageHintResponse)
+def vocab_image_hint(payload: VocabImageHintRequest) -> dict:
+    try:
+        word = sanitize_word(payload.word)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    cleaned_definition = _strip_language_labels(payload.definition or "")
+    definition_en, _ = _split_bilingual_lines(cleaned_definition)
+    definition_seed = (
+        definition_en.strip()
+        if definition_en and definition_en.strip()
+        else cleaned_definition.strip()
+    )
+
+    image_hint_enabled, image_hint_reason = vocab_image_hint_status(
+        word=word,
+        definition=definition_seed,
+    )
+    if not image_hint_enabled:
+        return {
+            "image_hint_enabled": False,
+            "image_hint_reason": image_hint_reason,
+            "image_url": None,
+        }
+
+    try:
+        image_url = generate_vocab_image(
+            word=word,
+            definition=definition_seed or f'the meaning of "{word}"',
+        )
+        inline_image = _inline_image_data(image_url)
+        if inline_image:
+            image_url = inline_image
+        return {
+            "image_hint_enabled": True,
+            "image_hint_reason": None,
+            "image_url": image_url,
+        }
+    except LLMUnavailable:
+        return {
+            "image_hint_enabled": True,
+            "image_hint_reason": "generation_unavailable",
+            "image_url": None,
+        }
 
 
 @app.post("/v1/comprehension/exercise", response_model=ComprehensionExerciseResponse)
@@ -781,16 +846,6 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
         output_style=payload.output_style,
     )
 
-    image_url = None
-    if payload.include_image:
-        try:
-            image_url = generate_story_image(result["image_description"])
-            inline_image = _inline_image_data(image_url)
-            if inline_image:
-                image_url = inline_image
-        except LLMUnavailable:
-            image_url = None
-
     cleaned_story_text = _strip_language_labels(result.get("story_text", ""))
     story_blocks, composed_story_text = _normalize_story_blocks(
         raw_blocks=result.get("story_blocks"),
@@ -815,7 +870,7 @@ def comprehension_exercise(payload: ComprehensionExerciseRequest) -> dict:
         "story_blocks": story_blocks,
         "key_vocabulary": key_vocabulary,
         "image_description": result["image_description"],
-        "image_url": image_url,
+        "image_url": None,
         "questions": questions,
         "source": source,
     }

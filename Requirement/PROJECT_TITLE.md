@@ -19,7 +19,7 @@ OpenAI services:
 
 - Text generation (`gpt-4o-mini`) for vocabulary and comprehension exercises
 - Audio transcription (`whisper-1`) for pronunciation assessment
-- Image generation (`dall-e-3`) for optional story illustration
+- Image generation (`dall-e-3`) for on-demand vocabulary hint images
 - Embeddings support (`text-embedding-3-small`) for optional RAG scaffolding
 
 Boundaries are enforced with prompt constraints, schema validation, and input
@@ -48,6 +48,7 @@ sanitization to keep outputs age-appropriate and structurally reliable.
   - Generate definition + example + 3-choice quiz
   - Backend uses LLM-first generation with deterministic fallback
   - Bilingual English/Chinese output currently used in UI
+  - Image hint button for visualizable words; abstract words are flagged and disabled
 
 - **Pronunciation Practice**
   - Auto-play word TTS
@@ -56,7 +57,6 @@ sanitization to keep outputs age-appropriate and structurally reliable.
 
 - **Comprehension Practice**
   - Story generation by level with 3 comprehension questions
-  - Optional illustration generation
   - Story read-aloud with highlighting and speed control
 
 - **Results & Progress**
