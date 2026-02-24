@@ -164,12 +164,12 @@ class _HomeShellState extends State<HomeShell> {
         childName: _childName,
         sessionState: sessionState,
       ),
-      ResultsScreen(
+      QuickCheckScreen(
         apiClient: widget.apiClient,
         childName: _childName,
         sessionState: sessionState,
       ),
-      QuickCheckScreen(
+      ResultsScreen(
         apiClient: widget.apiClient,
         childName: _childName,
         sessionState: sessionState,
@@ -188,14 +188,14 @@ class _HomeShellState extends State<HomeShell> {
             label: 'Practice',
           ),
           NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights),
-            label: 'Results',
-          ),
-          NavigationDestination(
             icon: Icon(Icons.quiz_outlined),
             selectedIcon: Icon(Icons.quiz),
             label: 'Quiz',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.insights_outlined),
+            selectedIcon: Icon(Icons.insights),
+            label: 'Results',
           ),
         ],
       ),
