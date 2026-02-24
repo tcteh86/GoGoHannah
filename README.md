@@ -9,11 +9,20 @@ the learning experience engaging while showcasing GenAI techniques.
 ## Features (MVP)
 - Default primary-level vocabulary list
 - Optional vocabulary via custom word list entry
-- Practice output: AI-generated definition + example sentence + multiple-choice quiz
+- Practice output with progressive bilingual reveal (English first, Chinese on demand)
+- Instructional feedback that shows correct EN/ZH meaning and explains wrong choices
+- Vocabulary meaning-match quiz (single focused check per generated exercise)
+- Meaning quality guardrails to reduce template outputs in definition/example/quiz Chinese content
 - Bilingual vocab + story practice (English ↔ Chinese) with bilingual output
+- Story UX for early readers: chunked EN-first blocks, optional Chinese reveal, and clue-based question feedback
+- Vocabulary image hint button with abstract-word detection (disabled when non-visualizable)
+- Child-friendly vocabulary selectors: horizontal source carousel + tap word chips
+- Mission-style vocabulary flow: 3 step cards, progress tracker, and mini celebration on completion
+- Quiz tab for recommended words with bilingual EN/中文 presentation toggle
 - Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
 - Progress tracking with personalized recommendations, weak-word insights, and recent practice history
 - Study time tracking (daily, weekly/monthly, and total summaries)
+- Persistent streak tracking based on daily-goal completion, with daily history
 - Smart word recommendation system (prioritizes weak words, avoids over-practice)
 - Custom vocabulary management with typo suggestions (manual entry)
 - Clean project boundaries: UI vs core logic vs LLM wrapper
@@ -73,9 +82,11 @@ From `frontend/`:
 ## Roadmap
 - ✅ Backend API scaffold with OpenAI integration (vocab exercises)
 - ✅ Progress tracking endpoints
-- ✅ Flutter web UI (practice, results, quick check)
+- ✅ Flutter web UI (practice, results, quiz)
 - ✅ Pronunciation (audio + transcription)
-- ✅ Comprehension stories + illustration
+- ✅ Comprehension stories
+- ✅ Vocabulary image hint tool (abstract words are flagged and disabled)
+- ✅ Mission-style vocabulary practice flow (step cards + progress + reward animation)
 - ⏳ RAG + embeddings + multi-agent workflow
 
 ## Notes on GenAI Safety (future)

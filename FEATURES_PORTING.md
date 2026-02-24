@@ -61,6 +61,7 @@ Key aggregation behaviors:
 - Average score and count grouped by `exercise_type`.
 - Weak words: average score under 70.
 - Recent exercises ordered by timestamp.
+- Daily completion history and streak metrics from `/v1/progress/daily`.
 
 ## 3) Feature Breakdown
 
@@ -90,15 +91,30 @@ Porting notes:
 
 ### 3.3 Vocabulary practice (definition + example + quiz)
 Flow:
-1) User selects a word from the vocabulary list.
-2) On "Generate Exercise", the app requests a vocab exercise from the backend.
-3) If LLM fails, fall back to `simple_exercise`.
-4) Display:
-   - Definition
-   - Example sentence
-   - Multiple-choice quiz (A/B/C)
-5) On "Check Answer":
-   - Save a `quiz` exercise with score 100 or 0.
+1) UI shows a mission-style 3-step flow card:
+   - Step 1 choose list
+   - Step 2 pick word
+   - Step 3 generate + finish quiz
+   with a live progress indicator.
+2) User chooses a word source using horizontal carousel buttons
+   (Default/Custom/Weak) and selects a word from horizontal scrollable chips.
+3) On "Generate Exercise", the app requests a vocab exercise from the backend.
+4) If LLM fails, fall back to `simple_exercise`.
+5) Display learning content:
+   - Definition (English shown first)
+   - Example sentence (English shown first)
+   - Chinese lines are revealed on demand (progressive reveal)
+6) Display one focused quiz:
+   - Meaning-match multiple choice from backend (`quiz_question`, `quiz_choices`).
+7) On quiz submit:
+   - Show instructional feedback (correct EN/ZH meaning + wrong-choice explanation).
+8) Optional image hint:
+   - "Generate Image Hint" button is enabled only for visualizable words.
+   - Abstract words are flagged and keep the button disabled.
+   - On click, backend generates and returns an image hint URL.
+9) After quiz is completed:
+   - Save one `quiz` exercise.
+   - Trigger a short reward banner/animation to reinforce completion.
 
 LLM output requirements:
 - JSON keys: `definition`, `example_sentence`, `quiz_question`,
@@ -107,6 +123,15 @@ LLM output requirements:
 Porting notes:
 - The fallback behavior is required so the app still runs without the LLM.
 - Keep the same scoring and data persistence format.
+- Keep child-friendly source/word selectors (carousel + chips) rather than dropdowns.
+- Keep the mission-style step cards and progress indicator in the vocab flow.
+- Keep mission-step labels responsive on narrow/mobile screens (wrap layout + 2-line labels, no truncation).
+- Preserve progressive reveal for Chinese content to encourage active recall.
+- Keep the vocabulary-session quiz focused on one meaning-match question.
+- Enforce definition quality rules: avoid generic placeholder definitions and repair
+  missing/templated Chinese definition lines from LLM output.
+- Enforce example/quiz quality rules: avoid template example sentences and generic
+  quiz-choice placeholders; repair missing/template Chinese lines when needed.
 
 ### 3.4 Pronunciation practice (TTS + recording + scoring)
 Flow:
@@ -126,23 +151,37 @@ Porting notes:
 - Keep "auto-play once, replay on demand" for pronunciation practice.
 - Keep the same scoring threshold for "correct" (score >= 80).
 
-### 3.5 Comprehension practice (story + questions + illustration)
+### 3.5 Comprehension practice (story + questions)
 Flow:
 1) User selects a difficulty level:
-   - beginner (100-150 words, very simple)
-   - intermediate (200-250 words)
-   - expert (250-350 words, advanced)
+   - beginner (50-90 words, very simple)
+   - intermediate (140-200 words)
+   - expert (220-300 words, advanced)
 2) On "Generate New Story":
-   - LLM returns JSON: title, story text, image description, 3 questions.
-   - Optional image generation using DALL-E (URL stored in session).
-   - TTS audio prepared for the story text.
+   - LLM returns JSON with:
+     - title
+     - story blocks (`english`, `chinese`) for chunked reading
+     - optional combined `story_text`
+     - key vocabulary list (`word`, `meaning_en`, `meaning_zh`) as optional support metadata
+     - image description (metadata only; no story image generation in current UI)
+     - 3 questions with `question_type`, `explanation_en`, `explanation_zh`,
+       and `evidence_block_index`
+   - TTS audio prepared from story text for read-aloud.
 3) User can click "Read Story Aloud" to play TTS.
-4) The user answers 3 multiple-choice questions.
-5) Each answer is saved as a `comprehension` exercise.
+4) Story UI uses English-first chunked blocks with optional Chinese reveal
+   (per-block and reveal-all controls).
+5) The user answers 3 scaffolded questions:
+   - Q1 literal
+   - Q2 vocabulary-in-context
+   - Q3 inference
+   If incorrect, the UI can highlight a clue block using `evidence_block_index`.
+6) Explanatory feedback is shown after each check in EN + ZH.
+7) Each answer is saved as a `comprehension` exercise.
 
 Porting notes:
 - Preserve the 3-question requirement and answer key format.
-- Story illustration is optional and should not block the story flow.
+- Keep story blocks as paired EN/ZH lines to support chunked progressive reveal.
+- Keep evidence-linked feedback fields (`explanation_*`, `evidence_block_index`) for guided remediation.
 
 ### 3.6 Progress summary and analytics
 Displayed metrics:
@@ -150,6 +189,7 @@ Displayed metrics:
 - Total exercises
 - Overall accuracy
 - Average quiz score
+- Current streak and best streak (goal-based)
 
 Recent activity:
 - Table of recent exercises (word, type, score, correct, date).
@@ -157,9 +197,13 @@ Recent activity:
 Weak words:
 - List of words with low scores (<70).
 
+Daily history:
+- Date-by-date completion against daily goal (recent window).
+
 Porting notes:
 - Current UI renders list-based analytics (metrics, weak words, recent practice);
   there is no practiced-words wheel visualization in this codebase.
+- Streak is based on days where the daily goal is reached, not just any activity.
 
 ### 3.7 Smart recommendations
 Algorithm:
@@ -170,20 +214,22 @@ Algorithm:
 
 Usage:
 - Used in "Recommended for You" vocabulary mode.
-- Used for "Smart Suggestions" and "Test & Check" candidate selection.
+- Used for "Smart Suggestions" and "Quiz" candidate selection.
 
 Porting notes:
 - Keep the same prioritization order to match current behavior.
 
-### 3.8 Test and Check (quick quiz)
+### 3.8 Quiz (recommended words)
 Flow:
 - Fetch up to 3 recommended words.
 - Generate each question through the same vocab exercise API path
   (`/v1/vocab/exercise`), which is LLM-first with fallback.
-- Saves each answer as `test` exercise.
+- Request bilingual exercise output (`en_to_zh` + `bilingual`) and render EN first
+  with optional Chinese support in the UI.
+- Saves each answer as `quiz` exercise.
 
 Porting notes:
-- Keep the recommended-word-first flow and `test` persistence behavior.
+- Keep the recommended-word-first flow and bilingual quiz rendering.
 
 ### 3.9 Record management status
 Flow:
@@ -224,7 +270,7 @@ Tests:
 - Recreate the three main screens:
   - Practice
   - Past Results
-  - Test and Check
+  - Quiz
 - Preserve data model and persistence, or migrate to an equivalent store.
 - Keep word sanitization rules to avoid invalid input.
 - Keep quiz and pronunciation scoring behavior.

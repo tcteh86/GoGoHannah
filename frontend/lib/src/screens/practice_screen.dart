@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
@@ -53,16 +55,30 @@ class _PracticeScreenState extends State<PracticeScreen> {
   String _customAddMode = 'append';
   String? _selectedWord;
   VocabExercise? _exercise;
-  String? _selectedChoice;
   String? _feedback;
   bool _loading = false;
+  bool _showDefinitionChinese = false;
+  bool _showExampleChinese = false;
+  bool _exerciseSaved = false;
+  final List<_QuizPrompt> _quizPrompts = [];
+  final Map<int, String> _quizSelections = {};
+  final Map<int, bool> _quizResults = {};
+  final Map<int, String> _quizFeedback = {};
+  String? _vocabHintImageUrl;
+  String? _vocabHintError;
+  bool _vocabHintLoading = false;
+  bool _showVocabMissionCelebration = false;
+  String _vocabMissionCelebrationText = '';
 
   PracticeMode _mode = PracticeMode.vocabulary;
   ComprehensionExercise? _comprehension;
   String? _comprehensionError;
   bool _loadingComprehension = false;
   String _storyLevel = 'beginner';
-  bool _includeImage = false;
+  bool _showStoryChinese = false;
+  int? _activeClueBlockIndex;
+  final Set<int> _revealedStoryBlockChinese = {};
+  int? _autoRevealedStoryBlockChinese;
   final String _outputStyleValue = 'bilingual';
   ReadMode _readMode = ReadMode.continuous;
   ReadLanguage _readLanguage = ReadLanguage.english;
@@ -70,6 +86,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   int _storyLineIndex = 0;
   final Map<int, String> _compChoices = {};
   final Map<int, bool> _compAnswered = {};
+  final Map<int, String> _compFeedback = {};
 
   AudioRecording? _recording;
   int? _pronunciationScore;
@@ -126,8 +143,19 @@ class _PracticeScreenState extends State<PracticeScreen> {
     setState(() {
       _loading = true;
       _exercise = null;
-      _selectedChoice = null;
       _feedback = null;
+      _vocabHintImageUrl = null;
+      _vocabHintError = null;
+      _vocabHintLoading = false;
+      _showDefinitionChinese = false;
+      _showExampleChinese = false;
+      _exerciseSaved = false;
+      _showVocabMissionCelebration = false;
+      _vocabMissionCelebrationText = '';
+      _quizPrompts.clear();
+      _quizSelections.clear();
+      _quizResults.clear();
+      _quizFeedback.clear();
     });
     try {
       final exercise = await widget.apiClient.generateVocabExercise(
@@ -135,8 +163,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
         learningDirection: _learningDirectionValue,
         outputStyle: _outputStyleValue,
       );
+      final prompts = _buildQuizPrompts(exercise: exercise);
       setState(() {
         _exercise = exercise;
+        _quizPrompts
+          ..clear()
+          ..addAll(prompts);
       });
       _maybeAutoPlayWord(word);
     } catch (error) {
@@ -146,6 +178,54 @@ class _PracticeScreenState extends State<PracticeScreen> {
     } finally {
       if (mounted) {
         setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _generateVocabImageHint() async {
+    final exercise = _exercise;
+    final word = _selectedWord;
+    if (exercise == null || word == null || word.isEmpty || _vocabHintLoading) {
+      return;
+    }
+    if (!exercise.imageHintEnabled) {
+      setState(() {
+        _vocabHintError = 'Abstract word cannot generate image hint.';
+      });
+      return;
+    }
+    setState(() {
+      _vocabHintLoading = true;
+      _vocabHintError = null;
+    });
+    try {
+      final result = await widget.apiClient.generateVocabImageHint(
+        word: word,
+        definition: exercise.definition,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _vocabHintImageUrl = result.imageUrl;
+        if (result.imageHintReason == 'abstract_word') {
+          _vocabHintError = 'Abstract word cannot generate image hint.';
+        } else if ((result.imageUrl ?? '').isEmpty) {
+          _vocabHintError = 'Image hint is unavailable right now. Please retry.';
+        } else {
+          _vocabHintError = null;
+        }
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _vocabHintError = 'Image hint is unavailable right now. Please retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _vocabHintLoading = false);
       }
     }
   }
@@ -174,11 +254,43 @@ class _PracticeScreenState extends State<PracticeScreen> {
   void _resetPracticeState() {
     _exercise = null;
     _feedback = null;
-    _selectedChoice = null;
+    _vocabHintImageUrl = null;
+    _vocabHintError = null;
+    _vocabHintLoading = false;
+    _showDefinitionChinese = false;
+    _showExampleChinese = false;
+    _exerciseSaved = false;
+    _showVocabMissionCelebration = false;
+    _vocabMissionCelebrationText = '';
+    _quizPrompts.clear();
+    _quizSelections.clear();
+    _quizResults.clear();
+    _quizFeedback.clear();
     _recording = null;
     _pronunciationScore = null;
     _pronunciationTranscript = null;
     _pronunciationFeedback = null;
+  }
+
+  void _triggerVocabMissionCelebration({required bool passed}) {
+    if (!mounted) {
+      return;
+    }
+    final message = passed
+        ? 'Mission complete! Star earned!'
+        : 'Mission complete! Try once more for a higher score!';
+    setState(() {
+      _showVocabMissionCelebration = true;
+      _vocabMissionCelebrationText = message;
+    });
+    Future<void>.delayed(const Duration(milliseconds: 1800), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showVocabMissionCelebration = false;
+      });
+    });
   }
 
   void _resetComprehensionState() {
@@ -186,6 +298,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _comprehensionError = null;
     _compChoices.clear();
     _compAnswered.clear();
+    _compFeedback.clear();
+    _showStoryChinese = false;
+    _activeClueBlockIndex = null;
+    _revealedStoryBlockChinese.clear();
+    _autoRevealedStoryBlockChinese = null;
     _highlightedRange = null;
     _storyLines = [];
     _storyTokens = [];
@@ -354,25 +471,120 @@ class _PracticeScreenState extends State<PracticeScreen> {
     }
   }
 
-  Future<void> _checkAnswer() async {
+  List<_QuizPrompt> _buildQuizPrompts({
+    required VocabExercise exercise,
+  }) {
+    final keys = ['A', 'B', 'C']
+        .where(exercise.quizChoices.containsKey)
+        .toList(growable: false);
+    final answer = keys.contains(exercise.quizAnswer) && keys.isNotEmpty
+        ? exercise.quizAnswer
+        : (keys.isNotEmpty ? keys.first : 'A');
+    return [
+      _QuizPrompt(
+        label: 'Meaning Match',
+        question: exercise.quizQuestion,
+        choices: exercise.quizChoices,
+        answer: answer,
+      ),
+    ];
+  }
+
+  Future<void> _checkQuizPrompt(
+    int index,
+    _BilingualLines definitionLines,
+  ) async {
     final exercise = _exercise;
-    if (exercise == null || _selectedChoice == null) {
+    if (exercise == null || index < 0 || index >= _quizPrompts.length) {
       return;
     }
-    final correct = _selectedChoice == exercise.quizAnswer;
-    setState(() {
-      _feedback = correct ? 'Correct! Great job!' : 'Nice try! Keep practicing.';
-    });
-    widget.sessionState.recordAnswer(correct: correct);
-    await widget.apiClient.saveExercise(
-      SaveExercise(
-        childName: widget.childName,
-        word: _selectedWord ?? '',
-        exerciseType: 'quiz',
-        score: correct ? 100 : 0,
-        correct: correct,
-      ),
+    if (_quizResults.containsKey(index)) {
+      return;
+    }
+    final selected = _quizSelections[index];
+    if (selected == null || selected.isEmpty) {
+      return;
+    }
+    final prompt = _quizPrompts[index];
+    final correct = selected == prompt.answer;
+    final feedback = _buildInstructionalFeedback(
+      correct: correct,
+      prompt: prompt,
+      selectedChoiceKey: selected,
+      definitionLines: definitionLines,
+      word: _selectedWord ?? '',
     );
+    setState(() {
+      _quizResults[index] = correct;
+      _quizFeedback[index] = feedback;
+    });
+
+    final allChecked = _quizPrompts.isNotEmpty &&
+        _quizResults.length == _quizPrompts.length &&
+        !_exerciseSaved;
+    if (!allChecked) {
+      return;
+    }
+
+    final correctCount =
+        _quizResults.values.where((value) => value == true).length;
+    final score = ((correctCount / _quizPrompts.length) * 100).round();
+    final passed = score >= 70;
+    setState(() {
+      _exerciseSaved = true;
+      _feedback =
+          'Exercise complete: $correctCount/${_quizPrompts.length} correct.';
+    });
+    _triggerVocabMissionCelebration(passed: passed);
+    widget.sessionState.recordAnswer(correct: passed);
+    try {
+      await widget.apiClient.saveExercise(
+        SaveExercise(
+          childName: widget.childName,
+          word: _selectedWord ?? '',
+          exerciseType: 'quiz',
+          score: score,
+          correct: passed,
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _feedback = 'Saved locally, but failed to sync quiz score: $error';
+        });
+      }
+    }
+  }
+
+  String _buildInstructionalFeedback({
+    required bool correct,
+    required _QuizPrompt prompt,
+    required String selectedChoiceKey,
+    required _BilingualLines definitionLines,
+    required String word,
+  }) {
+    final englishMeaning =
+        (definitionLines.english ?? _exercise?.definition ?? '').trim();
+    final chineseMeaning = definitionLines.chinese?.trim();
+    final correctChoice = (prompt.choices[prompt.answer] ?? '').trim();
+    final selectedChoice = (prompt.choices[selectedChoiceKey] ?? '').trim();
+    if (correct) {
+      return [
+        'Correct! Great job.',
+        if (englishMeaning.isNotEmpty) 'EN meaning: $englishMeaning',
+        if (chineseMeaning != null && chineseMeaning.isNotEmpty)
+          'ZH meaning: $chineseMeaning',
+      ].join('\n');
+    }
+    return [
+      'Not quite. Keep going!',
+      if (correctChoice.isNotEmpty) 'Correct answer: ${prompt.answer}. $correctChoice',
+      if (englishMeaning.isNotEmpty) 'EN meaning: $englishMeaning',
+      if (chineseMeaning != null && chineseMeaning.isNotEmpty)
+        'ZH meaning: $chineseMeaning',
+      if (selectedChoice.isNotEmpty)
+        'Why: "$selectedChoice" does not match "$word".',
+    ].join('\n');
   }
 
   Future<void> _showRagDebug() async {
@@ -615,6 +827,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
             _storySpeaking = false;
             _storyPaused = false;
             _highlightedRange = null;
+            _autoRevealedStoryBlockChinese = null;
           });
         }
       },
@@ -646,6 +859,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
         _storySpeaking = false;
         _storyPaused = false;
         _highlightedRange = null;
+        _autoRevealedStoryBlockChinese = null;
       });
     }
   }
@@ -667,7 +881,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
     setState(() {
       _storySpeaking = true;
       _storyPaused = false;
-      _highlightedRange = _StoryHighlightRange(line.start, line.end);
+      final range = _StoryHighlightRange(line.start, line.end);
+      _highlightedRange = range;
+      _autoRevealedStoryBlockChinese = line.isChinese && !_showStoryChinese
+          ? _findChineseBlockIndexForRange(range)
+          : null;
     });
     _storyReader.speak(
       line.text,
@@ -697,6 +915,83 @@ class _PracticeScreenState extends State<PracticeScreen> {
       cursor = end + 1;
     }
     _storyLines = parsed;
+  }
+
+  List<_StoryBlockLineRange> _buildStoryBlockLineRanges(
+    ComprehensionExercise exercise,
+  ) {
+    final lines = _storyLines
+        .where((line) => line.text.trim().isNotEmpty)
+        .toList(growable: false);
+    if (lines.isEmpty || exercise.storyBlocks.isEmpty) {
+      return const [];
+    }
+    var searchCursor = 0;
+
+    int? findNextLineIndex(String target) {
+      final normalizedTarget = target.trim();
+      if (normalizedTarget.isEmpty) {
+        return null;
+      }
+      for (var i = searchCursor; i < lines.length; i += 1) {
+        if (lines[i].text.trim() == normalizedTarget) {
+          searchCursor = i + 1;
+          return i;
+        }
+      }
+      for (var i = 0; i < lines.length; i += 1) {
+        if (lines[i].text.trim() == normalizedTarget) {
+          if (i >= searchCursor) {
+            searchCursor = i + 1;
+          }
+          return i;
+        }
+      }
+      return null;
+    }
+
+    final ranges = <_StoryBlockLineRange>[];
+    for (final block in exercise.storyBlocks) {
+      final englishIndex = findNextLineIndex(block.english);
+      final chineseIndex = findNextLineIndex(block.chinese);
+      ranges.add(
+        _StoryBlockLineRange(
+          english: englishIndex == null
+              ? null
+              : _StoryHighlightRange(
+                  lines[englishIndex].start,
+                  lines[englishIndex].end,
+                ),
+          chinese: chineseIndex == null
+              ? null
+              : _StoryHighlightRange(
+                  lines[chineseIndex].start,
+                  lines[chineseIndex].end,
+                ),
+        ),
+      );
+    }
+    return ranges;
+  }
+
+  int? _findChineseBlockIndexForRange(_StoryHighlightRange range) {
+    final exercise = _comprehension;
+    if (exercise == null) {
+      return null;
+    }
+    final ranges = _buildStoryBlockLineRanges(exercise);
+    for (var index = 0; index < ranges.length; index += 1) {
+      final chineseRange = ranges[index].chinese;
+      if (chineseRange == null) {
+        continue;
+      }
+      final overlaps =
+          range.start < chineseRange.end && range.end > chineseRange.start;
+      if (overlaps) {
+        return index;
+      }
+    }
+    return null;
   }
 
   List<_StoryLine> _selectedStoryLines() {
@@ -761,37 +1056,17 @@ class _PracticeScreenState extends State<PracticeScreen> {
     if (mappedEnd < mappedStart || mappedEnd >= _storySpokenIndexMap.length) {
       return;
     }
-    setState(() {
-      _highlightedRange = _StoryHighlightRange(
-        _storySpokenIndexMap[mappedStart],
-        _storySpokenIndexMap[mappedEnd] + 1,
-      );
-    });
-  }
-
-  List<TextSpan> _buildStorySpans(String text) {
-    final range = _highlightedRange;
-    if (range == null) {
-      return [TextSpan(text: text)];
-    }
-    final spans = <TextSpan>[];
-    if (range.start > 0) {
-      spans.add(TextSpan(text: text.substring(0, range.start)));
-    }
-    spans.add(
-      TextSpan(
-        text: text.substring(range.start, range.end),
-        style: const TextStyle(
-          backgroundColor: Color(0xFFFFF3B0),
-          color: Color(0xFFD97706),
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+    final nextRange = _StoryHighlightRange(
+      _storySpokenIndexMap[mappedStart],
+      _storySpokenIndexMap[mappedEnd] + 1,
     );
-    if (range.end < text.length) {
-      spans.add(TextSpan(text: text.substring(range.end)));
-    }
-    return spans;
+    final revealChineseBlock = _showStoryChinese
+        ? null
+        : _findChineseBlockIndexForRange(nextRange);
+    setState(() {
+      _highlightedRange = nextRange;
+      _autoRevealedStoryBlockChinese = revealChineseBlock;
+    });
   }
 
   Future<void> _generateComprehension() async {
@@ -802,16 +1077,24 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _comprehensionError = null;
       _compChoices.clear();
       _compAnswered.clear();
+      _compFeedback.clear();
+      _showStoryChinese = false;
+      _activeClueBlockIndex = null;
+      _revealedStoryBlockChinese.clear();
+      _autoRevealedStoryBlockChinese = null;
     });
     try {
       final exercise = await widget.apiClient.generateComprehensionExercise(
         level: _storyLevel,
-        includeImage: _includeImage,
         learningDirection: _learningDirectionValue,
         outputStyle: _outputStyleValue,
       );
+      _prepareStoryLines(exercise.storyText);
       setState(() {
         _comprehension = exercise;
+        _storyLineIndex = 0;
+        _highlightedRange = null;
+        _autoRevealedStoryBlockChinese = null;
       });
     } catch (error) {
       setState(() {
@@ -835,8 +1118,25 @@ class _PracticeScreenState extends State<PracticeScreen> {
     }
     final question = exercise.questions[index];
     final correct = choice == question.answer;
+    final explanationEn = (question.explanationEn ?? '').trim();
+    final explanationZh = (question.explanationZh ?? '').trim();
+    final clueIndex = question.evidenceBlockIndex;
+    final feedback = <String>[
+      if (correct) 'Correct! Great reading.',
+      if (!correct) 'Not quite yet.',
+      if (!correct && clueIndex != null)
+        'Clue: check story block ${clueIndex + 1}.',
+      if (explanationEn.isNotEmpty) 'Why (EN): $explanationEn',
+      if (explanationZh.isNotEmpty) '解释 (ZH): $explanationZh',
+    ].join('\n');
     setState(() {
       _compAnswered[index] = correct;
+      _compFeedback[index] = feedback;
+      if (!correct && clueIndex != null) {
+        _activeClueBlockIndex = clueIndex;
+      } else if (correct) {
+        _activeClueBlockIndex = null;
+      }
     });
     widget.sessionState.recordAnswer(correct: correct);
     await widget.apiClient.saveExercise(
@@ -897,6 +1197,496 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
+  String _vocabSourceLabel(VocabListSource source) {
+    switch (source) {
+      case VocabListSource.defaultList:
+        return 'Default';
+      case VocabListSource.customList:
+        return 'Custom';
+      case VocabListSource.weakList:
+        return 'Weak Words';
+    }
+  }
+
+  IconData _vocabSourceIcon(VocabListSource source) {
+    switch (source) {
+      case VocabListSource.defaultList:
+        return Icons.auto_stories;
+      case VocabListSource.customList:
+        return Icons.edit_note;
+      case VocabListSource.weakList:
+        return Icons.refresh;
+    }
+  }
+
+  Widget _buildVocabSourceCarousel() {
+    const sources = [
+      VocabListSource.defaultList,
+      VocabListSource.customList,
+      VocabListSource.weakList,
+    ];
+    return SizedBox(
+      height: 58,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: sources.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final source = sources[index];
+          final selected = source == _vocabSource;
+          return InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: selected
+                ? null
+                : () {
+                    setState(() => _vocabSource = source);
+                    _refreshWordList();
+                  },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFFEDE9FE)
+                    : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: selected
+                      ? const Color(0xFF7C3AED)
+                      : const Color(0xFFE5E7EB),
+                  width: selected ? 2 : 1,
+                ),
+                boxShadow: selected
+                    ? [
+                        const BoxShadow(
+                          color: Color(0x1A7C3AED),
+                          blurRadius: 8,
+                          offset: Offset(0, 3),
+                        ),
+                      ]
+                    : const [],
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _vocabSourceIcon(source),
+                    size: 18,
+                    color: selected
+                        ? const Color(0xFF6D28D9)
+                        : const Color(0xFF475569),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _vocabSourceLabel(source),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: selected
+                          ? const Color(0xFF5B21B6)
+                          : const Color(0xFF334155),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildWordChipCarousel(List<String> words) {
+    return SizedBox(
+      height: 52,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: words.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final candidate = words[index];
+          final selected = candidate == _selectedWord;
+          return ChoiceChip(
+            selected: selected,
+            label: Text(candidate),
+            avatar: selected
+                ? const Icon(Icons.check_circle, size: 16, color: Color(0xFF5B21B6))
+                : null,
+            selectedColor: const Color(0xFFEDE9FE),
+            backgroundColor: const Color(0xFFF8FAFC),
+            side: BorderSide(
+              color: selected
+                  ? const Color(0xFF7C3AED)
+                  : const Color(0xFFE2E8F0),
+              width: selected ? 2 : 1,
+            ),
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: selected
+                  ? const Color(0xFF5B21B6)
+                  : const Color(0xFF334155),
+            ),
+            onSelected: (_) {
+              if (selected) {
+                return;
+              }
+              setState(() {
+                _selectedWord = candidate;
+                _resetPracticeState();
+              });
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildVocabularyMissionProgress({required bool hasWordSelection}) {
+    final completedSteps = 1 + (hasWordSelection ? 1 : 0) + (_exerciseSaved ? 1 : 0);
+    final progress = completedSteps / 3;
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: const Color(0xFFF8FAFC),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isUltraCompact = constraints.maxWidth < 360;
+                final isCompact = constraints.maxWidth < 470;
+                final stepChips = <Widget>[
+                  _buildVocabMissionStepChip(
+                    step: 1,
+                    icon: Icons.view_carousel_rounded,
+                    label: 'Choose list',
+                    completed: true,
+                    active: false,
+                    compact: isCompact,
+                    ultraCompact: isUltraCompact,
+                  ),
+                  _buildVocabMissionStepChip(
+                    step: 2,
+                    icon: Icons.style_rounded,
+                    label: 'Pick word',
+                    completed: hasWordSelection,
+                    active: !hasWordSelection,
+                    compact: isCompact,
+                    ultraCompact: isUltraCompact,
+                  ),
+                  _buildVocabMissionStepChip(
+                    step: 3,
+                    icon: Icons.auto_awesome_rounded,
+                    label: 'Finish checks',
+                    completed: _exerciseSaved,
+                    active: hasWordSelection && !_exerciseSaved,
+                    compact: isCompact,
+                    ultraCompact: isUltraCompact,
+                  ),
+                ];
+                final missionHeader = Row(
+                  children: [
+                    const Icon(
+                      Icons.flag_rounded,
+                      size: 18,
+                      color: Color(0xFF5B21B6),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Vocabulary Mission Path',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isUltraCompact ? 14 : 15,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF312E81),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+                final progressBar = ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: isUltraCompact ? 7 : 8,
+                    backgroundColor: const Color(0xFFE5E7EB),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF7C3AED),
+                    ),
+                  ),
+                );
+                if (isCompact) {
+                  final compactChipWidth = isUltraCompact
+                      ? constraints.maxWidth
+                      : math.min(
+                          constraints.maxWidth,
+                          math.max(132.0, (constraints.maxWidth - 8) / 2),
+                        );
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      missionHeader,
+                      const SizedBox(height: 10),
+                      progressBar,
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: stepChips
+                            .map(
+                              (chip) => SizedBox(
+                                width: compactChipWidth,
+                                child: chip,
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    missionHeader,
+                    const SizedBox(height: 10),
+                    progressBar,
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(child: stepChips[0]),
+                        const SizedBox(width: 8),
+                        Expanded(child: stepChips[1]),
+                        const SizedBox(width: 8),
+                        Expanded(child: stepChips[2]),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVocabMissionStepChip({
+    required int step,
+    required IconData icon,
+    required String label,
+    required bool completed,
+    required bool active,
+    bool compact = false,
+    bool ultraCompact = false,
+  }) {
+    final backgroundColor = completed
+        ? const Color(0xFFEDE9FE)
+        : active
+            ? const Color(0xFFEEF2FF)
+            : Colors.white;
+    final borderColor = completed
+        ? const Color(0xFF7C3AED)
+        : active
+            ? const Color(0xFF6366F1)
+            : const Color(0xFFD1D5DB);
+    final foregroundColor = completed
+        ? const Color(0xFF5B21B6)
+        : active
+            ? const Color(0xFF4338CA)
+            : const Color(0xFF6B7280);
+    final stepBadge = CircleAvatar(
+      radius: 10,
+      backgroundColor: completed
+          ? const Color(0xFF6D28D9)
+          : const Color(0xFFE5E7EB),
+      child: completed
+          ? const Icon(Icons.check, size: 12, color: Colors.white)
+          : Text(
+              '$step',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF4B5563),
+              ),
+            ),
+    );
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: completed ? 2 : 1),
+      ),
+      child: compact
+          ? Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    stepBadge,
+                    const SizedBox(width: 6),
+                    Icon(icon, size: 14, color: foregroundColor),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: ultraCompact ? 11 : 12,
+                    fontWeight: FontWeight.w700,
+                    color: foregroundColor,
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                stepBadge,
+                const SizedBox(width: 6),
+                Icon(icon, size: 14, color: foregroundColor),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: foregroundColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildVocabularyStepCard({
+    required int step,
+    required String title,
+    required String subtitle,
+    required Widget child,
+    bool enabled = true,
+  }) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 180),
+      opacity: enabled ? 1 : 0.56,
+      child: Card(
+        margin: EdgeInsets.zero,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 13,
+                    backgroundColor: const Color(0xFFEDE9FE),
+                    child: Text(
+                      '$step',
+                      style: const TextStyle(
+                        color: Color(0xFF5B21B6),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              child,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVocabMissionCelebrationBanner() {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 360),
+      switchInCurve: Curves.easeOutBack,
+      switchOutCurve: Curves.easeIn,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.92, end: 1).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: _showVocabMissionCelebration
+          ? Container(
+              key: ValueKey(_vocabMissionCelebrationText),
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF34D399)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.stars_rounded, color: Color(0xFF047857)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _vocabMissionCelebrationText,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF065F46),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : const SizedBox.shrink(key: ValueKey('no-vocab-celebration')),
+    );
+  }
+
   Widget _buildVocabularySection(List<String> words) {
     String? emptyMessage;
     if (words.isEmpty) {
@@ -912,6 +1702,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
     } else if (_selectedWord == null || !words.contains(_selectedWord)) {
       _selectedWord = words.first;
     }
+    final hasWordSelection =
+        _selectedWord != null && words.contains(_selectedWord);
     final word = _selectedWord ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -921,37 +1713,24 @@ class _PracticeScreenState extends State<PracticeScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Word list:',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<VocabListSource>(
-          value: _vocabSource,
-          items: const [
-            DropdownMenuItem(
-              value: VocabListSource.defaultList,
-              child: Text('Default'),
-            ),
-            DropdownMenuItem(
-              value: VocabListSource.customList,
-              child: Text('Custom'),
-            ),
-            DropdownMenuItem(
-              value: VocabListSource.weakList,
-              child: Text('Weak words'),
-            ),
-          ],
-          onChanged: (value) {
-            if (value == null) {
-              return;
-            }
-            setState(() {
-              _vocabSource = value;
-            });
-            _refreshWordList();
-          },
-          decoration: const InputDecoration(border: OutlineInputBorder()),
+        _buildVocabularyMissionProgress(hasWordSelection: hasWordSelection),
+        const SizedBox(height: 12),
+        _buildVocabularyStepCard(
+          step: 1,
+          title: 'Choose your word list',
+          subtitle:
+              'Swipe to pick Default, Custom, or Weak Words before starting.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildVocabSourceCarousel(),
+              const SizedBox(height: 4),
+              const Text(
+                'Swipe left or right to choose.',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+          ),
         ),
         if (_vocabSource == VocabListSource.customList) ...[
           const SizedBox(height: 12),
@@ -1000,157 +1779,217 @@ class _PracticeScreenState extends State<PracticeScreen> {
             ),
           ],
         ],
-        if (emptyMessage != null) ...[
-          const SizedBox(height: 12),
-          Text(
-            emptyMessage,
-            style: const TextStyle(fontSize: 16),
-          ),
-        ],
-        if (words.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          const Text(
-            'Pick a word to practice:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: _selectedWord,
-            items: words
-                .map(
-                  (word) => DropdownMenuItem(
-                    value: word,
-                    child: Text(word),
-                  ),
+        const SizedBox(height: 12),
+        _buildVocabularyStepCard(
+          step: 2,
+          title: 'Pick your mission word',
+          subtitle: words.isNotEmpty
+              ? 'Tap one word chip to lock your mission target.'
+              : (emptyMessage ?? 'No words available for this list yet.'),
+          enabled: words.isNotEmpty,
+          child: words.isNotEmpty
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildWordChipCarousel(words),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Tap a word chip to select.',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
                 )
-                .toList(),
-            onChanged: (value) => setState(() {
-              _selectedWord = value;
-              _resetPracticeState();
-            }),
-            decoration: const InputDecoration(border: OutlineInputBorder()),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: _loading ? null : _generateExercise,
-            icon: const Icon(Icons.auto_awesome),
-            label: const Text('Generate Exercise'),
-          ),
-          const SizedBox(height: 20),
-          if (_loading) const LoadingView(message: 'Creating exercise...'),
-          if (_exercise != null) ...[
-            Builder(
-              builder: (context) {
-                final definitionLines =
-                    _splitBilingualLines(_exercise!.definition);
-                final exampleLines =
-                    _splitBilingualLines(_exercise!.exampleSentence);
-                return _ExerciseCard(
-                  exercise: _exercise!,
-                  word: word,
-                  definitionLines: definitionLines,
-                  exampleLines: exampleLines,
-                  onListenWord: () => _speechHelper.speak(word),
-                  onListenDefinitionEnglish: () => _speechHelper.speak(
-                    definitionLines.english ?? _exercise!.definition,
+              : Text(
+                  emptyMessage ?? 'No words available for this list yet.',
+                  style: const TextStyle(fontSize: 16),
+                ),
+        ),
+        const SizedBox(height: 12),
+        _buildVocabularyStepCard(
+          step: 3,
+          title: 'Generate and complete the challenge',
+          subtitle: hasWordSelection
+              ? 'Create exercise, finish the quiz, and practice pronunciation.'
+              : 'Select a mission word first to unlock this step.',
+          enabled: hasWordSelection,
+          child: IgnorePointer(
+            ignoring: !hasWordSelection,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FilledButton.icon(
+                  onPressed: _loading || !hasWordSelection
+                      ? null
+                      : _generateExercise,
+                  icon: const Icon(Icons.auto_awesome),
+                  label: const Text('Generate Exercise'),
+                ),
+                _buildVocabMissionCelebrationBanner(),
+                if (!hasWordSelection) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Pick a word in Step 2 to begin.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
-                  onListenDefinitionChinese: () => _speechHelper.speak(
-                    definitionLines.chinese ?? _exercise!.definition,
+                ],
+                const SizedBox(height: 16),
+                if (_loading) const LoadingView(message: 'Creating exercise...'),
+                if (_exercise != null) ...[
+                  Builder(
+                    builder: (context) {
+                      final definitionLines =
+                          _splitBilingualLines(_exercise!.definition);
+                      final exampleLines =
+                          _splitBilingualLines(_exercise!.exampleSentence);
+                      return _ExerciseCard(
+                        exercise: _exercise!,
+                        word: word,
+                        definitionLines: definitionLines,
+                        exampleLines: exampleLines,
+                        imageHintUrl: _vocabHintImageUrl,
+                        imageHintError: _vocabHintError,
+                        imageHintLoading: _vocabHintLoading,
+                        onGenerateImageHint: _generateVocabImageHint,
+                        showDefinitionChinese: _showDefinitionChinese,
+                        showExampleChinese: _showExampleChinese,
+                        onToggleDefinitionChinese: () => setState(
+                          () => _showDefinitionChinese = !_showDefinitionChinese,
+                        ),
+                        onToggleExampleChinese: () => setState(
+                          () => _showExampleChinese = !_showExampleChinese,
+                        ),
+                        onListenWord: () => _speechHelper.speak(word),
+                        onListenDefinitionEnglish: () => _speechHelper.speak(
+                          definitionLines.english ?? _exercise!.definition,
+                        ),
+                        onListenDefinitionChinese: () => _speechHelper.speak(
+                          definitionLines.chinese ?? _exercise!.definition,
+                        ),
+                        onListenExampleEnglish: () => _speechHelper.speak(
+                          exampleLines.english ?? _exercise!.exampleSentence,
+                        ),
+                        onListenExampleChinese: () => _speechHelper.speak(
+                          exampleLines.chinese ?? _exercise!.exampleSentence,
+                        ),
+                      );
+                    },
                   ),
-                  onListenExampleEnglish: () => _speechHelper.speak(
-                    exampleLines.english ?? _exercise!.exampleSentence,
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Quiz:',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  onListenExampleChinese: () => _speechHelper.speak(
-                    exampleLines.chinese ?? _exercise!.exampleSentence,
+                  const SizedBox(height: 8),
+                  Builder(
+                    builder: (context) {
+                      final definitionLines =
+                          _splitBilingualLines(_exercise!.definition);
+                      return Column(
+                        children: _quizPrompts.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final prompt = entry.value;
+                          final selected = _quizSelections[index];
+                          final checked = _quizResults[index] != null;
+                          final feedback = _quizFeedback[index];
+                          return _QuizPromptCard(
+                            index: index,
+                            prompt: prompt,
+                            selectedChoice: selected,
+                            checked: checked,
+                            feedback: feedback,
+                            onChoiceChanged: checked
+                                ? null
+                                : (value) {
+                                    if (value == null) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _quizSelections[index] = value;
+                                    });
+                                  },
+                            onCheck: selected == null || checked
+                                ? null
+                                : () => _checkQuizPrompt(index, definitionLines),
+                          );
+                        }).toList(),
+                      );
+                    },
                   ),
-                );
-              },
+                ],
+                if (_feedback != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _feedback!,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                const Text(
+                  'Pronunciation practice:',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: _pronunciationLoading ? null : _toggleRecording,
+                  icon: Icon(_audioRecorder.isRecording ? Icons.stop : Icons.mic),
+                  label: Text(
+                    _audioRecorder.isRecording ? 'Stop Recording' : 'Record',
+                  ),
+                ),
+                if (_audioRecorder.isRecording) ...[
+                  const SizedBox(height: 6),
+                  const Text('Recording... tap stop when you are done.'),
+                  const SizedBox(height: 8),
+                  AudioLevelIndicator(
+                    levelListenable: _audioRecorder.levelListenable,
+                  ),
+                ],
+                if (_pronunciationLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: LoadingView(message: 'Scoring pronunciation...'),
+                  ),
+                if (_recording != null) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Recorded audio:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  ValueListenableBuilder<List<double>>(
+                    valueListenable: _waveformNotifier,
+                    builder: (context, levels, _) {
+                      if (levels.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: AudioWaveformPreview(levels: levels),
+                      );
+                    },
+                  ),
+                  FilledButton.icon(
+                    onPressed: () => _audioPlayback.playUrl(_recording!.url),
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Play Back'),
+                  ),
+                ],
+                if (_pronunciationTranscript != null) ...[
+                  const SizedBox(height: 8),
+                  Text('You said: $_pronunciationTranscript'),
+                ],
+                if (_pronunciationScore != null) ...[
+                  const SizedBox(height: 4),
+                  Text('Score: $_pronunciationScore / 100'),
+                ],
+                if (_pronunciationFeedback != null) ...[
+                  const SizedBox(height: 4),
+                  Text(_pronunciationFeedback!),
+                ],
+              ],
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Choose the answer:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            _AnswerChoices(
-              exercise: _exercise!,
-              selectedChoice: _selectedChoice,
-              onChanged: (value) => setState(() => _selectedChoice = value),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _selectedChoice == null ? null : _checkAnswer,
-              child: const Text('Check Answer'),
-            ),
-          ],
-          if (_feedback != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              _feedback!,
-              style: const TextStyle(fontSize: 16),
-            ),
-          ],
-          const SizedBox(height: 16),
-          const Text(
-            'Pronunciation practice:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: _pronunciationLoading ? null : _toggleRecording,
-            icon: Icon(_audioRecorder.isRecording ? Icons.stop : Icons.mic),
-            label:
-                Text(_audioRecorder.isRecording ? 'Stop Recording' : 'Record'),
-          ),
-          if (_audioRecorder.isRecording) ...[
-            const SizedBox(height: 6),
-            const Text('Recording... tap stop when you are done.'),
-            const SizedBox(height: 8),
-            AudioLevelIndicator(levelListenable: _audioRecorder.levelListenable),
-          ],
-          if (_pronunciationLoading)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: LoadingView(message: 'Scoring pronunciation...'),
-            ),
-          if (_recording != null) ...[
-            const SizedBox(height: 8),
-            const Text(
-              'Recorded audio:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 6),
-            ValueListenableBuilder<List<double>>(
-              valueListenable: _waveformNotifier,
-              builder: (context, levels, _) {
-                if (levels.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: AudioWaveformPreview(levels: levels),
-                );
-              },
-            ),
-            FilledButton.icon(
-              onPressed: () => _audioPlayback.playUrl(_recording!.url),
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Play Back'),
-            ),
-          ],
-          if (_pronunciationTranscript != null) ...[
-            const SizedBox(height: 8),
-            Text('You said: $_pronunciationTranscript'),
-          ],
-          if (_pronunciationScore != null) ...[
-            const SizedBox(height: 4),
-            Text('Score: $_pronunciationScore / 100'),
-          ],
-          if (_pronunciationFeedback != null) ...[
-            const SizedBox(height: 4),
-            Text(_pronunciationFeedback!),
-          ],
-        ],
+        ),
       ],
     );
   }
@@ -1182,13 +2021,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
           decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
         const SizedBox(height: 8),
-        SwitchListTile(
-          value: _includeImage,
-          onChanged: (value) => setState(() => _includeImage = value),
-          title: const Text('Include illustration'),
-          subtitle: const Text('Uses image generation credits.'),
-        ),
-        const SizedBox(height: 8),
         FilledButton.icon(
           onPressed: _loadingComprehension ? null : _generateComprehension,
           icon: const Icon(Icons.menu_book),
@@ -1207,7 +2039,27 @@ class _PracticeScreenState extends State<PracticeScreen> {
         if (_comprehension != null)
           _ComprehensionCard(
             exercise: _comprehension!,
-            storySpans: _buildStorySpans(_comprehension!.storyText),
+            highlightedRange: _highlightedRange,
+            storyBlockRanges: _buildStoryBlockLineRanges(_comprehension!),
+            showStoryChinese: _showStoryChinese,
+            revealedStoryBlockChinese: _revealedStoryBlockChinese,
+            autoRevealedStoryBlockChinese: _autoRevealedStoryBlockChinese,
+            activeClueBlockIndex: _activeClueBlockIndex,
+            onToggleStoryChinese: () {
+              setState(() {
+                _showStoryChinese = !_showStoryChinese;
+                _autoRevealedStoryBlockChinese = null;
+              });
+            },
+            onToggleStoryBlockChinese: (index) {
+              setState(() {
+                if (_revealedStoryBlockChinese.contains(index)) {
+                  _revealedStoryBlockChinese.remove(index);
+                } else {
+                  _revealedStoryBlockChinese.add(index);
+                }
+              });
+            },
             isSpeaking: _storySpeaking,
             isPaused: _storyPaused,
             rate: _storyRate,
@@ -1220,6 +2072,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 _readMode = value;
                 _storyLineIndex = 0;
                 _highlightedRange = null;
+                _autoRevealedStoryBlockChinese = null;
               });
             },
             onReadLanguageChanged: (value) {
@@ -1228,6 +2081,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 _readLanguage = value;
                 _storyLineIndex = 0;
                 _highlightedRange = null;
+                _autoRevealedStoryBlockChinese = null;
               });
             },
             onListen: _startStoryReadAloud,
@@ -1248,6 +2102,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
             final question = entry.value;
             final selected = _compChoices[index];
             final answered = _compAnswered[index];
+            final feedback = _compFeedback[index];
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
               child: Padding(
@@ -1255,6 +2110,26 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if ((question.questionType ?? '').isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEDE9FE),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Type: ${question.questionType}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF5B21B6),
+                          ),
+                        ),
+                      ),
                     Text(
                       'Q${index + 1}. ${question.question}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -1281,11 +2156,25 @@ class _PracticeScreenState extends State<PracticeScreen> {
                           : () => _checkComprehensionAnswer(index),
                       child: const Text('Check'),
                     ),
-                    if (answered != null) ...[
+                    if (feedback != null) ...[
                       const SizedBox(height: 6),
                       Text(
-                        answered ? 'Correct!' : 'Not quite. Try again!',
+                        feedback,
                         style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                    if (answered == false && question.evidenceBlockIndex != null) ...[
+                      const SizedBox(height: 6),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          setState(
+                            () => _activeClueBlockIndex = question.evidenceBlockIndex,
+                          );
+                        },
+                        icon: const Icon(Icons.lightbulb_outline),
+                        label: Text(
+                          'Show clue block ${question.evidenceBlockIndex! + 1}',
+                        ),
                       ),
                     ],
                   ],
@@ -1361,6 +2250,14 @@ class _ExerciseCard extends StatelessWidget {
   final String word;
   final _BilingualLines definitionLines;
   final _BilingualLines exampleLines;
+  final String? imageHintUrl;
+  final String? imageHintError;
+  final bool imageHintLoading;
+  final VoidCallback onGenerateImageHint;
+  final bool showDefinitionChinese;
+  final bool showExampleChinese;
+  final VoidCallback onToggleDefinitionChinese;
+  final VoidCallback onToggleExampleChinese;
   final VoidCallback onListenWord;
   final VoidCallback onListenDefinitionEnglish;
   final VoidCallback onListenDefinitionChinese;
@@ -1372,12 +2269,49 @@ class _ExerciseCard extends StatelessWidget {
     required this.word,
     required this.definitionLines,
     required this.exampleLines,
+    required this.imageHintUrl,
+    required this.imageHintError,
+    required this.imageHintLoading,
+    required this.onGenerateImageHint,
+    required this.showDefinitionChinese,
+    required this.showExampleChinese,
+    required this.onToggleDefinitionChinese,
+    required this.onToggleExampleChinese,
     required this.onListenWord,
     required this.onListenDefinitionEnglish,
     required this.onListenDefinitionChinese,
     required this.onListenExampleEnglish,
     required this.onListenExampleChinese,
   });
+
+  Widget _buildHintImage() {
+    final imageUrl = imageHintUrl;
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (imageUrl.startsWith('data:image')) {
+      final data = UriData.parse(imageUrl).contentAsBytes();
+      return Image.memory(
+        data,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      );
+    }
+    return Image.network(
+      imageUrl,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            'Vocabulary hint image unavailable.',
+            style: TextStyle(color: Colors.grey),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1429,6 +2363,22 @@ class _ExerciseCard extends StatelessWidget {
               ],
             ),
             if (definitionLines.chinese != null) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onToggleDefinitionChinese,
+                  icon: Icon(
+                    showDefinitionChinese ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  label: Text(
+                    showDefinitionChinese
+                        ? 'Hide Chinese meaning'
+                        : 'Reveal Chinese meaning',
+                  ),
+                ),
+              ),
+            ],
+            if (showDefinitionChinese && definitionLines.chinese != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -1463,6 +2413,22 @@ class _ExerciseCard extends StatelessWidget {
               ],
             ),
             if (exampleLines.chinese != null) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onToggleExampleChinese,
+                  icon: Icon(
+                    showExampleChinese ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  label: Text(
+                    showExampleChinese
+                        ? 'Hide Chinese example'
+                        : 'Reveal Chinese example',
+                  ),
+                ),
+              ),
+            ],
+            if (showExampleChinese && exampleLines.chinese != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -1481,10 +2447,49 @@ class _ExerciseCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
-            Text(
-              'Quiz: ${exercise.quizQuestion}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            const Text(
+              'Tip: Guess in English first, then reveal Chinese.',
+              style: TextStyle(fontSize: 14, color: Colors.black54),
             ),
+            const SizedBox(height: 10),
+            const Text(
+              'Image hint:',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            FilledButton.icon(
+              onPressed: exercise.imageHintEnabled && !imageHintLoading
+                  ? onGenerateImageHint
+                  : null,
+              icon: const Icon(Icons.image),
+              label: Text(
+                imageHintLoading
+                    ? 'Generating image hint...'
+                    : 'Generate Image Hint',
+              ),
+            ),
+            if (!exercise.imageHintEnabled &&
+                exercise.imageHintReason == 'abstract_word') ...[
+              const SizedBox(height: 6),
+              const Text(
+                'Abstract word cannot generate image hint.',
+                style: TextStyle(color: Colors.black54),
+              ),
+            ],
+            if (imageHintError != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                imageHintError!,
+                style: const TextStyle(color: Colors.red),
+              ),
+            ],
+            if (imageHintUrl != null && imageHintUrl!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _buildHintImage(),
+              ),
+            ],
             if (exercise.source != null) ...[
               const SizedBox(height: 6),
               Text(
@@ -1499,39 +2504,102 @@ class _ExerciseCard extends StatelessWidget {
   }
 }
 
-class _AnswerChoices extends StatelessWidget {
-  final VocabExercise exercise;
+class _QuizPromptCard extends StatelessWidget {
+  final int index;
+  final _QuizPrompt prompt;
   final String? selectedChoice;
-  final ValueChanged<String?> onChanged;
+  final bool checked;
+  final String? feedback;
+  final ValueChanged<String?>? onChoiceChanged;
+  final VoidCallback? onCheck;
 
-  const _AnswerChoices({
-    required this.exercise,
+  const _QuizPromptCard({
+    required this.index,
+    required this.prompt,
     required this.selectedChoice,
-    required this.onChanged,
+    required this.checked,
+    required this.feedback,
+    required this.onChoiceChanged,
+    required this.onCheck,
   });
 
   @override
   Widget build(BuildContext context) {
-    final keys = ['A', 'B', 'C'];
-    return Column(
-      children: keys
-          .where((key) => exercise.quizChoices.containsKey(key))
-          .map(
-            (key) => RadioListTile<String>(
-              value: key,
-              groupValue: selectedChoice,
-              onChanged: onChanged,
-              title: Text('${key}. ${exercise.quizChoices[key]}'),
+    final choiceKeys = ['A', 'B', 'C']
+        .where(prompt.choices.containsKey)
+        .toList(growable: false);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Check ${index + 1}: ${prompt.label}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-          )
-          .toList(),
+            const SizedBox(height: 6),
+            Text(prompt.question),
+            const SizedBox(height: 6),
+            ...choiceKeys.map(
+              (key) => RadioListTile<String>(
+                value: key,
+                groupValue: selectedChoice,
+                onChanged: onChoiceChanged,
+                title: Text('$key. ${prompt.choices[key]}'),
+              ),
+            ),
+            const SizedBox(height: 4),
+            FilledButton(
+              onPressed: onCheck,
+              child: Text(checked ? 'Checked' : 'Check'),
+            ),
+            if (feedback != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                feedback!,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
 
+class _QuizPrompt {
+  final String label;
+  final String question;
+  final Map<String, String> choices;
+  final String answer;
+
+  const _QuizPrompt({
+    required this.label,
+    required this.question,
+    required this.choices,
+    required this.answer,
+  });
+}
+
+class _StoryBlockLineRange {
+  final _StoryHighlightRange? english;
+  final _StoryHighlightRange? chinese;
+
+  const _StoryBlockLineRange({this.english, this.chinese});
+}
+
 class _ComprehensionCard extends StatelessWidget {
   final ComprehensionExercise exercise;
-  final List<TextSpan> storySpans;
+  final _StoryHighlightRange? highlightedRange;
+  final List<_StoryBlockLineRange> storyBlockRanges;
+  final bool showStoryChinese;
+  final Set<int> revealedStoryBlockChinese;
+  final int? autoRevealedStoryBlockChinese;
+  final int? activeClueBlockIndex;
+  final VoidCallback onToggleStoryChinese;
+  final ValueChanged<int> onToggleStoryBlockChinese;
   final bool isSpeaking;
   final bool isPaused;
   final double rate;
@@ -1548,7 +2616,14 @@ class _ComprehensionCard extends StatelessWidget {
 
   const _ComprehensionCard({
     required this.exercise,
-    required this.storySpans,
+    required this.highlightedRange,
+    required this.storyBlockRanges,
+    required this.showStoryChinese,
+    required this.revealedStoryBlockChinese,
+    required this.autoRevealedStoryBlockChinese,
+    required this.activeClueBlockIndex,
+    required this.onToggleStoryChinese,
+    required this.onToggleStoryBlockChinese,
     required this.isSpeaking,
     required this.isPaused,
     required this.rate,
@@ -1593,8 +2668,53 @@ class _ComprehensionCard extends StatelessWidget {
     );
   }
 
+  List<TextSpan> _buildHighlightedLineSpans({
+    required String text,
+    required _StoryHighlightRange? lineRange,
+  }) {
+    if (text.isEmpty) {
+      return const [TextSpan(text: '')];
+    }
+    final activeRange = highlightedRange;
+    if (activeRange == null || lineRange == null) {
+      return [TextSpan(text: text)];
+    }
+    final overlapStart = math.max(lineRange.start, activeRange.start);
+    final overlapEnd = math.min(lineRange.end, activeRange.end);
+    if (overlapStart >= overlapEnd) {
+      return [TextSpan(text: text)];
+    }
+
+    final localStart =
+        (overlapStart - lineRange.start).clamp(0, text.length).toInt();
+    final localEnd =
+        (overlapEnd - lineRange.start).clamp(0, text.length).toInt();
+    if (localStart >= localEnd) {
+      return [TextSpan(text: text)];
+    }
+    final spans = <TextSpan>[];
+    if (localStart > 0) {
+      spans.add(TextSpan(text: text.substring(0, localStart)));
+    }
+    spans.add(
+      TextSpan(
+        text: text.substring(localStart, localEnd),
+        style: const TextStyle(
+          backgroundColor: Color(0xFFFFF3B0),
+          color: Color(0xFFD97706),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+    if (localEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(localEnd)));
+    }
+    return spans;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final storyBlocks = exercise.storyBlocks;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1697,14 +2817,127 @@ class _ComprehensionCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            RichText(
-              text: TextSpan(
-                style: DefaultTextStyle.of(context)
-                    .style
-                    .copyWith(fontSize: 18),
-                children: storySpans,
-              ),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Story blocks',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onToggleStoryChinese,
+                  icon: Icon(
+                    showStoryChinese ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  label: Text(
+                    showStoryChinese ? 'Hide all Chinese' : 'Reveal all Chinese',
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 6),
+            ...storyBlocks.asMap().entries.map((entry) {
+              final index = entry.key;
+              final block = entry.value;
+              final showChinese =
+                  showStoryChinese ||
+                  revealedStoryBlockChinese.contains(index) ||
+                  autoRevealedStoryBlockChinese == index;
+              final isClue = activeClueBlockIndex == index;
+              final lineRanges = index < storyBlockRanges.length
+                  ? storyBlockRanges[index]
+                  : const _StoryBlockLineRange();
+              return Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isClue ? const Color(0xFFFFF7ED) : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isClue
+                        ? const Color(0xFFFB923C)
+                        : const Color(0xFFE5E7EB),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Block ${index + 1}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        if (isClue) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFEDD5),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text(
+                              'Clue',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF9A3412),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    RichText(
+                      text: TextSpan(
+                        style: DefaultTextStyle.of(context)
+                            .style
+                            .copyWith(fontSize: 16),
+                        children: _buildHighlightedLineSpans(
+                          text: block.english,
+                          lineRange: lineRanges.english,
+                        ),
+                      ),
+                    ),
+                    if (showChinese && block.chinese.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: RichText(
+                          text: TextSpan(
+                            style: DefaultTextStyle.of(context).style.copyWith(
+                                  fontSize: 16,
+                                  color: const Color(0xFF374151),
+                                ),
+                            children: _buildHighlightedLineSpans(
+                              text: block.chinese,
+                              lineRange: lineRanges.chinese,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (!showStoryChinese && block.chinese.isNotEmpty)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () => onToggleStoryBlockChinese(index),
+                          child: Text(
+                            showChinese ? 'Hide Chinese' : 'Reveal Chinese',
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
             if (exercise.source != null) ...[
               const SizedBox(height: 8),
               Text(

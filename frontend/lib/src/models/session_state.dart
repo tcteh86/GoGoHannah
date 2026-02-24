@@ -51,6 +51,29 @@ class SessionState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void hydrateDailyProgress({
+    required int completedToday,
+    required int currentStreak,
+    bool? goalReached,
+  }) {
+    dailyCompleted = completedToday < 0 ? 0 : completedToday;
+    streakCount = currentStreak < 0 ? 0 : currentStreak;
+    dailyGoalReached = goalReached ?? dailyCompleted >= dailyGoal;
+
+    if (dailyGoalReached) {
+      mascotEmoji = '🏆';
+      mascotMessage = 'Daily goal reached! You earned a badge!';
+    } else if (dailyCompleted > 0) {
+      mascotEmoji = '🦉';
+      mascotMessage = 'Nice progress today! Keep going!';
+    } else {
+      mascotEmoji = '🦉';
+      mascotMessage = "Let's learn something fun today!";
+    }
+
+    notifyListeners();
+  }
+
   void resetDailyProgress() {
     dailyCompleted = 0;
     dailyGoalReached = false;

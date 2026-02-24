@@ -13,7 +13,7 @@ web first, then Android after the web demo is stable.
 ## Milestone scope
 - Practice screen (vocab generation + answer check)
 - Past Results (summary + recent)
-- Test & Check (quick quiz)
+- Quiz tab (recommended-word quiz)
 
 ## Backend dependency
 The app calls the FastAPI backend in `backend/` for exercise generation and

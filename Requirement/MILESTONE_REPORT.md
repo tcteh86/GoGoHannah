@@ -22,7 +22,7 @@ comprehension using GenAI, but must remain child-safe and fun.
 OpenAI is selected for early integration speed and unified coverage:
 - Text generation: `gpt-4o-mini` for definitions, examples, quizzes.
 - Audio transcription: `whisper-1` for pronunciation analysis.
-- Image generation: `dall-e-3` for story illustrations.
+- Image generation: `dall-e-3` for vocabulary hint images.
 - Embeddings (planned) for RAG and personalized recommendations.
 
 Justification:
@@ -34,7 +34,7 @@ Justification:
 Current:
 - FastAPI backend in `backend/` with OpenAI integration.
 - SQLite persistence for progress tracking.
-- Flutter web UI for practice, results, and quick check.
+- Flutter web UI for practice, results, and quiz.
 
 Planned:
 - Flutter web frontend hosted on Firebase.
@@ -58,10 +58,12 @@ Completed:
   - Mascot header with animated reactions.
   - Daily goal tracker with progress bar.
   - Badge unlock for goal completion.
-  - Streak counter (session-based).
+  - Persistent streak counter based on daily goal completion.
 - Phase B (GenAI depth) shipped:
   - Comprehension story mode with level selection.
-  - Optional illustration generation hook.
+  - Chunked bilingual story blocks with English-first reveal flow.
+  - Scaffolded comprehension questions (literal/vocabulary/inference).
+  - Explanation feedback and clue-block highlight for wrong answers.
   - Per-question saving for comprehension practice.
   - Phonics hints added to vocab exercises.
   - Pronunciation recording with immediate playback and scoring.
@@ -76,9 +78,23 @@ Completed:
   - English → Chinese bilingual output.
 - Bilingual story exercise options:
   - English → Chinese bilingual output.
+  - Story-block response schema for EN/ZH paired chunks.
 - Progress insights:
   - Recent practice history endpoint + UI list.
   - Weak-word suggestions highlighted for review.
+  - Daily progress endpoint + UI daily history view.
+- Vocabulary exercise UX enhancements:
+  - Mission-style 3-step learning flow (choose list → pick word → complete quiz).
+  - Visual mission progress tracker with step-state updates.
+  - Chinese reveal controls (English-first learning flow).
+  - Single meaning-match quiz per generated exercise.
+  - Instructional check feedback (correct meaning + wrong-choice explanation).
+  - Definition/example/quiz quality guards to reduce template-based Chinese outputs.
+  - On-demand vocabulary image hint generation with abstract-word disable rule.
+  - Small completion celebration banner after finishing quiz.
+- Quiz tab enhancements:
+  - Recommended-word bilingual quiz generation (EN/中文).
+  - English-first display with optional Chinese reveal toggle.
 - Study time tracking:
   - Daily, total, weekly/monthly summaries shown in results.
 - Read-aloud improvements:
@@ -87,7 +103,7 @@ Completed:
 - Results polish:
   - Compact date ranges for week/month on small screens.
 - Story visuals:
-  - Inline illustration handling (data URIs + network fallback).
+  - Story block clue highlighting for guided re-reading.
 
 In progress:
 - RAG + embeddings enablement and QA (approved plan).
@@ -104,9 +120,11 @@ Done:
 - Bilingual story configuration for English → Chinese practice.
 - Progress save + summary endpoints.
 - Study time tracking endpoints + results summaries.
-- Flutter web UI for practice, results, and quick check.
+- Flutter web UI for practice, results, and quiz.
 - Pronunciation analysis flow (audio + transcription).
-- Comprehension story flow (story + questions + illustration).
+- Comprehension story flow (story + questions).
+- Comprehension UX upgrades (chunked EN/ZH blocks,
+  scaffolded question feedback + evidence clues).
 - Custom vocab manual entry + per-child storage flow.
 - Custom vocab typo correction suggestions.
 - Recent practice history view + weak-word highlighting.
@@ -151,7 +169,7 @@ Next:
   fallback for browsers missing boundary events.
 - Expanded story read-aloud speed range to 0.1x - 1.0x and synced highlight
   timing to reading speed.
-- Improved story illustration delivery by supporting inline data-URI images.
+- Improved story read-aloud and block-level highlighting behaviors.
 - Shortened results date ranges for better mobile readability.
 
 ## 7) Update Log (Jan 30, 2026)

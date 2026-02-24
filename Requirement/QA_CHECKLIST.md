@@ -15,8 +15,9 @@ Use this checklist to validate the live prototype before new feature work.
 - [ ] POST /v1/vocab/exercise (invalid word) returns 400
 - [ ] POST /v1/progress/exercise saves result
 - [ ] GET /v1/progress/summary reflects saved result
-- [ ] POST /v1/comprehension/exercise (include_image=false) returns story + questions
-- [ ] POST /v1/comprehension/exercise (include_image=true) returns image_url or fallback
+- [ ] POST /v1/comprehension/exercise returns story + questions
+- [ ] POST /v1/vocab/image-hint returns image_url for visualizable words
+- [ ] POST /v1/vocab/image-hint returns abstract_word flag for abstract words
 - [ ] POST /v1/pronunciation/score returns numeric score
 - [ ] POST /v1/pronunciation/assess accepts non-empty audio upload
 - [ ] POST /v1/pronunciation/assess with empty audio returns 400
@@ -24,13 +25,35 @@ Use this checklist to validate the live prototype before new feature work.
 ## Frontend Flow Checks
 ### Entry + Navigation
 - [ ] Enter child name and start
-- [ ] Switch between Practice, Results, Quick Check tabs
+- [ ] Switch between Practice, Results, Quiz tabs
 
 ### Vocabulary Practice
+- [ ] Mission UI shows 3 step cards (choose list, pick word, generate/complete)
+- [ ] Mission progress bar/step states update as learner advances
+- [ ] On mobile width, mission step labels are fully readable (no truncation)
+- [ ] Word-list source selector is horizontal carousel (Default/Custom/Weak)
+- [ ] Carousel source selection updates the displayed word pool
+- [ ] Word picker is scrollable chips (tap to select)
 - [ ] Select word and generate exercise
-- [ ] Check answer shows feedback
+- [ ] English definition/example show immediately
+- [ ] Chinese definition/example can be revealed and hidden
+- [ ] Quiz renders one meaning-match question (A/B/C choices)
+- [ ] Quiz feedback shows:
+  - [ ] correct answer
+  - [ ] EN/ZH meaning reference
+  - [ ] wrong-choice explanation
 - [ ] Mascot reaction updates for correct/incorrect
 - [ ] Result saves and appears in Results summary
+- [ ] Completion celebration banner appears after quiz submission
+- [ ] Image hint button behavior:
+  - [ ] enabled for concrete words and can render image
+  - [ ] disabled/grayed out for abstract words with clear message
+
+### Quiz Tab
+- [ ] Generate quiz from recommended words
+- [ ] Quiz questions and choices render bilingual (EN first, Chinese optional)
+- [ ] English / English+中文 toggle updates presentation
+- [ ] Answer feedback shows bilingual text
 
 ### Pronunciation Practice
 - [ ] Record audio and stop recording
@@ -40,8 +63,20 @@ Use this checklist to validate the live prototype before new feature work.
 
 ### Comprehension Mode
 - [ ] Generate story at each level
+- [ ] Story renders as short blocks (not one long paragraph)
+- [ ] English line is visible first for each block
+- [ ] Read-aloud highlight appears directly in story blocks (no duplicate highlight panel)
+- [ ] Chinese read-aloud highlights each character/word in sequence (no skipped jumps)
+- [ ] Chinese reveal works:
+  - [ ] per block
+  - [ ] reveal all / hide all
 - [ ] Answer each question and save results
-- [ ] Optional image generation loads (or handles fallback)
+- [ ] Questions include scaffold mix:
+  - [ ] literal
+  - [ ] vocabulary-in-context
+  - [ ] inference
+- [ ] After checking, feedback shows EN/ZH explanation
+- [ ] Wrong answer can highlight a clue story block
 
 ### Results + Progress
 - [ ] Results refresh shows total exercises + accuracy
@@ -62,5 +97,5 @@ Use this checklist to validate the live prototype before new feature work.
 - [ ] Screenshot: Practice (comprehension)
 - [ ] Screenshot: Pronunciation result
 - [ ] Screenshot: Results summary
-- [ ] Screenshot: Quick Check
+- [ ] Screenshot: Quiz
 - [ ] Notes / issues:

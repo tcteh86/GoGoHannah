@@ -26,6 +26,7 @@ Vocabulary:
 - `POST /v1/vocab/custom/add`
 - `POST /v1/vocab/custom/suggest`
 - `POST /v1/vocab/exercise`
+- `POST /v1/vocab/image-hint`
 
 Comprehension:
 - `POST /v1/comprehension/exercise`
@@ -33,6 +34,7 @@ Comprehension:
 Progress:
 - `POST /v1/progress/exercise`
 - `GET /v1/progress/summary`
+- `GET /v1/progress/daily`
 - `GET /v1/progress/recent`
 - `GET /v1/progress/recommended`
 - `POST /v1/progress/time`
@@ -66,6 +68,22 @@ Debug:
 
 - `learning_direction` controls the target language.
 - `output_style` is currently set to bilingual output in the UI.
+
+### Comprehension response highlights
+`POST /v1/comprehension/exercise` now returns richer story guidance fields:
+- `story_blocks`: list of `{english, chinese}` chunked lines for early readers.
+- `key_vocabulary`: list of `{word, meaning_en, meaning_zh}` support metadata.
+- `questions[*].question_type`: `literal | vocabulary | inference`.
+- `questions[*].explanation_en` / `questions[*].explanation_zh`: short feedback rationale.
+- `questions[*].evidence_block_index`: clue link to a supporting story block.
+- Story image generation is currently disabled in this branch; `image_url` is `null`.
+
+### Vocabulary image hint endpoint
+`POST /v1/vocab/image-hint` supports image hints for concrete words.
+
+Response behavior:
+- `image_hint_enabled=true` + `image_url` when image can be generated.
+- `image_hint_enabled=false` + `image_hint_reason=abstract_word` for abstract words.
 
 ## Deploy (Render)
 1) Create a new Web Service connected to the repo.

@@ -15,8 +15,21 @@ class VocabExerciseResponse(BaseModel):
     quiz_question: str
     quiz_choices: Dict[str, str]
     quiz_answer: str
+    image_hint_enabled: bool = False
+    image_hint_reason: Optional[str] = None
     phonics: Optional[str] = None
     source: Optional[str] = None
+
+
+class VocabImageHintRequest(BaseModel):
+    word: str = Field(..., min_length=1, max_length=32)
+    definition: Optional[str] = Field(None, max_length=400)
+
+
+class VocabImageHintResponse(BaseModel):
+    image_hint_enabled: bool
+    image_hint_reason: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class CustomVocabResponse(BaseModel):
@@ -44,15 +57,29 @@ class CustomVocabSuggestResponse(BaseModel):
 class ComprehensionExerciseRequest(BaseModel):
     level: str = Field("intermediate", min_length=3, max_length=16)
     theme: Optional[str] = Field(None, max_length=64)
-    include_image: bool = False
     learning_direction: Optional[Literal["en_to_zh", "zh_to_en", "both"]] = None
     output_style: Optional[Literal["immersion", "bilingual"]] = None
+
+
+class ComprehensionStoryBlock(BaseModel):
+    english: str
+    chinese: str
+
+
+class ComprehensionKeyVocabularyItem(BaseModel):
+    word: str
+    meaning_en: str
+    meaning_zh: str
 
 
 class ComprehensionQuestion(BaseModel):
     question: str
     choices: Dict[str, str]
     answer: str
+    question_type: Optional[Literal["literal", "vocabulary", "inference"]] = None
+    explanation_en: Optional[str] = None
+    explanation_zh: Optional[str] = None
+    evidence_block_index: Optional[int] = None
 
 
 class ComprehensionExerciseResponse(BaseModel):
@@ -61,6 +88,8 @@ class ComprehensionExerciseResponse(BaseModel):
     image_description: str
     image_url: Optional[str] = None
     questions: list[ComprehensionQuestion]
+    story_blocks: list[ComprehensionStoryBlock] = Field(default_factory=list)
+    key_vocabulary: list[ComprehensionKeyVocabularyItem] = Field(default_factory=list)
     source: Optional[str] = None
 
 
@@ -74,6 +103,22 @@ class RecentExercise(BaseModel):
 
 class RecentExercisesResponse(BaseModel):
     exercises: list[RecentExercise]
+
+
+class DailyProgressEntry(BaseModel):
+    date: str
+    completed: int
+    goal: int
+    goal_reached: bool
+
+
+class DailyProgressResponse(BaseModel):
+    daily_goal: int
+    today_completed: int
+    today_goal_reached: bool
+    current_streak: int
+    best_streak: int
+    history: list[DailyProgressEntry]
 
 
 class StudyTimeAddRequest(BaseModel):

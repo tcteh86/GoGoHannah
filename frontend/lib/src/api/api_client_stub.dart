@@ -3,11 +3,13 @@ import 'dart:typed_data';
 import '../models/progress_summary.dart';
 import '../models/save_exercise.dart';
 import '../models/vocab_exercise.dart';
+import '../models/vocab_image_hint.dart';
 import '../models/comprehension_exercise.dart';
 import '../models/pronunciation_assessment.dart';
 import '../models/rag_debug_result.dart';
 import '../models/recent_exercise.dart';
 import '../models/study_time_summary.dart';
+import '../models/daily_progress.dart';
 import 'api_client.dart';
 
 ApiClient getApiClient(String baseUrl) => _UnsupportedApiClient();
@@ -33,10 +35,16 @@ class _UnsupportedApiClient implements ApiClient {
       _unsupported();
 
   @override
+  Future<VocabImageHint> generateVocabImageHint({
+    required String word,
+    required String definition,
+  }) async =>
+      _unsupported();
+
+  @override
   Future<ComprehensionExercise> generateComprehensionExercise({
     required String level,
     String? theme,
-    bool includeImage = false,
     String? learningDirection,
     String? outputStyle,
   }) async =>
@@ -84,6 +92,14 @@ class _UnsupportedApiClient implements ApiClient {
     String childName,
     int limit,
   ) async =>
+      _unsupported();
+
+  @override
+  Future<DailyProgressSummary> fetchDailyProgress({
+    required String childName,
+    int days = 30,
+    int dailyGoal = 3,
+  }) async =>
       _unsupported();
 
   @override
