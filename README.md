@@ -16,6 +16,7 @@ the learning experience engaging while showcasing GenAI techniques.
 - Bilingual vocab + story practice (English ↔ Chinese) with bilingual output
 - Story UX for early readers: chunked EN-first blocks, optional Chinese reveal, and clue-based question feedback
 - Vocabulary image hint button with abstract-word detection (disabled when non-visualizable)
+- Child-friendly vocabulary selectors: horizontal source carousel + tap word chips
 - Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
 - Progress tracking with personalized recommendations, weak-word insights, and recent practice history
 - Study time tracking (daily, weekly/monthly, and total summaries)

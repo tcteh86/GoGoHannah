@@ -1393,6 +1393,148 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
+  String _vocabSourceLabel(VocabListSource source) {
+    switch (source) {
+      case VocabListSource.defaultList:
+        return 'Default';
+      case VocabListSource.customList:
+        return 'Custom';
+      case VocabListSource.weakList:
+        return 'Weak Words';
+    }
+  }
+
+  IconData _vocabSourceIcon(VocabListSource source) {
+    switch (source) {
+      case VocabListSource.defaultList:
+        return Icons.auto_stories;
+      case VocabListSource.customList:
+        return Icons.edit_note;
+      case VocabListSource.weakList:
+        return Icons.refresh;
+    }
+  }
+
+  Widget _buildVocabSourceCarousel() {
+    const sources = [
+      VocabListSource.defaultList,
+      VocabListSource.customList,
+      VocabListSource.weakList,
+    ];
+    return SizedBox(
+      height: 58,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: sources.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final source = sources[index];
+          final selected = source == _vocabSource;
+          return InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: selected
+                ? null
+                : () {
+                    setState(() => _vocabSource = source);
+                    _refreshWordList();
+                  },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFFEDE9FE)
+                    : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: selected
+                      ? const Color(0xFF7C3AED)
+                      : const Color(0xFFE5E7EB),
+                  width: selected ? 2 : 1,
+                ),
+                boxShadow: selected
+                    ? [
+                        const BoxShadow(
+                          color: Color(0x1A7C3AED),
+                          blurRadius: 8,
+                          offset: Offset(0, 3),
+                        ),
+                      ]
+                    : const [],
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _vocabSourceIcon(source),
+                    size: 18,
+                    color: selected
+                        ? const Color(0xFF6D28D9)
+                        : const Color(0xFF475569),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _vocabSourceLabel(source),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: selected
+                          ? const Color(0xFF5B21B6)
+                          : const Color(0xFF334155),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildWordChipCarousel(List<String> words) {
+    return SizedBox(
+      height: 52,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: words.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final candidate = words[index];
+          final selected = candidate == _selectedWord;
+          return ChoiceChip(
+            selected: selected,
+            label: Text(candidate),
+            avatar: selected
+                ? const Icon(Icons.check_circle, size: 16, color: Color(0xFF5B21B6))
+                : null,
+            selectedColor: const Color(0xFFEDE9FE),
+            backgroundColor: const Color(0xFFF8FAFC),
+            side: BorderSide(
+              color: selected
+                  ? const Color(0xFF7C3AED)
+                  : const Color(0xFFE2E8F0),
+              width: selected ? 2 : 1,
+            ),
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: selected
+                  ? const Color(0xFF5B21B6)
+                  : const Color(0xFF334155),
+            ),
+            onSelected: (_) {
+              if (selected) {
+                return;
+              }
+              setState(() {
+                _selectedWord = candidate;
+                _resetPracticeState();
+              });
+            },
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildVocabularySection(List<String> words) {
     String? emptyMessage;
     if (words.isEmpty) {
@@ -1422,32 +1564,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<VocabListSource>(
-          value: _vocabSource,
-          items: const [
-            DropdownMenuItem(
-              value: VocabListSource.defaultList,
-              child: Text('Default'),
-            ),
-            DropdownMenuItem(
-              value: VocabListSource.customList,
-              child: Text('Custom'),
-            ),
-            DropdownMenuItem(
-              value: VocabListSource.weakList,
-              child: Text('Weak words'),
-            ),
-          ],
-          onChanged: (value) {
-            if (value == null) {
-              return;
-            }
-            setState(() {
-              _vocabSource = value;
-            });
-            _refreshWordList();
-          },
-          decoration: const InputDecoration(border: OutlineInputBorder()),
+        _buildVocabSourceCarousel(),
+        const SizedBox(height: 4),
+        const Text(
+          'Swipe left or right to choose.',
+          style: TextStyle(fontSize: 12, color: Colors.black54),
         ),
         if (_vocabSource == VocabListSource.customList) ...[
           const SizedBox(height: 12),
@@ -1510,21 +1631,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: _selectedWord,
-            items: words
-                .map(
-                  (word) => DropdownMenuItem(
-                    value: word,
-                    child: Text(word),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) => setState(() {
-              _selectedWord = value;
-              _resetPracticeState();
-            }),
-            decoration: const InputDecoration(border: OutlineInputBorder()),
+          _buildWordChipCarousel(words),
+          const SizedBox(height: 4),
+          const Text(
+            'Tap a word chip to select.',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
           const SizedBox(height: 12),
           FilledButton.icon(

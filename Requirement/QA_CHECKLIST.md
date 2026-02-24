@@ -28,6 +28,9 @@ Use this checklist to validate the live prototype before new feature work.
 - [ ] Switch between Practice, Results, Quick Check tabs
 
 ### Vocabulary Practice
+- [ ] Word-list source selector is horizontal carousel (Default/Custom/Weak)
+- [ ] Carousel source selection updates the displayed word pool
+- [ ] Word picker is scrollable chips (tap to select)
 - [ ] Select word and generate exercise
 - [ ] English definition/example show immediately
 - [ ] Chinese definition/example can be revealed and hidden

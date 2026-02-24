@@ -91,7 +91,8 @@ Porting notes:
 
 ### 3.3 Vocabulary practice (definition + example + quiz)
 Flow:
-1) User selects a word from the vocabulary list.
+1) User chooses a word source using horizontal carousel buttons
+   (Default/Custom/Weak) and selects a word from horizontal scrollable chips.
 2) On "Generate Exercise", the app requests a vocab exercise from the backend.
 3) If LLM fails, fall back to `simple_exercise`.
 4) Display learning content:
@@ -122,6 +123,7 @@ LLM output requirements:
 Porting notes:
 - The fallback behavior is required so the app still runs without the LLM.
 - Keep the same scoring and data persistence format.
+- Keep child-friendly source/word selectors (carousel + chips) rather than dropdowns.
 - Preserve progressive reveal for Chinese content to encourage active recall.
 - Keep bidirectional EN/ZH checks in the same exercise flow for bilingual reinforcement.
 - Enforce definition quality rules: avoid generic placeholder definitions and repair

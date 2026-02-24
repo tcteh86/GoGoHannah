@@ -68,7 +68,8 @@ issues so a new agent can continue work if the session ends.
   - Disabled button and message for abstract words (no image generation).
 - Custom vocab:
   - Manual word entry (comma/newline separated).
-  - Word list selector (Default/Custom/Weak words).
+  - Horizontal carousel list selector (Default/Custom/Weak words).
+  - Scrollable word chips for tap-to-select vocabulary.
   - Typo suggestions with confirm/accept flow for corrections.
 - Optional vocab generation parameters to request bilingual exercises.
 
