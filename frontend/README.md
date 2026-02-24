@@ -11,9 +11,10 @@ web first, then Android after the web demo is stable.
    - `flutter run -d chrome --dart-define API_BASE_URL=http://localhost:8000`
 
 ## Milestone scope
-- Practice screen (vocab generation + answer check)
+- Practice screen (vocab generation + answer check, English-first bilingual reveal cards)
+- Quiz tab (recommended-word quiz, bilingual ON by default with toggle)
 - Past Results (summary + recent)
-- Quiz tab (recommended-word quiz)
+- Navigation flow: Practice → Quiz → Results
 
 ## Backend dependency
 The app calls the FastAPI backend in `backend/` for exercise generation and

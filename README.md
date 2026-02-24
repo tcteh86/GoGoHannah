@@ -18,7 +18,8 @@ the learning experience engaging while showcasing GenAI techniques.
 - Vocabulary image hint button with abstract-word detection (disabled when non-visualizable)
 - Child-friendly vocabulary selectors: horizontal source carousel + tap word chips
 - Mission-style vocabulary flow: 3 step cards, progress tracker, and mini celebration on completion
-- Quiz tab for recommended words with bilingual EN/中文 presentation toggle
+- Bottom navigation learning flow: Practice → Quiz → Results
+- Quiz tab for recommended words with bilingual EN/中文 presentation (defaults to EN+中文, toggle available)
 - Pronunciation practice with auto-play TTS, audio recording, transcription, and scoring
 - Progress tracking with personalized recommendations, weak-word insights, and recent practice history
 - Study time tracking (daily, weekly/monthly, and total summaries)

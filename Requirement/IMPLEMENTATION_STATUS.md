@@ -41,15 +41,16 @@ issues so a new agent can continue work if the session ends.
     - Mission-style 3-step cards (choose list, pick word, generate/complete).
     - Live mission progress tracker across the 3 steps.
     - Responsive mobile mission chips (wrap layout + multi-line labels).
-    - Progressive reveal for Chinese meaning/example lines.
+    - Progressive reveal for Chinese meaning/example lines in dedicated Definition/Example bilingual cards.
     - Single meaning-match quiz per generated exercise.
+    - Quiz prompt label updated from "Check {n}" to "Type {n}" in vocab mission checks.
     - Instructional feedback with correct meaning and wrong-choice explanation.
     - Mini completion celebration banner after finishing quiz.
 - Results screen with summary + weak words list + recent practice.
 - Results screen with study time summaries (daily, total, weekly/monthly).
 - Results screen with persistent streak metrics (current/best) and daily history list.
 - Quiz screen with recommended-word bilingual quiz (uses vocab exercise API path, LLM + fallback).
-  - English-first question/choice display with optional Chinese toggle.
+  - English-first question/choice display with Chinese shown by default (toggle still available).
   - Bilingual answer feedback and correct-answer explanation.
 - Engagement loop:
   - Mascot header with animated reactions.
@@ -77,6 +78,7 @@ issues so a new agent can continue work if the session ends.
   - Scrollable word chips for tap-to-select vocabulary.
   - Typo suggestions with confirm/accept flow for corrections.
 - Optional vocab generation parameters to request bilingual exercises.
+- App tab order aligned to learning loop: Practice → Quiz → Results.
 
 ## 3) QA Artifacts
 - QA checklist: Requirement/QA_CHECKLIST.md
