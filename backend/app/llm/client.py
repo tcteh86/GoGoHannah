@@ -585,6 +585,8 @@ def transcribe_audio(audio_bytes: bytes, filename: str | None = None) -> str:
             model=TRANSCRIBE_MODEL,
             file=audio_file,
             response_format="text",
+            language="en",
+            prompt="Transcribe the spoken words exactly in English. Do not translate.",
         )
         return transcript.strip()
     except Exception as exc:
